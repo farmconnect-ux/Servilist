@@ -127,6 +127,8 @@ export interface EscrowOrder {
   listingId?: string;
   requestId?: string;
   quoteId?: string;
+  buyerId?: string;
+  sellerId?: string;
   orderCode: string;
   title: string;
   buyerName: string;
