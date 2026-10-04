@@ -2,8 +2,9 @@
 .env
 Pass.docx
 
-# Dependencies
+# Dependencies and build outputs
 node_modules/
+dist/
 
 # Test output and artifacts
 test-results/

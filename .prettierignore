@@ -1,0 +1,9 @@
+node_modules/
+dist/
+public/
+test-results/
+playwright-report/
+.playwright/
+package-lock.json
+Pass.docx
+.env
