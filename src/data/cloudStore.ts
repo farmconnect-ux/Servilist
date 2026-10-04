@@ -6,7 +6,7 @@ import type { Bid, BuyerRequest, EscrowOrder, Listing, Quote, UserProfile } from
 const PROFILE_COLUMNS =
   'id, display_name, avatar_url, rating, reviews_count, is_verified, city, country';
 
-const LISTING_SELECT = `*, seller:profiles!seller_id(${PROFILE_COLUMNS}), bids(id, amount_minor, currency, created_at, bidder:profiles!bidder_id(display_name))`;
+const LISTING_SELECT = `*, seller:profiles!seller_id(${PROFILE_COLUMNS}), bids(id, bidder_id, amount_minor, currency, created_at, bidder:profiles!bidder_id(display_name))`;
 
 const REQUEST_SELECT = `*, buyer:profiles!buyer_id(${PROFILE_COLUMNS}), quotes(id, request_id, provider_id, currency, amount_minor, timeline, message, status, created_at, provider:profiles!provider_id(display_name, rating))`;
 
@@ -66,6 +66,7 @@ export function mapListing(row: any): Listing {
     .map((b: any) => ({
       id: b.id,
       listingId: row.id,
+      bidderId: b.bidder_id,
       bidderName: first<any>(b.bidder)?.display_name || 'Bidder',
       amountMinor: Number(b.amount_minor),
       currency: b.currency,
@@ -104,7 +105,7 @@ export function mapRequest(row: any): BuyerRequest {
     .map((q: any) => {
       const provider = first<any>(q.provider);
       const providerName = provider?.display_name || 'Provider';
-      const quote: Quote & { providerId?: string } = {
+      const quote: Quote = {
         id: q.id,
         requestId: q.request_id,
         providerName,

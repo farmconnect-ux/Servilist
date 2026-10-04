@@ -65,17 +65,17 @@
           <span class="member-nav-icon" aria-hidden="true">▤</span>
           <span>My listings</span>
         </button>
-        <button type="button" class="member-nav-item" data-nav-action="purchases">
-          <span class="member-nav-icon" aria-hidden="true">⇄</span>
-          <span>Purchases &amp; escrow</span>
+        <button type="button" class="member-nav-item" data-nav-action="bids">
+          <span class="member-nav-icon" aria-hidden="true">⇡</span>
+          <span>My bids &amp; offers</span>
         </button>
-        <button type="button" class="member-nav-item" data-nav-action="sales">
+        <button type="button" class="member-nav-item" data-nav-action="requests">
+          <span class="member-nav-icon" aria-hidden="true">≋</span>
+          <span>My requests &amp; quotes</span>
+        </button>
+        <button type="button" class="member-nav-item" data-nav-action="orders">
           <span class="member-nav-icon" aria-hidden="true">◇</span>
-          <span>Sales &amp; payouts</span>
-        </button>
-        <button type="button" class="member-nav-item" data-nav-action="messages">
-          <span class="member-nav-icon" aria-hidden="true">✉</span>
-          <span>Messages</span>
+          <span>Escrow &amp; handovers</span>
         </button>
         <hr class="member-nav-divider" />
         <button type="button" class="member-nav-item" data-nav-action="account">
@@ -374,6 +374,24 @@
     </header>
 
     <!-- MAIN APP CONTENT AREA -->
+    <!-- VISITOR LANDING (shown only to signed-out visitors on the live site) -->
+    <section class="guest-hero" id="guestHero" aria-label="Welcome to Servilist">
+      <div class="guest-hero-inner">
+        <h1 class="guest-hero-title">Buy, sell and request anything across Africa</h1>
+        <p class="guest-hero-copy">
+          Community classifieds, live auctions and buyer requests, priced in your own currency.
+        </p>
+        <div class="guest-hero-actions">
+          <button type="button" class="btn-primary" id="guestHeroBrowseBtn">
+            Browse the marketplace
+          </button>
+          <button type="button" class="btn-secondary" id="guestHeroJoinBtn">
+            Create a free account
+          </button>
+        </div>
+      </div>
+    </section>
+
     <main class="main-layout container">
       <!-- SIDEBAR FILTERS (Craigslist category directory + eBay facet filters) -->
       <aside class="sidebar-filters" id="sidebarFilters">

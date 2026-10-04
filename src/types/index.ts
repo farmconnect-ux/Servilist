@@ -47,6 +47,7 @@ export interface UserProfile {
 export interface Bid {
   id: string;
   listingId: string;
+  bidderId?: string;
   bidderName: string;
   bidderAvatar?: string;
   amountMinor: number;
@@ -88,6 +89,7 @@ export type RequestRateType = 'flat' | 'hourly';
 export interface Quote {
   id: string;
   requestId: string;
+  providerId?: string;
   providerName: string;
   providerAvatar: string;
   providerRating: number;

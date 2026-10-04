@@ -9,6 +9,13 @@ import { createEscrowOrder, transitionEscrow } from './escrow';
 import { AccessibleDialog } from './ui/dialog';
 import { BottomNav } from './ui/bottomNav';
 import { initMemberNav } from './ui/memberNav';
+import {
+  ActivityData,
+  ActivityTab,
+  activityCounts,
+  buildActivityView,
+  renderActivityDrawer,
+} from './ui/activityDrawer';
 import { setupMobileSheetEnhancements } from './ui/bottomSheet';
 import { ICONS } from './ui/icons';
 import { DashboardManager } from './dashboards';
@@ -41,7 +48,7 @@ export class ServilistApp {
   public currentListingDetail: Listing | null = null;
   public currentRequestDetail: BuyerRequest | null = null;
   public activeDashboardTab: string = 'overview';
-  public activeDrawerTab: string = 'watchlist';
+  public activeDrawerTab: ActivityTab = 'orders';
   public watchlistIds: Set<string> = new Set();
   public myBidIds: Map<string, number> = new Map(); // listingId -> highestBidMinor
 
@@ -98,16 +105,17 @@ export class ServilistApp {
       this.escrowOrders = this.storage.getEscrowOrders();
     }
 
+    this.loadWatchlist();
     this.populateLocationSelects();
     this.initDashboardManager();
     this.initDialogs();
     this.initBottomNav();
     initMemberNav({
-      saved: () => this.openBuyerDashboard('wishlist'),
-      listings: () => this.openSellerDashboard('inventory'),
-      purchases: () => this.openBuyerDashboard('orders'),
-      sales: () => this.openSellerDashboard('finance'),
-      messages: () => this.openBuyerDashboard('communication'),
+      saved: () => this.openDrawer('watchlist'),
+      listings: () => this.openDrawer('my_listings'),
+      bids: () => this.openDrawer('my_bids'),
+      requests: () => this.openDrawer('my_requests'),
+      orders: () => this.openDrawer('orders'),
       account: () => document.getElementById('userProfilePill')?.click(),
     });
     this.bindEvents();
@@ -397,6 +405,35 @@ export class ServilistApp {
     document.getElementById('pillConverterBtn')?.addEventListener('click', () => {
       this.openConverterModal();
     });
+
+    // Member activity drawer
+    document
+      .getElementById('viewWatchlistBtn')
+      ?.addEventListener('click', () => this.openDrawer('watchlist'));
+    document
+      .getElementById('viewMyBidsBtn')
+      ?.addEventListener('click', () => this.openDrawer('my_bids'));
+    document
+      .getElementById('viewMyRequestsBtn')
+      ?.addEventListener('click', () => this.openDrawer('my_requests'));
+    document.getElementById('footerWatchlistLink')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.openDrawer('watchlist');
+    });
+    document.getElementById('detailWatchlistBtn')?.addEventListener('click', () => {
+      if (this.currentListingDetail) this.toggleWatchlist(this.currentListingDetail.id);
+    });
+
+    // Visitor landing actions
+    document.getElementById('guestHeroJoinBtn')?.addEventListener('click', () => {
+      this.openAuthModal();
+      document.getElementById('authTabRegister')?.click();
+    });
+    document
+      .getElementById('guestHeroBrowseBtn')
+      ?.addEventListener('click', () =>
+        document.getElementById('listingsContainer')?.scrollIntoView({ behavior: 'smooth' })
+      );
 
     // Separate Non-Unified Dashboards CTAs
     document.getElementById('openBuyerDashBtn')?.addEventListener('click', () => {
@@ -846,6 +883,7 @@ export class ServilistApp {
 
     this.renderDetailActionBox(item);
     this.renderBidHistory(item);
+    this.syncWatchlistButton(item.id);
 
     AppRouter.setListingUrl(item.id);
     this.dialogs['detailModalOverlay']?.open();
@@ -1140,6 +1178,7 @@ export class ServilistApp {
     const newBid = {
       id: `bid-${Date.now()}`,
       listingId: item.id,
+      bidderId: currentUser.id,
       bidderName: currentUser.name,
       amountMinor,
       currency: item.currency,
@@ -1184,7 +1223,7 @@ export class ServilistApp {
       timeline,
       message,
     });
-    (newQuote as any).providerId = currentUser.id;
+    newQuote.providerId = currentUser.id;
 
     if (!req.offers) req.offers = [];
     req.offers.unshift(newQuote);
@@ -1447,6 +1486,11 @@ export class ServilistApp {
   }
 
   public openBuyerDashboard(subTab: BuyerSubTab = 'orders') {
+    // The hubs run on sample figures; live members get their real activity instead
+    if (this.cloud) {
+      this.openDrawer(subTab === 'wishlist' ? 'watchlist' : 'orders');
+      return;
+    }
     const body = document.getElementById('buyerDashboardBody');
     if (body) {
       this.dashboardManager.setBuyerSubTab(subTab);
@@ -1460,6 +1504,10 @@ export class ServilistApp {
   }
 
   public openSellerDashboard(subTab: SellerSubTab = 'analytics') {
+    if (this.cloud) {
+      this.openDrawer('my_listings');
+      return;
+    }
     const body = document.getElementById('sellerDashboardBody');
     if (body) {
       this.dashboardManager.setSellerSubTab(subTab);
@@ -1469,6 +1517,7 @@ export class ServilistApp {
   }
 
   public openAdminDashboard(subTab: AdminSubTab = 'analytics') {
+    if (this.cloud) return;
     const body = document.getElementById('adminDashboardBody');
     if (body) {
       this.dashboardManager.setAdminSubTab(subTab);
@@ -1523,6 +1572,7 @@ export class ServilistApp {
         this.storage.saveEscrowOrders(this.escrowOrders);
         this.showToast('🎉 Escrow payout released!', 'success');
         this.updateDashboardMetrics();
+        this.updateActivityBadges();
         const buyerBody = document.getElementById('buyerDashboardBody');
         if (buyerBody) {
           this.dashboardManager.renderBuyerDashboard(
@@ -1617,9 +1667,87 @@ export class ServilistApp {
     }
   }
 
-  public openDrawer(tab: string = 'watchlist') {
+  public openDrawer(tab: ActivityTab = 'orders') {
+    if (this.cloud && !this.cloud.requireUser('see your activity')) return;
     this.activeDrawerTab = tab;
+    this.renderDrawer();
     this.dialogs['drawerModalOverlay']?.open();
+  }
+
+  private activityData(): ActivityData {
+    return {
+      userId: this.authService.getCurrentUser().id,
+      listings: this.listings,
+      requests: this.requests,
+      escrowOrders: this.escrowOrders,
+      watchlistIds: this.watchlistIds,
+    };
+  }
+
+  public renderDrawer() {
+    const panel = document.getElementById('drawerPanel');
+    if (!panel) return;
+    renderActivityDrawer(panel, this.activeDrawerTab, this.activityData(), {
+      onOpenListing: (id) => {
+        this.closeModal('drawerModalOverlay');
+        this.openDetailModal(id);
+      },
+      onOpenRequest: (id) => {
+        this.closeModal('drawerModalOverlay');
+        this.openRequestDetailModal(id);
+      },
+      onConfirmHandover: (orderId, code) => this.verifyAndReleaseEscrow(orderId, code),
+      onSelectTab: (tab) => {
+        this.activeDrawerTab = tab;
+        this.renderDrawer();
+      },
+    });
+  }
+
+  private updateActivityBadges() {
+    const counts = activityCounts(buildActivityView(this.activityData()));
+    const set = (id: string, n: number) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = String(n);
+    };
+    set('watchlistCountBadge', counts.watchlist);
+    set('myBidsCountBadge', counts.my_bids);
+    set('myRequestsCountBadge', counts.my_requests);
+    if (this.isModalOpen('drawerModalOverlay')) this.renderDrawer();
+  }
+
+  private static readonly WATCHLIST_KEY = 'servilist_watchlist';
+
+  private loadWatchlist() {
+    try {
+      const raw = localStorage.getItem(ServilistApp.WATCHLIST_KEY);
+      this.watchlistIds = new Set(raw ? (JSON.parse(raw) as string[]) : []);
+    } catch {
+      this.watchlistIds = new Set();
+    }
+  }
+
+  public toggleWatchlist(listingId: string) {
+    const saved = !this.watchlistIds.has(listingId);
+    if (saved) this.watchlistIds.add(listingId);
+    else this.watchlistIds.delete(listingId);
+    try {
+      localStorage.setItem(ServilistApp.WATCHLIST_KEY, JSON.stringify([...this.watchlistIds]));
+    } catch {
+      // Storage unavailable; the list still works for this visit
+    }
+    this.syncWatchlistButton(listingId);
+    this.updateActivityBadges();
+    this.showToast(saved ? 'Saved to your watchlist' : 'Removed from your watchlist', 'info');
+  }
+
+  private syncWatchlistButton(listingId: string) {
+    const label = document.querySelector('#detailWatchlistBtn .btn-text');
+    if (label) {
+      label.textContent = this.watchlistIds.has(listingId)
+        ? 'Remove from Watchlist'
+        : 'Add to Watchlist';
+    }
   }
 
   private renderCategoryCounts() {
@@ -1654,6 +1782,7 @@ export class ServilistApp {
       const buyerReqs = this.requests.length;
       activeStats.innerHTML = `<strong>${activeListings}</strong> Active Listings &bull; <strong>${liveAuctions}</strong> Live Auctions &bull; <strong>${buyerReqs}</strong> Buyer Requests`;
     }
+    this.updateActivityBadges();
   }
 
   private updateDashboardMetrics() {
@@ -1959,6 +2088,7 @@ export class ServilistApp {
       modalDetails.textContent = `📍 ${user.city || 'Africa Hub'} • ${user.verified ? 'Verified Merchant' : 'Community Trader'} (${user.rating} ★)`;
     }
     if (modalRole) modalRole.textContent = `Role: ${user.role.toUpperCase()}`;
+    this.updateActivityBadges();
   }
 
   public escapeHtml(str: string): string {

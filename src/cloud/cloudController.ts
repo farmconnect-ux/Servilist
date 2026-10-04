@@ -57,8 +57,17 @@ export class CloudController {
   }
 
   private hideDemoOnlyControls() {
-    // Test identities, SMS sign-in (no SMS provider yet) and the sample-data admin hub
-    ['authTabSwitch', 'authPanelSwitch', 'authTabPhone', 'openAdminDashBtn'].forEach((id) => {
+    // Test identities, SMS sign-in (no SMS provider yet) and the sample-data hubs
+    [
+      'authTabSwitch',
+      'authPanelSwitch',
+      'authTabPhone',
+      'openAdminDashBtn',
+      'openBuyerDashBtn',
+      'openSellerDashBtn',
+      'openDashboardsBtn',
+      'topDashboardsBtn',
+    ].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -75,6 +84,8 @@ export class CloudController {
 
   private async applySession(user: { id: string; email?: string } | null): Promise<void> {
     this.userId = user?.id ?? null;
+    // Visitors get the public marketplace; member navigation appears after sign-in
+    document.body.classList.toggle('is-guest', !user);
     const profile = user ? await this.store.fetchProfile(user.id, user.email) : null;
     this.host.authService.setCurrentUser(profile ?? GUEST_USER);
 
@@ -121,7 +132,7 @@ export class CloudController {
   }
 
   /** Returns the signed-in member's id, or prompts for sign-in and returns null. */
-  private requireUser(action: string): string | null {
+  requireUser(action: string): string | null {
     if (this.userId) return this.userId;
     this.host.showToast(`Sign in to ${action}`, 'info');
     this.host.openAuthModal();
