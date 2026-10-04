@@ -405,3 +405,8 @@ CREATE POLICY "Authenticated users upload listing images" ON storage.objects
         bucket_id = 'listing-images'
         AND (storage.foldername(name))[1] = auth.uid()::text
     );
+
+-- ---------------------------------------------------------------------------
+-- 7. Pin the search path of the shared timestamp trigger
+-- ---------------------------------------------------------------------------
+ALTER FUNCTION public.handle_updated_at() SET search_path = '';
