@@ -318,6 +318,45 @@ const SEED_LISTINGS = [
     },
     // SEED REQUESTS: GOODS WANTED (BUYER ISO) & SERVICES NEEDED (GIGS WANTED)
     {
+        id: "req-200",
+        title: "Wanted: Sony Alpha A7 IV Camera Body or FE 24-70mm f/2.8 GM Lens",
+        category: "electronics",
+        format: "request_good",
+        isRequest: true,
+        requestType: "good",
+        budget: 1800,
+        currentPrice: 1800,
+        startingPrice: 1800,
+        urgency: "Within 2-3 Days",
+        condition: "Gently Used / Like New",
+        city: "Austin, TX",
+        neighborhood: "Downtown / Rainey",
+        distanceMiles: 1.2,
+        fulfillment: "pickup",
+        imageUrl: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80",
+        description: "Looking for a clean Sony A7 IV body with shutter count under 15k, or a 24-70 GM mark I/II lens. Clean optics only, no fungus or scratches. Cash or verified escrow meetup at Austin Police Department Safe Exchange Zone.",
+        seller: {
+            name: "John Doe (You)",
+            avatar: "JD",
+            rating: 5.0,
+            reviewsCount: 1,
+            verified: true
+        },
+        offers: [
+            {
+                id: "off-0",
+                providerName: "Austin Photo Hub (Marcus)",
+                providerAvatar: "AP",
+                providerRating: 4.9,
+                price: 1750,
+                timeline: "Ready for APD Safe Meetup today",
+                message: "Have a mint A7 IV with 6,200 shutter count. Comes with 2 Sony batteries, original box, and SmallRig cage. Happy to meet at safe zone.",
+                time: "25 mins ago"
+            }
+        ],
+        createdAt: Date.now() - 1000 * 60 * 60 * 5
+    },
+    {
         id: "req-201",
         title: "ISO: Herman Miller Sayl or Mirra 2 Ergonomic Desk Chair",
         category: "home",
@@ -589,6 +628,10 @@ class ServlistApp {
         this.renderPresetPhotos();
         this.renderListings();
         this.updateTopBarStats();
+        this.updateWatchlistBadges();
+        this.updateMyBidsBadges();
+        this.updateMyRequestsBadges();
+        this.updateMyQuotesBadges();
         this.startTimerTicker();
     }
 
@@ -604,6 +647,12 @@ class ServlistApp {
                     const seedRequests = SEED_LISTINGS.filter(l => l.isRequest);
                     this.listings = [...this.listings, ...seedRequests];
                     this.saveListings();
+                } else if (!this.listings.some(l => l.id === "req-200")) {
+                    const req200 = SEED_LISTINGS.find(l => l.id === "req-200");
+                    if (req200) {
+                        this.listings.unshift(req200);
+                        this.saveListings();
+                    }
                 }
             } else {
                 this.listings = [...SEED_LISTINGS];
@@ -623,11 +672,27 @@ class ServlistApp {
             const savedRequests = localStorage.getItem("servlist_my_requests");
             if (savedRequests) {
                 this.myRequests = new Set(JSON.parse(savedRequests));
+            } else {
+                this.myRequests = new Set(["req-200"]);
+                this.saveMyRequests();
             }
 
             const savedQuotes = localStorage.getItem("servlist_my_quotes");
             if (savedQuotes) {
                 this.myQuotes = JSON.parse(savedQuotes);
+            } else {
+                this.myQuotes = {
+                    "req-202": {
+                        quoteId: "quote-sample-1",
+                        price: 390,
+                        timeline: "Available Tomorrow Morning",
+                        message: "I can install this EV charger circuit for you. Licensed TECL electrician with materials in stock.",
+                        time: "2 hours ago",
+                        itemTitle: "Need Licensed Electrician: Install 240V NEMA 14-50 EV Charger in Garage",
+                        status: "Under Review"
+                    }
+                };
+                this.saveMyQuotes();
             }
         } catch (e) {
             console.warn("Storage error, fallback to seeds", e);
@@ -1386,6 +1451,8 @@ class ServlistApp {
         if (resultsHeading) {
             if (this.filters.category !== "all") {
                 resultsHeading.textContent = `${this.capitalize(this.filters.category)} in ${this.filters.city}`;
+            } else if (this.marketMode === "requests" || this.filters.formatPill === "requests") {
+                resultsHeading.textContent = `Buyer & Client Requests Wanted &bull; ${this.filters.city}`;
             } else if (this.filters.formatPill === "auction") {
                 resultsHeading.textContent = `Live Auctions Ending Soon in ${this.filters.city}`;
             } else {
@@ -1394,6 +1461,13 @@ class ServlistApp {
         }
         if (emptyCityName) {
             emptyCityName.textContent = this.filters.city;
+        }
+
+        // Update Request Pill badge counter
+        const reqPillBadge = document.getElementById("requestsCountBadge");
+        if (reqPillBadge) {
+            const totalRequests = this.listings.filter(l => Boolean(l.isRequest || (l.format && l.format.startsWith("request_")))).length;
+            reqPillBadge.textContent = totalRequests;
         }
 
         // Render applied chips
@@ -1709,8 +1783,19 @@ class ServlistApp {
         document.getElementById("detailSellerName").textContent = seller.name;
         document.getElementById("detailSellerRating").textContent = `${seller.rating} (${seller.reviewsCount} sales • 99.4% positive)`;
 
-        // Action Box (Auction vs Buy Now vs Service)
+        // Action Box (Auction vs Buy Now vs Service vs Request)
         this.renderDetailActionBox(item);
+
+        // Quotes Section (for Requests)
+        const quotesSection = document.getElementById("detailQuotesSection");
+        if (item.isRequest || (item.format && item.format.startsWith("request_"))) {
+            if (quotesSection) {
+                quotesSection.style.display = "block";
+                this.renderDetailQuotes(item);
+            }
+        } else {
+            if (quotesSection) quotesSection.style.display = "none";
+        }
 
         // Bid History (if Auction)
         const historySection = document.getElementById("detailBidHistorySection");
@@ -1772,7 +1857,86 @@ class ServlistApp {
         const box = document.getElementById("detailActionBox");
         if (!box) return;
 
-        if (item.format === "auction") {
+        const isReq = Boolean(item.isRequest || (item.format && item.format.startsWith("request_")));
+
+        if (isReq) {
+            const budgetVal = item.budget !== undefined ? item.budget : (item.currentPrice || 0);
+            const isUserOwner = item.seller && item.seller.name && item.seller.name.includes("You");
+
+            box.innerHTML = `
+                <div class="request-summary-pill-bar">
+                    <div class="req-budget-tag">
+                        <span class="req-tag-label">Target Budget:</span>
+                        <span class="req-tag-val">$${budgetVal.toLocaleString()}${item.hourly ? '/hr' : ' Max'}</span>
+                    </div>
+                    <div class="req-urgency-tag">
+                        <span class="req-tag-label">Urgency:</span>
+                        <span class="req-tag-val">${item.urgency && item.urgency.includes('24') ? '🔥 ' : '⏱️ '}${this.escapeHtml(item.urgency || 'Flexible')}</span>
+                    </div>
+                    ${item.condition ? `
+                    <div class="req-urgency-tag">
+                        <span class="req-tag-label">Condition:</span>
+                        <span class="req-tag-val">${this.escapeHtml(item.condition)}</span>
+                    </div>
+                    ` : ''}
+                </div>
+
+                <div class="quote-submit-card">
+                    <div class="quote-card-header">
+                        <h5>💼 Submit an Offer / Quote</h5>
+                        <p>${isUserOwner ? 'This is your posted request. Sellers and providers can send quotes below.' : `Have this item or provide this service? Send a direct proposal to ${this.escapeHtml(item.seller ? item.seller.name : 'the requester')}:`}</p>
+                    </div>
+                    <form id="submitQuoteForm" class="submit-quote-form">
+                        <div class="quote-form-row">
+                            <div class="quote-input-wrap">
+                                <label for="quoteAmountInput">Your Offer Price ($) <span class="required">*</span></label>
+                                <div class="input-with-symbol">
+                                    <span class="sym">$</span>
+                                    <input type="number" id="quoteAmountInput" min="1" step="1" value="${budgetVal}" required>
+                                </div>
+                            </div>
+                            <div class="quote-input-wrap">
+                                <label for="quoteTimelineInput">Availability / Fulfillment <span class="required">*</span></label>
+                                <input type="text" id="quoteTimelineInput" placeholder="e.g. Can meet today / Ship tomorrow" value="Available Today" required>
+                            </div>
+                        </div>
+                        <div class="quote-input-wrap full-width">
+                            <label for="quoteMessageInput">Proposal Note & Details <span class="required">*</span></label>
+                            <textarea id="quoteMessageInput" rows="2" placeholder="Describe the item condition or your experience..." required>I can provide this for you! Verified local and ready to coordinate meetup or delivery.</textarea>
+                        </div>
+                        <button type="submit" class="btn-submit-quote">
+                            🚀 Submit Quote & Offer ($<span id="btnQuotePriceDisplay">${budgetVal.toLocaleString()}</span>)
+                        </button>
+                    </form>
+                    <div class="quote-guarantee-note">
+                        🛡️ Protected by Servlist Escrow & Local Meetup Guarantee. No fee until deal is accepted.
+                    </div>
+                </div>
+            `;
+
+            // Live update price inside submit button
+            const quoteInput = document.getElementById("quoteAmountInput");
+            const btnPriceDisplay = document.getElementById("btnQuotePriceDisplay");
+            if (quoteInput && btnPriceDisplay) {
+                quoteInput.addEventListener("input", (e) => {
+                    const v = parseFloat(e.target.value) || 0;
+                    btnPriceDisplay.textContent = v.toLocaleString();
+                });
+            }
+
+            // Submit quote form listener
+            const form = document.getElementById("submitQuoteForm");
+            if (form) {
+                form.addEventListener("submit", (e) => {
+                    e.preventDefault();
+                    const amount = parseFloat(quoteInput.value) || budgetVal;
+                    const timeline = document.getElementById("quoteTimelineInput").value.trim();
+                    const message = document.getElementById("quoteMessageInput").value.trim();
+                    this.handleSubmitQuote(item.id, amount, timeline, message);
+                });
+            }
+
+        } else if (item.format === "auction") {
             const minBid = item.currentPrice + (item.currentPrice >= 500 ? 25 : item.currentPrice >= 100 ? 10 : 5);
             const timeLeft = this.formatTimeLeft(item.endTime);
 
@@ -1876,6 +2040,107 @@ class ServlistApp {
                 this.showToast("Curb alert location pinned in South Austin. First come, first served!", "info");
             });
         }
+    }
+
+    renderDetailQuotes(item) {
+        const quotesSection = document.getElementById("detailQuotesSection");
+        const countEl = document.getElementById("detailQuotesCount");
+        const listEl = document.getElementById("detailQuotesList");
+        if (!quotesSection || !listEl) return;
+
+        const offers = item.offers || [];
+        if (countEl) countEl.textContent = offers.length;
+
+        if (offers.length === 0) {
+            listEl.innerHTML = `
+                <div style="font-size: 0.8125rem; color: #64748b; padding: 16px; text-align: center; background: #f8fafc; border-radius: var(--radius-sm); border: 1px dashed var(--border-strong);">
+                    No quotes received yet. Be the first seller or provider to submit a proposal above!
+                </div>
+            `;
+            return;
+        }
+
+        listEl.innerHTML = offers.map(off => `
+            <div class="quote-item-card" data-quote-id="${off.id}">
+                <div class="quote-item-top">
+                    <div class="quote-provider-info">
+                        <div class="quote-provider-avatar">${off.providerAvatar || 'PR'}</div>
+                        <div>
+                            <div class="quote-provider-name">${this.escapeHtml(off.providerName)}</div>
+                            <div class="quote-provider-rating">★ ${off.providerRating || '5.0'} &bull; Verified</div>
+                        </div>
+                    </div>
+                    <div style="text-align: right;">
+                        <span class="quote-price-badge">$${off.price.toLocaleString()}</span>
+                        <div class="quote-timeline">⏱️ ${this.escapeHtml(off.timeline || 'Available Soon')}</div>
+                    </div>
+                </div>
+                <div class="quote-message">${this.escapeHtml(off.message)}</div>
+                <div class="quote-actions">
+                    <button type="button" class="btn-message-quote" data-name="${this.escapeHtml(off.providerName)}">💬 Message</button>
+                    <button type="button" class="btn-accept-quote" data-price="${off.price}" data-name="${this.escapeHtml(off.providerName)}">Accept Offer</button>
+                </div>
+            </div>
+        `).join("");
+
+        listEl.querySelectorAll(".btn-accept-quote").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const p = btn.dataset.price;
+                const n = btn.dataset.name;
+                this.showToast(`🎉 Accepted ${n}'s offer of $${p}! Servlist Safe Escrow setup initiated.`, "success");
+            });
+        });
+
+        listEl.querySelectorAll(".btn-message-quote").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const n = btn.dataset.name;
+                const chatModal = document.getElementById("chatModalOverlay");
+                if (chatModal) {
+                    document.getElementById("chatSellerName").textContent = n;
+                    document.getElementById("chatItemTitle").textContent = `Quote for: ${item.title}`;
+                    chatModal.style.display = "flex";
+                }
+            });
+        });
+    }
+
+    handleSubmitQuote(listingId, amount, timeline, message) {
+        const item = this.listings.find(l => l.id === listingId);
+        if (!item) return;
+
+        const newQuote = {
+            id: `quote-${Date.now()}`,
+            providerName: "John Doe (You)",
+            providerAvatar: "JD",
+            providerRating: 5.0,
+            providerVerified: true,
+            price: amount,
+            timeline: timeline || "Available Immediately",
+            message: message || "I can provide this item/service for you.",
+            time: "Just now",
+            createdAt: Date.now()
+        };
+
+        if (!item.offers) item.offers = [];
+        item.offers.unshift(newQuote);
+
+        // Record in user's myQuotes
+        this.myQuotes[item.id] = {
+            quoteId: newQuote.id,
+            price: amount,
+            timeline: newQuote.timeline,
+            message: newQuote.message,
+            time: "Just now",
+            itemTitle: item.title,
+            status: "Under Review"
+        };
+
+        this.saveListings();
+        this.saveMyQuotes();
+        this.renderDetailQuotes(item);
+        this.renderListings();
+        this.updateTopBarStats();
+        this.showToast(`🚀 Your offer of $${amount.toLocaleString()} was submitted to ${item.seller ? item.seller.name : 'the requester'}!`, "success");
     }
 
     handlePlaceBid(listingId, amount, minBid) {
@@ -2007,8 +2272,97 @@ class ServlistApp {
         document.getElementById("postListingForm").reset();
     }
 
+    handleCreateRequest() {
+        const reqTypeInput = document.querySelector("input[name='requestType']:checked");
+        const requestType = reqTypeInput ? reqTypeInput.value : "good";
+        const title = document.getElementById("reqTitle").value.trim();
+        const category = document.getElementById("reqCategory").value;
+        const budget = parseFloat(document.getElementById("reqBudget").value) || 50;
+        const rateTypeEl = document.getElementById("reqRateType");
+        const hourly = (requestType === "service" && rateTypeEl && rateTypeEl.value === "hourly");
+        const urgency = document.getElementById("reqUrgency").value;
+        const conditionEl = document.getElementById("reqCondition");
+        const condition = requestType === "good" && conditionEl ? conditionEl.value : undefined;
+        const city = document.getElementById("reqCity").value;
+        const neighborhood = document.getElementById("reqNeighborhood").value.trim() || `${city} Area`;
+        const fulfillment = document.getElementById("reqFulfillment").value;
+        let imageUrl = document.getElementById("reqImageUrl").value.trim();
+        const description = document.getElementById("reqDescription").value.trim();
+
+        if (!imageUrl) {
+            if (requestType === "service") {
+                imageUrl = "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=800&q=80";
+            } else if (category === "electronics") {
+                imageUrl = "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80";
+            } else if (category === "home") {
+                imageUrl = "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80";
+            } else if (category === "collectibles") {
+                imageUrl = "https://images.unsplash.com/photo-1550291652-6ea9114a47b1?auto=format&fit=crop&w=800&q=80";
+            } else if (category === "vehicles") {
+                imageUrl = "https://images.unsplash.com/photo-1583121274602-3e2820c69888?auto=format&fit=crop&w=800&q=80";
+            } else {
+                imageUrl = "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=800&q=80";
+            }
+        }
+
+        const newRequest = {
+            id: `req-${Date.now()}`,
+            title,
+            category,
+            format: requestType === "good" ? "request_good" : "request_service",
+            isRequest: true,
+            requestType,
+            budget,
+            currentPrice: budget,
+            startingPrice: budget,
+            hourly,
+            urgency,
+            condition,
+            city,
+            neighborhood,
+            distanceMiles: 1.5,
+            fulfillment,
+            shippingFee: fulfillment === "pickup" ? 0 : 15.00,
+            imageUrl,
+            description,
+            seller: {
+                name: "John Doe (You)",
+                avatar: "JD",
+                rating: 5.0,
+                reviewsCount: 1,
+                verified: true
+            },
+            offers: [],
+            createdAt: Date.now()
+        };
+
+        this.listings.unshift(newRequest);
+        this.myRequests.add(newRequest.id);
+        this.saveListings();
+        this.saveMyRequests();
+        this.renderCategoryCounts();
+        this.renderListings();
+        this.updateTopBarStats();
+        this.showToast(`Request "${title.substring(0, 32)}..." published! Sellers & providers can now send proposals. 🚀`, "success");
+
+        // Clear Form
+        document.getElementById("postRequestForm").reset();
+    }
+
+    deleteRequest(requestId) {
+        this.myRequests.delete(requestId);
+        this.listings = this.listings.filter(l => l.id !== requestId);
+        this.saveListings();
+        this.saveMyRequests();
+        this.renderCategoryCounts();
+        this.renderListings();
+        this.renderDrawer();
+        this.updateTopBarStats();
+        this.showToast("Your request was closed and removed.", "info");
+    }
+
     // ============================================================================
-    // WATCHLIST & MY BIDS DRAWER
+    // WATCHLIST & MY BIDS & MY REQUESTS DRAWER
     // ============================================================================
 
     toggleWatchlist(listingId) {
@@ -2039,9 +2393,25 @@ class ServlistApp {
         if (drawerBadge) drawerBadge.textContent = count;
     }
 
+    updateMyRequestsBadges() {
+        const count = this.myRequests.size;
+        const topBadge = document.getElementById("myRequestsCountBadge");
+        const drawerBadge = document.getElementById("drawerRequestsCount");
+        if (topBadge) topBadge.textContent = count;
+        if (drawerBadge) drawerBadge.textContent = count;
+    }
+
+    updateMyQuotesBadges() {
+        const count = Object.keys(this.myQuotes).length;
+        const drawerBadge = document.getElementById("drawerQuotesCount");
+        if (drawerBadge) drawerBadge.textContent = count;
+    }
+
     renderDrawer() {
         this.updateWatchlistBadges();
         this.updateMyBidsBadges();
+        this.updateMyRequestsBadges();
+        this.updateMyQuotesBadges();
 
         const body = document.getElementById("drawerBody");
         if (!body) return;
@@ -2065,8 +2435,8 @@ class ServlistApp {
                     <div class="drawer-item-info">
                         <h4 class="drawer-item-title">${this.escapeHtml(item.title)}</h4>
                         <div class="drawer-item-meta">
-                            <span style="font-weight: 800; color: #0f172a;">$${item.currentPrice.toLocaleString()}</span>
-                            <span>${item.format === 'auction' ? '⏱️ ' + this.formatTimeLeft(item.endTime) : '⚡ Buy Now'}</span>
+                            <span style="font-weight: 800; color: #0f172a;">$${(item.budget !== undefined ? item.budget : item.currentPrice).toLocaleString()}</span>
+                            <span>${item.format === 'auction' ? '⏱️ ' + this.formatTimeLeft(item.endTime) : item.isRequest ? '🙋 Request' : '⚡ Buy Now'}</span>
                         </div>
                     </div>
                     <button class="chip-remove btn-drawer-remove" data-id="${item.id}" title="Remove">&times;</button>
@@ -2108,12 +2478,95 @@ class ServlistApp {
                     </div>
                 `;
             }).join("");
+
+        } else if (this.activeDrawerTab === "my_requests") {
+            const userRequests = this.listings.filter(l => this.myRequests.has(l.id) || (l.seller && l.seller.name.includes("You") && (l.isRequest || (l.format && l.format.startsWith("request_")))));
+            if (userRequests.length === 0) {
+                body.innerHTML = `
+                    <div style="text-align: center; padding: 40px 10px; color: #64748b;">
+                        <span style="font-size: 2.5rem;">🙋</span>
+                        <h4 style="margin: 8px 0; color: #0f172a;">You haven't posted any requests</h4>
+                        <p style="font-size: 0.8125rem; margin-bottom: 16px;">Looking for a hard-to-find item or need a local service contractor? Post a request and let sellers come to you.</p>
+                        <button type="button" class="btn-post-request" id="drawerOpenReqBtn" style="display: inline-flex; margin: 0 auto;">
+                            <span>🙋 Post a Request</span>
+                        </button>
+                    </div>
+                `;
+                const dReqBtn = document.getElementById("drawerOpenReqBtn");
+                if (dReqBtn) {
+                    dReqBtn.addEventListener("click", () => {
+                        document.getElementById("drawerModalOverlay").style.display = "none";
+                        document.body.style.overflow = "auto";
+                        const openReq = document.getElementById("openRequestModalBtn");
+                        if (openReq) openReq.click();
+                    });
+                }
+                return;
+            }
+
+            body.innerHTML = userRequests.map(item => {
+                const quoteCount = item.offers ? item.offers.length : 0;
+                return `
+                    <div class="drawer-item-card" data-id="${item.id}">
+                        <img src="${item.imageUrl}" alt="${this.escapeHtml(item.title)}" class="drawer-thumb">
+                        <div class="drawer-item-info">
+                            <h4 class="drawer-item-title">${this.escapeHtml(item.title)}</h4>
+                            <div class="drawer-item-meta">
+                                <span>Budget: <strong>$${(item.budget !== undefined ? item.budget : item.currentPrice).toLocaleString()}${item.hourly ? '/hr' : ' Max'}</strong></span>
+                                <span class="drawer-status-badge" style="${quoteCount > 0 ? 'background: #dcfce7; color: #15803d;' : 'background: #f1f5f9; color: #475569;'}">
+                                    💬 ${quoteCount} quote${quoteCount === 1 ? '' : 's'}
+                                </span>
+                            </div>
+                            <div style="font-size: 0.6875rem; color: #64748b; margin-top: 2px;">
+                                ⏱️ ${this.escapeHtml(item.urgency || 'Flexible')} &bull; 📍 ${this.escapeHtml(item.neighborhood || item.city)}
+                            </div>
+                        </div>
+                        <button class="chip-remove btn-drawer-delete-req" data-id="${item.id}" title="Close / Delete Request">&times;</button>
+                    </div>
+                `;
+            }).join("");
+
+        } else if (this.activeDrawerTab === "my_quotes") {
+            const quoteEntries = Object.entries(this.myQuotes);
+            if (quoteEntries.length === 0) {
+                body.innerHTML = `
+                    <div style="text-align: center; padding: 40px 10px; color: #64748b;">
+                        <span style="font-size: 2.5rem;">💼</span>
+                        <h4 style="margin: 8px 0; color: #0f172a;">No quotes submitted yet</h4>
+                        <p style="font-size: 0.8125rem;">Browse buyer & client requests and submit your proposals with price and availability!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            body.innerHTML = quoteEntries.map(([listingId, q]) => {
+                const item = this.listings.find(l => l.id === listingId);
+                const title = item ? item.title : q.itemTitle || "Requested Item / Service";
+                const img = item ? item.imageUrl : "https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=800&q=80";
+                return `
+                    <div class="drawer-item-card" data-id="${listingId}">
+                        <img src="${img}" alt="${this.escapeHtml(title)}" class="drawer-thumb">
+                        <div class="drawer-item-info">
+                            <h4 class="drawer-item-title">${this.escapeHtml(title)}</h4>
+                            <div class="drawer-item-meta">
+                                <span>Your Offer: <strong>$${q.price.toLocaleString()}</strong></span>
+                                <span class="drawer-status-badge status-winning">
+                                    ${this.escapeHtml(q.status || 'Under Review')}
+                                </span>
+                            </div>
+                            <div style="font-size: 0.6875rem; color: #64748b; margin-top: 2px;">
+                                ⏱️ ${this.escapeHtml(q.timeline || 'Available Soon')} &bull; "${this.escapeHtml(q.message ? q.message.substring(0, 36) + '...' : '')}"
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join("");
         }
 
         // Drawer item click -> open detail modal
         body.querySelectorAll(".drawer-item-card").forEach(card => {
             card.addEventListener("click", (e) => {
-                if (e.target.closest(".btn-drawer-remove")) return;
+                if (e.target.closest(".btn-drawer-remove") || e.target.closest(".btn-drawer-delete-req")) return;
                 const id = card.dataset.id;
                 document.getElementById("drawerModalOverlay").style.display = "none";
                 document.body.style.overflow = "auto";
@@ -2121,13 +2574,22 @@ class ServlistApp {
             });
         });
 
-        // Drawer remove button
+        // Drawer remove button (watchlist)
         body.querySelectorAll(".btn-drawer-remove").forEach(btn => {
             btn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 const id = btn.dataset.id;
                 this.toggleWatchlist(id);
                 this.renderDrawer();
+            });
+        });
+
+        // Drawer delete request button (my requests)
+        body.querySelectorAll(".btn-drawer-delete-req").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.id;
+                this.deleteRequest(id);
             });
         });
     }
