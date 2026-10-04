@@ -7,7 +7,8 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: 0,
   workers: 1,
-  reporter: 'list',
+  // On CI, failures also show as annotations on the pull request
+  reporter: process.env.CI ? [['github'], ['list']] : 'list',
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
