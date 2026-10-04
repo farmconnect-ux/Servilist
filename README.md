@@ -36,19 +36,32 @@ Servilist is built specifically for African commerce across major corridors (Nig
 ## Project Structure
 
 ```
-├── public/                 # Static web assets served by server.js
-│   ├── index.html          # Main application page and modal dialogs
-│   ├── style.css           # Modern responsive design system
-│   ├── servilist.js        # Core client application engine
-│   └── supabaseClient.js   # Supabase client SDK and sync adapter
+├── src/                    # Modular TypeScript architecture
+│   ├── types/              # Domain types (Listing, Request, Quote, Escrow, Money)
+│   ├── money/              # Integer minor units, currency conversion, display formatting
+│   ├── data/               # Single-source African locations, seeds, localStorage manager
+│   ├── auctions/           # Next min bid calculation, reserve met, bid validation
+│   ├── listings/           # Pure filtering and multi-criteria sorting algorithms
+│   ├── requests/           # Buyer request and vendor quote domain factories
+│   ├── escrow/             # State machine, collision-safe codes, OTP generator
+│   ├── ui/                 # Accessible dialogs, SVG icons, mobile bottom nav, sheets
+│   └── main.ts             # Application controller and DOM event coordinator
+├── supabase/
+│   └── migrations/         # Versioned SQL migrations (00001 - 00008)
 ├── tests/                  # Automated test suite
-│   └── smoke.spec.js       # Playwright end-to-end smoke test
-├── server.js               # Node.js HTTP server and API router
-├── supabase_schema.sql     # PostgreSQL database schema & RLS policies
+│   └── smoke.spec.js       # Playwright end-to-end smoke test suite (3 specs)
+├── public/                 # Static assets and icons
+│   ├── index.html          # HTML shell and dialog templates
+│   └── style.css           # Phone-first design system with responsive sheets
+├── dist/                   # Production bundle output (Vite)
+├── server.js               # Node.js HTTP preview server and sync router
+├── vite.config.ts          # Vite build and Vitest configuration
+├── tsconfig.json           # TypeScript compilation settings
+├── eslint.config.js        # ESLint 9 TypeScript flat configuration
 ├── package.json            # Scripts and dependencies
 ├── .env.example            # Environment variable template
 ├── .gitattributes          # Line ending normalization
-└── .gitignore              # Ignored files (secrets, node_modules)
+└── .gitignore              # Ignored files (secrets, node_modules, dist)
 ```
 
 ---
@@ -56,23 +69,49 @@ Servilist is built specifically for African commerce across major corridors (Nig
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js (v18 or later)
 - npm
 
 ### Installation
+
 ```bash
 npm install
 ```
 
-### Development Server
+### Development & Preview
+
 ```bash
+# Start Vite development server with HMR:
+npm run dev
+
+# Or build and launch the production preview server:
+npm run build
 npm start
 ```
+
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-### Running Tests
+### Quality Assurance & Testing
+
 ```bash
+# Run all tests (unit tests + smoke tests):
 npm test
+
+# Run Vitest unit tests only:
+npm run test:unit
+
+# Run Playwright end-to-end smoke tests:
+npm run test:smoke
+
+# Static type check:
+npm run typecheck
+
+# Code linting:
+npm run lint
+
+# Format verification:
+npm run format:check
 ```
 
 ---
@@ -85,12 +124,12 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `PORT` | Local preview server port | `3000` |
-| `SUPABASE_URL` | Supabase Project URL | `https://your-project.supabase.co` |
-| `SUPABASE_ANON_KEY` | Supabase Anon Public API Key | `your-supabase-anon-key` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase Service Role Key | (optional) |
-| `SYNC_SECRET` | Secret key for authenticated server sync | (optional) |
+| Variable                    | Description                              | Default                            |
+| :-------------------------- | :--------------------------------------- | :--------------------------------- |
+| `PORT`                      | Local preview server port                | `3000`                             |
+| `SUPABASE_URL`              | Supabase Project URL                     | `https://your-project.supabase.co` |
+| `SUPABASE_ANON_KEY`         | Supabase Anon Public API Key             | `your-supabase-anon-key`           |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase Service Role Key    | (optional)                         |
+| `SYNC_SECRET`               | Secret key for authenticated server sync | (optional)                         |
 
 > **Security Note:** Never commit `.env` or sensitive credential files to Git. All live credentials must be kept in environment variables.

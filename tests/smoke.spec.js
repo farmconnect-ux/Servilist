@@ -1,5 +1,4 @@
-// @ts-check
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 test.describe('Servilist Marketplace Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
@@ -13,7 +12,9 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await page.waitForLoadState('domcontentloaded');
   });
 
-  test('Complete Marketplace Lifecycle: Post Auction, Bid, Post Request, Quote, Accept Quote to Escrow, Release OTP', async ({ page }) => {
+  test('Complete Marketplace Lifecycle: Post Auction, Bid, Post Request, Quote, Accept Quote to Escrow, Release OTP', async ({
+    page,
+  }) => {
     // Verify page title and listings container
     await expect(page).toHaveTitle(/Servilist/i);
     await expect(page.locator('#listingsContainer')).toBeVisible();
@@ -46,8 +47,16 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await page.locator('#postStartPrice').fill('35000000');
     await page.locator('#postDuration').selectOption('24');
     await page.locator('#postReservePrice').fill('36000000');
-    await page.locator('#postImageUrl').fill('https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80');
-    await page.locator('#postDescription').fill('Immaculate condition, full options, Nigerian duty paid, ready for inspection in Victoria Island.');
+    await page
+      .locator('#postImageUrl')
+      .fill(
+        'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=800&q=80'
+      );
+    await page
+      .locator('#postDescription')
+      .fill(
+        'Immaculate condition, full options, Nigerian duty paid, ready for inspection in Victoria Island.'
+      );
 
     // Submit form
     await page.locator('#postListingForm button[type="submit"]').click();
@@ -56,7 +65,9 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await expect(postModal).toBeHidden();
 
     // Listing should appear in listings container
-    const auctionCard = page.locator('#listingsContainer .listing-card', { hasText: auctionTitle }).first();
+    const auctionCard = page
+      .locator('#listingsContainer .listing-card', { hasText: auctionTitle })
+      .first();
     await expect(auctionCard).toBeVisible();
 
     // -------------------------------------------------------------
@@ -110,7 +121,11 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await page.locator('#reqCategory').selectOption('solar');
     await page.locator('#reqCity').selectOption('Lagos, Nigeria');
     await page.locator('#reqBudget').fill('2500000');
-    await page.locator('#reqDescription').fill('Looking for verified solar technician to install complete 10kVA inverter and 15kWh lithium setup in Ikeja.');
+    await page
+      .locator('#reqDescription')
+      .fill(
+        'Looking for verified solar technician to install complete 10kVA inverter and 15kWh lithium setup in Ikeja.'
+      );
 
     // Submit request
     await page.locator('#postRequestForm button[type="submit"]').click();
@@ -120,7 +135,9 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await page.locator('.pill-btn[data-format="requests"]').click();
 
     // Locate the posted request card
-    const requestCard = page.locator('#listingsContainer .listing-card', { hasText: requestTitle }).first();
+    const requestCard = page
+      .locator('#listingsContainer .listing-card', { hasText: requestTitle })
+      .first();
     await expect(requestCard).toBeVisible();
 
     // -------------------------------------------------------------
@@ -136,7 +153,9 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
 
     await page.locator('#quotePriceInput').fill('2400000');
     await page.locator('#quoteTimelineInput').fill('Available immediately, installation in 2 days');
-    await page.locator('#quoteMessageInput').fill('We supply certified Tier 1 inverter and CATL cells with 5-year replacement warranty.');
+    await page
+      .locator('#quoteMessageInput')
+      .fill('We supply certified Tier 1 inverter and CATL cells with 5-year replacement warranty.');
 
     // Submit quote
     await quoteForm.locator('button.btn-submit-quote').click();
@@ -193,7 +212,9 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await expect(dashboardsModal).toBeHidden();
   });
 
-  test('Navigation & Control Verification: Search, City/Currency, Sort, Grid/List, Converter Modal', async ({ page }) => {
+  test('Navigation & Control Verification: Search, City/Currency, Sort, Grid/List, Converter Modal', async ({
+    page,
+  }) => {
     // 1. Grid/List view toggle
     const listingsContainer = page.locator('#listingsContainer');
     const viewListBtn = page.locator('#viewListBtn');
@@ -238,5 +259,62 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
 
     await page.locator('#closeConverterModalBtn').click();
     await expect(convModal).toBeHidden();
+  });
+
+  test('Mobile Phone-First Usability at 360px Width with Throttling & Accessibility', async ({
+    page,
+  }) => {
+    // 1. Set small mobile screen size (360px width standard African Android phones)
+    await page.setViewportSize({ width: 360, height: 640 });
+
+    // 2. Simulate 3G throttled network connection via CDP
+    try {
+      const client = await page.context().newCDPSession(page);
+      await client.send('Network.emulateNetworkConditions', {
+        offline: false,
+        latency: 150, // 150ms round-trip latency
+        downloadThroughput: (750 * 1024) / 8, // ~750 kbps
+        uploadThroughput: (250 * 1024) / 8, // ~250 kbps
+      });
+    } catch {
+      // Non-CDP fallback if session not supported
+    }
+
+    await page.goto('/');
+    await page.waitForLoadState('domcontentloaded');
+
+    // 3. Assert no horizontal overflow occurs at 360px
+    const hasHorizontalOverflow = await page.evaluate(() => {
+      return document.documentElement.scrollWidth > document.documentElement.clientWidth;
+    });
+    expect(hasHorizontalOverflow).toBe(false);
+
+    // 4. Assert bottom navigation bar is visible and interactive
+    const bottomNav = page.locator('#servilistBottomNav');
+    await expect(bottomNav).toBeVisible();
+
+    // Check bottom nav items
+    await expect(page.locator('#bottomNavBrowse')).toBeVisible();
+    await expect(page.locator('#bottomNavRequests')).toBeVisible();
+    await expect(page.locator('#bottomNavPost')).toBeVisible();
+    await expect(page.locator('#bottomNavBids')).toBeVisible();
+    await expect(page.locator('#bottomNavDashboards')).toBeVisible();
+
+    // 5. Test opening post sheet via mobile FAB
+    await page.locator('#bottomNavPost').click();
+    const postModal = page.locator('#postModalOverlay');
+    await expect(postModal).toBeVisible();
+
+    // Verify mobile sheet handle exists
+    const dragHandle = postModal.locator('.sheet-drag-handle');
+    await expect(dragHandle).toBeVisible();
+
+    // Close using Escape key (accessibility keyboard support)
+    await page.keyboard.press('Escape');
+    await expect(postModal).toBeHidden();
+
+    // 6. Test bottom nav navigation to Requests filter
+    await page.locator('#bottomNavRequests').click();
+    await expect(page.locator('.pill-btn[data-format="requests"]')).toHaveClass(/active/);
   });
 });
