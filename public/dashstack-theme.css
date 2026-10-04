@@ -536,3 +536,49 @@ a {
   background: var(--primary-light);
   color: var(--link);
 }
+
+/* -------------------------------------------------------------------
+   Phones: keep posting, the hubs and the account reachable.
+   style.css hides these at <=640px, which left sellers with no way to
+   open the Seller Hub or switch account on a phone.
+   ------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .top-user-actions {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .top-user-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-user-actions > * {
+    flex-shrink: 0;
+  }
+
+  /* These three drawers are not wired yet; do not spend phone space on them */
+  #viewMyRequestsBtn,
+  #viewMyBidsBtn,
+  #viewWatchlistBtn {
+    display: none;
+  }
+
+  .post-action-wrap {
+    display: flex;
+    gap: 8px;
+  }
+
+  .post-action-wrap > button {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+  }
+
+  .post-action-wrap .btn-dashboards-hub {
+    display: none;
+  }
+}
