@@ -1,0 +1,538 @@
+/* ===================================================================
+   SERVILIST x DASHSTACK THEME
+   Applies the Figma "Servilist member dashboard" design language on top
+   of style.css: tokens, member navigation sidebar, top bar, cards,
+   buttons and status badges. Loaded after style.css.
+   =================================================================== */
+
+:root {
+  --primary: #4880ff;
+  --primary-hover: #3265d6;
+  --primary-light: #edf3ff;
+  --primary-border: #c9dbff;
+  --link: #3265d6;
+
+  --auction-orange: #a56816;
+  --auction-bg: #fff4df;
+  --auction-border: #f3dfb6;
+
+  --buynow-green: #14836b;
+  --buynow-bg: #eaf7f2;
+  --buynow-border: #c4e8dc;
+
+  --service-purple: #8254bb;
+  --service-bg: #f3eefa;
+  --service-border: #ddd0f0;
+
+  --local-blue: #3265d6;
+  --local-bg: #edf3ff;
+  --local-border: #c9dbff;
+
+  --danger: #d84c66;
+  --danger-bg: #fff0f3;
+
+  --bg-page: #f5f6fa;
+  --bg-surface: #ffffff;
+  --bg-surface-alt: #f5f6fa;
+
+  --text-main: #202224;
+  --text-muted: #697386;
+  --text-light: #8b93a3;
+
+  --border-subtle: #e8ecf2;
+  --border-strong: #d5d5d5;
+
+  --shadow-card: 0 4px 18px 0 rgba(21, 43, 80, 0.06);
+  --shadow-sm: none;
+  --shadow-md: var(--shadow-card);
+  --shadow-lg: 0 8px 24px 0 rgba(21, 43, 80, 0.1);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --font-sans:
+    'Nunito Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  --member-nav-width: 240px;
+}
+
+body {
+  line-height: 1.4;
+}
+
+a {
+  color: var(--link);
+}
+
+/* -------------------------------------------------------------------
+   Member navigation (sidebar) — desktop only; phones keep the bottom nav
+   ------------------------------------------------------------------- */
+
+.member-nav {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .member-nav {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--member-nav-width);
+    background: var(--bg-surface);
+    border-right: 1px solid var(--border-subtle);
+    overflow-y: auto;
+    z-index: 110;
+  }
+
+  .site-header,
+  .main-layout,
+  .site-footer {
+    margin-left: var(--member-nav-width);
+  }
+
+  .main-layout.container {
+    max-width: none;
+    padding: 32px;
+  }
+
+  /* The sidebar carries the brand on desktop */
+  .site-header .brand-logo {
+    display: none;
+  }
+}
+
+.member-nav-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 80px;
+  padding-left: 42px;
+  font-size: 25px;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.member-nav-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 50px;
+  margin: 0 8px 0 24px;
+  padding: 0 0 0 16px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.member-nav-item:hover {
+  background: var(--primary-light);
+}
+
+.member-nav-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.member-nav-item.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* Active marker on the sidebar edge */
+.member-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -29px;
+  top: 0;
+  bottom: 0;
+  width: 9px;
+  border-radius: 4px;
+  background: var(--primary);
+}
+
+.member-nav-icon {
+  width: 18px;
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1;
+  text-align: center;
+}
+
+.member-nav-section {
+  padding: 26px 0 12px 40px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.member-nav-divider {
+  height: 1px;
+  margin: 0;
+  border: 0;
+  background: var(--border-subtle);
+}
+
+.member-nav-inset {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 24px 24px;
+  padding: 16px;
+  border-radius: var(--radius-md);
+  background: var(--primary-light);
+}
+
+.member-nav-inset-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.member-nav-inset-copy {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* -------------------------------------------------------------------
+   Top bar
+   ------------------------------------------------------------------- */
+
+.site-header {
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: none;
+}
+
+.top-bar {
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.top-bar .city-select,
+.top-bar .currency-select {
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  border: 0.6px solid var(--border-strong);
+  border-radius: 19px;
+}
+
+.top-bar .city-select option,
+.top-bar .currency-select option,
+.top-bar optgroup {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+}
+
+.top-bar .top-link-btn,
+.top-bar .top-quick-stats,
+.top-bar .top-quick-stats strong {
+  color: var(--text-main);
+}
+
+.top-bar .top-link-btn {
+  font-weight: 600;
+}
+
+.top-bar .top-link-btn:hover {
+  background: var(--primary-light);
+  color: var(--link);
+}
+
+.top-bar .btn-top-converter {
+  background: var(--primary-light);
+  color: var(--link);
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+}
+
+.top-bar .location-badge {
+  background: var(--primary-light);
+  color: var(--link);
+  border: 0;
+}
+
+.top-bar .badge-count {
+  background: var(--danger);
+  color: #fff;
+}
+
+.top-bar .user-profile-pill {
+  background: transparent;
+  border: 0;
+  color: #404040;
+  font-weight: 700;
+}
+
+.top-bar .user-profile-pill .avatar {
+  background: var(--primary);
+  color: #fff;
+}
+
+.search-omnibar {
+  background: var(--bg-page);
+  border: 0.6px solid var(--border-strong);
+  border-radius: 19px;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.search-omnibar:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(72, 128, 255, 0.15);
+}
+
+.search-omnibar .search-category-dropdown select,
+.search-omnibar input {
+  background: transparent;
+}
+
+.btn-search {
+  background: var(--primary);
+  border-radius: 0 19px 19px 0;
+}
+
+.btn-search:hover {
+  background: var(--primary-hover);
+}
+
+/* -------------------------------------------------------------------
+   Buttons
+   ------------------------------------------------------------------- */
+
+.btn-primary,
+.btn-post-listing,
+.btn-place-bid,
+.btn-buy-now {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.btn-primary:hover,
+.btn-post-listing:hover,
+.btn-place-bid:hover,
+.btn-buy-now:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.btn-post-request,
+.btn-dashboards-hub {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--link);
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.btn-post-request:hover,
+.btn-dashboards-hub:hover {
+  background: var(--primary-light);
+  color: var(--link);
+}
+
+.btn-secondary,
+.btn-make-offer,
+.btn-message-seller {
+  background: rgba(226, 234, 248, 0.7);
+  border: 0;
+  color: var(--text-main);
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+/* -------------------------------------------------------------------
+   Filter pills (the design's "corridor" chips)
+   ------------------------------------------------------------------- */
+
+.filter-pills-bar {
+  background: var(--bg-page);
+  border-top: 0;
+  border-bottom: 0;
+}
+
+.pill-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 14px;
+  box-shadow: none;
+}
+
+.pill-btn:hover {
+  border-color: var(--primary);
+  color: var(--link);
+  background: var(--bg-surface);
+}
+
+#formatPills .pill-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.safe-zone-tag {
+  background: var(--primary-light);
+  border: 0;
+  color: var(--text-main);
+  border-radius: var(--radius-md);
+}
+
+/* -------------------------------------------------------------------
+   Surfaces: filter panel, listing cards, modals
+   ------------------------------------------------------------------- */
+
+.sidebar-filters,
+.view-controls-bar,
+.listing-card,
+.modal-card {
+  border: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.sidebar-filters .section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.category-item.active {
+  background: var(--primary-light);
+  color: var(--link);
+}
+
+.results-heading {
+  font-size: 21px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.results-count-text {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.sort-select,
+.btn-toggle-view {
+  border-color: var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.btn-toggle-view.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.listing-card {
+  overflow: hidden;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.listing-card:hover {
+  border: 0;
+  box-shadow: var(--shadow-lg);
+}
+
+.listing-card .card-media {
+  background: #f9f9f9;
+}
+
+.listing-card .card-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 20px;
+  color: var(--text-main);
+}
+
+.listing-card .current-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.listing-card .card-location,
+.listing-card .card-category,
+.listing-card .seller-brief {
+  color: var(--text-muted);
+}
+
+.listing-card .card-footer-strip {
+  background: transparent;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* -------------------------------------------------------------------
+   Status badges (tinted background, bold coloured label)
+   ------------------------------------------------------------------- */
+
+.card-format-badge,
+.badge-auction,
+.badge-buynow,
+.badge-service,
+.badge-free,
+.fulfillment-tag,
+.pill-fulfillment {
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: none;
+}
+
+.badge-auction {
+  background: var(--auction-bg);
+  color: var(--auction-orange);
+}
+
+.badge-buynow {
+  background: var(--buynow-bg);
+  color: var(--buynow-green);
+}
+
+.badge-service {
+  background: var(--service-bg);
+  color: var(--service-purple);
+}
+
+.badge-free,
+.fulfillment-tag,
+.pill-fulfillment {
+  background: var(--primary-light);
+  color: var(--link);
+}

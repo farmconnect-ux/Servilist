@@ -8,6 +8,7 @@ import { createBuyerRequest, createQuote } from './requests';
 import { createEscrowOrder, transitionEscrow } from './escrow';
 import { AccessibleDialog } from './ui/dialog';
 import { BottomNav } from './ui/bottomNav';
+import { initMemberNav } from './ui/memberNav';
 import { setupMobileSheetEnhancements } from './ui/bottomSheet';
 import { ICONS } from './ui/icons';
 import { DashboardManager } from './dashboards';
@@ -71,6 +72,14 @@ export class ServilistApp {
     this.initDashboardManager();
     this.initDialogs();
     this.initBottomNav();
+    initMemberNav({
+      saved: () => this.openBuyerDashboard('wishlist'),
+      listings: () => this.openSellerDashboard('inventory'),
+      purchases: () => this.openBuyerDashboard('orders'),
+      sales: () => this.openSellerDashboard('finance'),
+      messages: () => this.openBuyerDashboard('communication'),
+      account: () => document.getElementById('userProfilePill')?.click(),
+    });
     this.bindEvents();
     this.syncCurrencyUI();
     this.initSyncListener();

@@ -8,12 +8,88 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="/style.css" />
+    <link rel="stylesheet" href="/dashstack-theme.css" />
   </head>
   <body>
+    <!-- MEMBER NAVIGATION (desktop sidebar) -->
+    <aside class="member-nav" id="memberNav" aria-label="Member navigation">
+      <div class="member-nav-brand">Servilist</div>
+      <nav class="member-nav-list">
+        <button
+          type="button"
+          class="member-nav-item active"
+          data-nav-click='#formatPills .pill-btn[data-format="all"]'
+          data-nav-view="feed"
+          aria-current="page"
+        >
+          <span class="member-nav-icon" aria-hidden="true">▦</span>
+          <span>Overview</span>
+        </button>
+        <button
+          type="button"
+          class="member-nav-item"
+          data-nav-click='#formatPills .pill-btn[data-format="buy_now"]'
+          data-nav-view="feed"
+        >
+          <span class="member-nav-icon" aria-hidden="true">▧</span>
+          <span>Community classifieds</span>
+        </button>
+        <button
+          type="button"
+          class="member-nav-item"
+          data-nav-click='#formatPills .pill-btn[data-format="auction"]'
+          data-nav-view="feed"
+        >
+          <span class="member-nav-icon" aria-hidden="true">⇡</span>
+          <span>Live auctions</span>
+        </button>
+        <button
+          type="button"
+          class="member-nav-item"
+          data-nav-click='#formatPills .pill-btn[data-format="requests"]'
+          data-nav-view="feed"
+        >
+          <span class="member-nav-icon" aria-hidden="true">≋</span>
+          <span>Buyer requests</span>
+        </button>
+        <button type="button" class="member-nav-item" data-nav-action="saved">
+          <span class="member-nav-icon" aria-hidden="true">♡</span>
+          <span>Saved items</span>
+        </button>
+        <p class="member-nav-section">MY COMMERCE</p>
+        <button type="button" class="member-nav-item" data-nav-action="listings">
+          <span class="member-nav-icon" aria-hidden="true">▤</span>
+          <span>My listings</span>
+        </button>
+        <button type="button" class="member-nav-item" data-nav-action="purchases">
+          <span class="member-nav-icon" aria-hidden="true">⇄</span>
+          <span>Purchases &amp; escrow</span>
+        </button>
+        <button type="button" class="member-nav-item" data-nav-action="sales">
+          <span class="member-nav-icon" aria-hidden="true">◇</span>
+          <span>Sales &amp; payouts</span>
+        </button>
+        <button type="button" class="member-nav-item" data-nav-action="messages">
+          <span class="member-nav-icon" aria-hidden="true">✉</span>
+          <span>Messages</span>
+        </button>
+        <hr class="member-nav-divider" />
+        <button type="button" class="member-nav-item" data-nav-action="account">
+          <span class="member-nav-icon" aria-hidden="true">⚙</span>
+          <span>Account</span>
+        </button>
+      </nav>
+      <div class="member-nav-inset">
+        <img src="/icons/shield-check.svg" alt="" width="20" height="20" />
+        <p class="member-nav-inset-title">Trade with confidence</p>
+        <p class="member-nav-inset-copy">Keep payments in escrow and your Handover OTP private.</p>
+      </div>
+    </aside>
+
     <!-- TOP ANNOUNCEMENT & LOCATION & CURRENCY BAR -->
     <header class="site-header">
       <div class="top-bar">
