@@ -94,10 +94,9 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     // Submit bid
     await bidForm.locator('button.btn-place-bid').click();
 
-    // Verify toast notification appears
-    const toast = page.locator('#toastContainer .toast, .toast').first();
-    await expect(toast).toBeVisible();
-    await expect(toast).toContainText(/Highest Bid placed/i);
+    // Verify the bid toast appears. An earlier toast (listing published) can still be
+    // on screen on a fast machine, so match by text instead of taking the first toast.
+    await expect(page.locator('.toast', { hasText: /Highest Bid placed/i })).toBeVisible();
 
     // Close detail modal
     await page.locator('#closeDetailModalBtn').click();
