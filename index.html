@@ -1,0 +1,1690 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Servilist Africa | African Classifieds, Live Auctions & Requests</title>
+    <!-- Google Fonts for modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <!-- TOP ANNOUNCEMENT & LOCATION & CURRENCY BAR -->
+    <header class="site-header">
+      <div class="top-bar">
+        <div class="container top-bar-content">
+          <div class="top-location-group">
+            <div class="top-location-selector">
+              <span class="location-icon">📍</span>
+              <label for="citySelector" class="sr-only">Select African City or Region</label>
+              <select id="citySelector" class="city-select" aria-label="Current city">
+                <optgroup label="🇳🇬 Nigeria">
+                  <option value="Lagos, Nigeria" selected>Lagos (Ikeja, Lekki, Yaba, Alaba)</option>
+                  <option value="Abuja, Nigeria">Abuja (Wuse II, Maitama, Garki)</option>
+                  <option value="Port Harcourt, Nigeria">Port Harcourt (GRA, Trans-Amadi)</option>
+                  <option value="Ibadan, Nigeria">Ibadan (Bodija, Dugbe)</option>
+                  <option value="Kano, Nigeria">Kano (Sabon Gari, Fagge)</option>
+                </optgroup>
+                <optgroup label="🇰🇪 Kenya">
+                  <option value="Nairobi, Kenya">Nairobi (Westlands, Kilimani, CBD)</option>
+                  <option value="Mombasa, Kenya">Mombasa (Nyali, Old Town)</option>
+                  <option value="Kisumu, Kenya">Kisumu (Milimani)</option>
+                </optgroup>
+                <optgroup label="🇬🇭 Ghana">
+                  <option value="Accra, Ghana">Accra (Osu, East Legon, Circle)</option>
+                  <option value="Kumasi, Ghana">Kumasi (Adum, Bantama)</option>
+                </optgroup>
+                <optgroup label="🇿🇦 South Africa">
+                  <option value="Johannesburg, South Africa">
+                    Johannesburg (Sandton, Rosebank)
+                  </option>
+                  <option value="Cape Town, South Africa">Cape Town (CBD, Camps Bay)</option>
+                  <option value="Durban, South Africa">Durban (Umhlanga)</option>
+                </optgroup>
+                <optgroup label="🇷🇼 Rwanda">
+                  <option value="Kigali, Rwanda">Kigali (Kiyovu, Kimihurura)</option>
+                </optgroup>
+                <optgroup label="🇹🇿 Tanzania">
+                  <option value="Dar es Salaam, Tanzania">Dar es Salaam (Kariakoo, Masaki)</option>
+                </optgroup>
+                <optgroup label="🇺🇬 Uganda">
+                  <option value="Kampala, Uganda">Kampala (Kololo, Nakasero)</option>
+                </optgroup>
+                <optgroup label="🇪🇬 Egypt">
+                  <option value="Cairo, Egypt">Cairo (Maadi, Zamalek, New Cairo)</option>
+                </optgroup>
+                <optgroup label="🌍 Pan-African Trade">
+                  <option value="All Africa">All Africa (Cross-Border Trade & Shipping)</option>
+                </optgroup>
+              </select>
+              <span class="location-badge">Africa Hub</span>
+            </div>
+
+            <!-- AFRICAN CURRENCY SELECTOR & CONVERTER CTA -->
+            <div class="top-currency-selector">
+              <span class="currency-icon">💱</span>
+              <label for="currencySelector" class="sr-only">Display Currency</label>
+              <select id="currencySelector" class="currency-select" aria-label="Display currency">
+                <option value="NGN" selected>₦ NGN (Nigeria)</option>
+                <option value="KES">KSh KES (Kenya)</option>
+                <option value="GHS">GH₵ GHS (Ghana)</option>
+                <option value="ZAR">R ZAR (South Africa)</option>
+                <option value="USD">$ USD (US Dollar)</option>
+                <option value="EGP">E£ EGP (Egypt)</option>
+                <option value="RWF">FRw RWF (Rwanda)</option>
+                <option value="TZS">TSh TZS (Tanzania)</option>
+                <option value="UGX">USh UGX (Uganda)</option>
+                <option value="XOF">CFA XOF (Franc)</option>
+              </select>
+              <button
+                type="button"
+                id="openConverterBtn"
+                class="btn-top-converter"
+                title="Open African Currency Converter & Calculator"
+              >
+                <span>Calculator</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="top-quick-stats">
+            <span class="live-dot"></span>
+            <span id="activeStats"
+              ><strong>18</strong> Active Listings &bull; <strong>6</strong> Live Auctions &bull;
+              <strong>6</strong> Buyer Requests</span
+            >
+          </div>
+
+          <div class="top-user-actions">
+            <button
+              id="viewMyRequestsBtn"
+              class="top-link-btn req-link-btn"
+              title="View My Requests & Quotes"
+            >
+              <span>🙋 My Requests</span>
+              <span id="myRequestsCountBadge" class="badge-count badge-requests">0</span>
+            </button>
+            <button id="viewMyBidsBtn" class="top-link-btn" title="View My Bids">
+              <span>🔨 My Bids</span>
+              <span id="myBidsCountBadge" class="badge-count">0</span>
+            </button>
+            <button id="viewWatchlistBtn" class="top-link-btn" title="View Watchlist">
+              <span>❤️ Watchlist</span>
+              <span id="watchlistCountBadge" class="badge-count">0</span>
+            </button>
+            <button
+              id="topDashboardsBtn"
+              class="top-link-btn btn-dashboards-link"
+              title="Open Market Dashboards & Supabase Cloud Hub"
+            >
+              <span>📊 Dashboards & Escrow</span>
+            </button>
+            <div class="user-profile-pill">
+              <span class="avatar">JD</span>
+              <span class="username">John Doe (4.9 ★)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN NAVBAR -->
+      <div class="main-navbar">
+        <div class="container navbar-content">
+          <a href="#" class="brand-logo" id="logoReset">
+            <div class="logo-mark">
+              <span class="logo-icon">⚡</span>
+            </div>
+            <div class="logo-text-group">
+              <span class="logo-name"
+                >Servi<span class="logo-accent">list</span>
+                <span class="logo-africa-pill">AFRICA</span></span
+              >
+              <span class="logo-sub"
+                >Buyer Requests &bull; Local Classifieds &bull; Live Auctions</span
+              >
+            </div>
+          </a>
+
+          <!-- OMNIBAR SEARCH & FILTER -->
+          <div class="search-omnibar">
+            <div class="search-category-dropdown">
+              <select id="headerCategorySelect" aria-label="Category">
+                <option value="all">All African Categories</option>
+                <option value="electronics">Electronics & Tech</option>
+                <option value="solar">Solar & Power Backup</option>
+                <option value="services">Trades, Services & Gigs</option>
+                <option value="collectibles">Collectibles & Heritage Art</option>
+                <option value="vehicles">Vehicles & Tokunbo Parts</option>
+                <option value="housing">Housing & Shortlets</option>
+                <option value="home">Furniture & Home</option>
+                <option value="agriculture">Agriculture & Foodstuff</option>
+                <option value="community">Free & Barter</option>
+              </select>
+            </div>
+            <div class="search-input-wrapper">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search buyer requests, solar inverters, tech, borehole drilling, tokunbo..."
+                autocomplete="off"
+              />
+              <button
+                type="button"
+                id="clearSearchBtn"
+                class="clear-search-btn"
+                title="Clear search"
+                style="display: none"
+              >
+                &times;
+              </button>
+            </div>
+            <button id="searchSubmitBtn" class="btn-search" title="Search">
+              <span class="search-icon">🔍</span>
+              <span class="search-label">Search</span>
+            </button>
+          </div>
+
+          <!-- POST REQUEST & LISTING CTA (Lead with Buyer Requests) -->
+          <div class="post-action-wrap">
+            <button
+              id="openRequestModalBtn"
+              class="btn-post-request"
+              title="Request a particular good or service you need"
+            >
+              <span class="req-icon">🙋</span>
+              <span>Post a Request</span>
+            </button>
+            <button
+              id="openPostModalBtn"
+              class="btn-post-listing"
+              title="Sell an item or offer your service"
+            >
+              <span class="plus-icon">+</span>
+              <span>Post a Listing</span>
+            </button>
+            <button
+              id="openDashboardsBtn"
+              class="btn-dashboards-hub"
+              title="Open African Commerce Dashboards & Supabase Cloud Hub"
+            >
+              <span class="dash-icon">📊</span>
+              <span>Dashboards & Hub</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- QUICK HYBRID FILTER PILLS (Lead with Requests) -->
+      <div class="filter-pills-bar">
+        <div class="container pills-container">
+          <div class="pill-group" id="formatPills">
+            <button
+              class="pill-btn request-pill"
+              data-format="requests"
+              title="Browse requests for goods and services"
+            >
+              <span>🙋 Requests & Wanted</span>
+              <span class="pill-sub-badge" id="requestsCountBadge">0</span>
+            </button>
+            <button class="pill-btn active" data-format="all">
+              <span>🌟 All Marketplace</span>
+            </button>
+            <button class="pill-btn auction-pill" data-format="auction">
+              <span class="pulse-icon">🔨</span> Live Auctions
+            </button>
+            <button class="pill-btn bin-pill" data-format="buy_now">
+              <span>⚡ Buy It Now</span>
+            </button>
+            <button class="pill-btn service-pill" data-format="service">
+              <span>🛠️ Trades & Services</span>
+            </button>
+            <button class="pill-btn local-pill" data-format="local_only">
+              <span>📍 Local Meetup Only</span>
+            </button>
+            <button class="pill-btn free-pill" data-format="free_barter">
+              <span>🔄 Free / Barter</span>
+            </button>
+            <button
+              class="pill-btn converter-pill"
+              id="pillConverterBtn"
+              type="button"
+              title="Convert African Currencies and USD"
+            >
+              <span>💱 Currency Converter</span>
+            </button>
+          </div>
+
+          <div
+            class="safe-zone-tag"
+            title="Servilist safe exchange meetup spots available at major shopping malls, bank hubs, and police posts"
+          >
+            <span class="shield-icon">🛡️</span>
+            <span>Safe Meetup & Escrow Protection (Demo / Sandbox Mode)</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN APP CONTENT AREA -->
+    <main class="main-layout container">
+      <!-- SIDEBAR FILTERS (Craigslist category directory + eBay facet filters) -->
+      <aside class="sidebar-filters" id="sidebarFilters">
+        <div class="sidebar-header">
+          <h3>Filters & Categories</h3>
+          <button id="resetFiltersBtn" class="btn-text-reset">Reset All</button>
+        </div>
+
+        <!-- Categories Tree -->
+        <div class="filter-section">
+          <h4 class="section-title">Marketplace Categories</h4>
+          <ul class="category-tree" id="categoryTree">
+            <li class="category-item active" data-cat="all">
+              <span class="cat-icon">📁</span>
+              <span class="cat-name">All Categories</span>
+              <span class="cat-count" id="countAll">0</span>
+            </li>
+            <li class="category-item" data-cat="electronics">
+              <span class="cat-icon">💻</span>
+              <span class="cat-name">Electronics & Tech</span>
+              <span class="cat-count" id="countElectronics">0</span>
+            </li>
+            <li class="category-item" data-cat="solar">
+              <span class="cat-icon">☀️</span>
+              <span class="cat-name">Solar & Power Backup</span>
+              <span class="cat-count" id="countSolar">0</span>
+            </li>
+            <li class="category-item" data-cat="services">
+              <span class="cat-icon">🔧</span>
+              <span class="cat-name">Trades, Handyman & Gigs</span>
+              <span class="cat-count" id="countServices">0</span>
+            </li>
+            <li class="category-item" data-cat="collectibles">
+              <span class="cat-icon">🪙</span>
+              <span class="cat-name">Collectibles & Heritage Art</span>
+              <span class="cat-count" id="countCollectibles">0</span>
+            </li>
+            <li class="category-item" data-cat="vehicles">
+              <span class="cat-icon">🚗</span>
+              <span class="cat-name">Vehicles & Tokunbo Parts</span>
+              <span class="cat-count" id="countVehicles">0</span>
+            </li>
+            <li class="category-item" data-cat="housing">
+              <span class="cat-icon">🏡</span>
+              <span class="cat-name">Housing & Shortlets</span>
+              <span class="cat-count" id="countHousing">0</span>
+            </li>
+            <li class="category-item" data-cat="home">
+              <span class="cat-icon">🛋️</span>
+              <span class="cat-name">Furniture & Home</span>
+              <span class="cat-count" id="countHome">0</span>
+            </li>
+            <li class="category-item" data-cat="agriculture">
+              <span class="cat-icon">🌾</span>
+              <span class="cat-name">Agriculture & Foodstuff</span>
+              <span class="cat-count" id="countAgriculture">0</span>
+            </li>
+            <li class="category-item" data-cat="community">
+              <span class="cat-icon">🤝</span>
+              <span class="cat-name">Community & Barter</span>
+              <span class="cat-count" id="countCommunity">0</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Market Mode Switcher (Supply vs Requests) -->
+        <div class="filter-section market-mode-section">
+          <h4 class="section-title">Marketplace Mode</h4>
+          <div class="mode-segmented-control" id="marketModeControl">
+            <button type="button" class="mode-seg-btn active" data-market-mode="all">All</button>
+            <button type="button" class="mode-seg-btn" data-market-mode="requests">
+              🙋 Requests
+            </button>
+            <button type="button" class="mode-seg-btn" data-market-mode="supply">
+              🏷️ For Sale
+            </button>
+          </div>
+        </div>
+
+        <!-- Listing Format (eBay Style + Requests) -->
+        <div class="filter-section">
+          <h4 class="section-title">Listing & Request Format</h4>
+          <label class="checkbox-label">
+            <input type="checkbox" name="formatFilter" value="auction" checked />
+            <span class="checkbox-custom"></span>
+            <span class="label-text">Auctions & Bidding</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="formatFilter" value="buy_now" checked />
+            <span class="checkbox-custom"></span>
+            <span class="label-text">Buy It Now (Fixed Price)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="formatFilter" value="request_good" checked />
+            <span class="checkbox-custom"></span>
+            <span class="label-text">🔍 Goods Wanted (Buyer Requests)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="formatFilter" value="request_service" checked />
+            <span class="checkbox-custom"></span>
+            <span class="label-text">📋 Services Needed (Job Requests)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="formatFilter" value="service" checked />
+            <span class="checkbox-custom"></span>
+            <span class="label-text">Trades & Handyman Gigs</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="formatFilter" value="free_barter" checked />
+            <span class="checkbox-custom"></span>
+            <span class="label-text">Free / Swap / Barter</span>
+          </label>
+        </div>
+
+        <!-- Fulfillment & Delivery -->
+        <div class="filter-section">
+          <h4 class="section-title">Fulfillment Method</h4>
+          <label class="checkbox-label">
+            <input type="checkbox" name="fulfillmentFilter" value="pickup" checked />
+            <span class="checkbox-custom"></span>
+            <span class="label-text">🤝 Local Meetup (Mall, Bank, Hub)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" name="fulfillmentFilter" value="shipping" checked />
+            <span class="checkbox-custom"></span>
+            <span class="label-text">📦 Courier & Bus Delivery (GIG, Sendy)</span>
+          </label>
+        </div>
+
+        <!-- Price Range -->
+        <div class="filter-section">
+          <h4 class="section-title">Price Range</h4>
+          <div class="price-input-row">
+            <div class="price-input-box">
+              <span class="currency-prefix" id="priceCurrencyPrefixMin">₦</span>
+              <input type="number" id="minPriceInput" placeholder="Min" min="0" />
+            </div>
+            <span class="range-dash">&ndash;</span>
+            <div class="price-input-box">
+              <span class="currency-prefix" id="priceCurrencyPrefixMax">₦</span>
+              <input type="number" id="maxPriceInput" placeholder="Max" min="0" />
+            </div>
+            <button id="applyPriceBtn" class="btn-apply-price" title="Apply price range">Go</button>
+          </div>
+        </div>
+
+        <!-- Craigslist Direct Contact / Community Safety Tip Box -->
+        <div class="sidebar-promo-card">
+          <div class="promo-header">
+            <span class="badge-tip">Craigslist + eBay Tip</span>
+          </div>
+          <p>
+            Enjoy local face-to-face deals or bid online with buyer protection. Always meet in busy
+            public spaces for cash pickups!
+          </p>
+        </div>
+      </aside>
+
+      <!-- LISTINGS CONTENT AREA -->
+      <section class="listings-viewport">
+        <!-- CONTROLS HEADER BAR (Sort, View Mode, Count) -->
+        <div class="view-controls-bar">
+          <div class="results-meta">
+            <h2 class="results-heading" id="resultsHeading">All Current Listings</h2>
+            <span class="results-count-text" id="resultsCountText">Showing 0 items</span>
+          </div>
+
+          <div class="controls-actions">
+            <!-- Sort by -->
+            <div class="sort-wrapper">
+              <label for="sortSelector" class="sort-label">Sort:</label>
+              <select id="sortSelector" class="sort-select">
+                <option value="ending_soon">Ending Soonest (Auctions)</option>
+                <option value="newest">Newly Listed</option>
+                <option value="price_low">Price: Low to High</option>
+                <option value="price_high">Price: High to Low</option>
+                <option value="most_bids">Most Bids</option>
+                <option value="distance">Closest Distance</option>
+              </select>
+            </div>
+
+            <!-- Grid vs List View Toggle -->
+            <div class="view-toggle-group">
+              <button id="viewGridBtn" class="btn-toggle-view active" title="eBay Card Grid View">
+                <span>⊞ Grid</span>
+              </button>
+              <button
+                id="viewListBtn"
+                class="btn-toggle-view"
+                title="Craigslist High-Density List View"
+              >
+                <span>☰ List</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- APPLIED FILTER TAGS (Chips) -->
+        <div class="applied-chips-row" id="appliedChipsRow" style="display: none">
+          <span class="chips-label">Active Filters:</span>
+          <div class="chips-list" id="chipsList"></div>
+          <button id="clearAllChipsBtn" class="btn-clear-chips">Clear All</button>
+        </div>
+
+        <!-- CARDS CONTAINER -->
+        <div class="listings-container grid-mode" id="listingsContainer">
+          <!-- Dynamically populated via servilist.js -->
+        </div>
+      </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+      <div class="container footer-content">
+        <div class="footer-col">
+          <div class="footer-logo">
+            <span class="logo-icon">⚡</span>
+            <span class="logo-name"
+              >Servi<span class="logo-accent">list</span>
+              <span class="logo-africa-pill">AFRICA</span></span
+            >
+          </div>
+          <p class="footer-desc">
+            The modern Pan-African hybrid marketplace. Combining Craigslist's local classifieds,
+            neighborhood communities, and trade gigs with eBay's dynamic auctions, bidding wars, and
+            safe escrow protection across African hubs and cross-border trade.
+          </p>
+          <div class="footer-badges">
+            <span class="security-badge">🔒 Escrow Protection (Demo / Sandbox Mode)</span>
+            <span class="security-badge">📍 Community Merchant Directory</span>
+          </div>
+        </div>
+
+        <div class="footer-col">
+          <h4>Craigslist Pillars</h4>
+          <ul>
+            <li>
+              <a href="#" class="footer-filter-link" data-filter-type="format" data-val="requests"
+                >🙋 Buyer Requests & Wanted Board</a
+              >
+            </li>
+            <li>
+              <a href="#" class="footer-filter-link" data-filter-type="category" data-val="services"
+                >Local Trades & Handyman Gigs</a
+              >
+            </li>
+            <li>
+              <a href="#" class="footer-filter-link" data-filter-type="category" data-val="solar"
+                >Solar Inverters & Power Backup</a
+              >
+            </li>
+            <li>
+              <a href="#" class="footer-filter-link" data-filter-type="category" data-val="housing"
+                >Apartment Rentals & Shortlets</a
+              >
+            </li>
+            <li>
+              <a
+                href="#"
+                class="footer-filter-link"
+                data-filter-type="format"
+                data-val="free_barter"
+                >Free Stuff & Barter Board</a
+              >
+            </li>
+            <li>
+              <a href="#" class="footer-filter-link" data-filter-type="format" data-val="local_only"
+                >Local Cash & Meetup Guide</a
+              >
+            </li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>eBay Pillars & Tools</h4>
+          <ul>
+            <li>
+              <a href="#" class="footer-filter-link" data-filter-type="format" data-val="auction"
+                >Live Timed Auctions</a
+              >
+            </li>
+            <li>
+              <a href="#" class="footer-filter-link" data-filter-type="format" data-val="buy_now"
+                >Buy It Now Fixed Price</a
+              >
+            </li>
+            <li><a href="#" id="footerConverterLink">💱 African Currency Converter</a></li>
+            <li><a href="#" id="footerWatchlistLink">My Tracked Watchlist</a></li>
+            <li><a href="#" id="footerBidsLink">Active Bidding Dashboard</a></li>
+            <li><a href="#" id="footerRequestsLink">My Requests & Quotes</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4>African Commercial Hubs</h4>
+          <div class="city-links-grid">
+            <a href="#" class="footer-city-link" data-city="Lagos, Nigeria">Lagos, NG</a>
+            <a href="#" class="footer-city-link" data-city="Nairobi, Kenya">Nairobi, KE</a>
+            <a href="#" class="footer-city-link" data-city="Accra, Ghana">Accra, GH</a>
+            <a href="#" class="footer-city-link" data-city="Johannesburg, South Africa"
+              >Joburg, ZA</a
+            >
+            <a href="#" class="footer-city-link" data-city="Kigali, Rwanda">Kigali, RW</a>
+            <a href="#" class="footer-city-link" data-city="Cairo, Egypt">Cairo, EG</a>
+            <a href="#" class="footer-city-link" data-city="All Africa">All Africa</a>
+          </div>
+          <div class="footer-newsletter">
+            <label for="newsletterInput">Auction Alerts in your area:</label>
+            <div class="newsletter-row">
+              <input type="email" id="newsletterInput" placeholder="Enter your email" />
+              <button type="button" id="newsletterBtn">Notify Me</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom container">
+        <p>
+          &copy; 2026 Servilist Inc. Designed as a modern hybrid classifieds and auction network.
+        </p>
+        <div class="footer-bottom-links">
+          <a href="#">Terms of Service</a>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Community Guidelines</a>
+          <a href="#">Local Safety Tips</a>
+        </div>
+      </div>
+    </footer>
+
+    <!-- MODAL 1: ITEM DETAIL & BIDDING / BUY MODAL -->
+    <div class="modal-overlay" id="detailModalOverlay" style="display: none">
+      <div class="modal-card detail-modal">
+        <button class="modal-close-btn" id="closeDetailModalBtn">&times;</button>
+
+        <div class="detail-layout">
+          <!-- Gallery & Visuals -->
+          <div class="detail-gallery">
+            <div class="main-image-frame">
+              <img id="detailMainImg" src="" alt="Listing Image" />
+              <span id="detailFormatBadge" class="format-floating-badge">AUCTION</span>
+            </div>
+            <div class="gallery-info-strip">
+              <span id="detailLocationText">📍 Lagos, Nigeria &bull; Local Meetup</span>
+              <span id="detailFulfillmentBadge" class="pill-fulfillment"
+                >Local Pickup + Shipping</span
+              >
+            </div>
+            <div class="safe-zone-callout">
+              <span class="safe-icon">🛡️</span>
+              <div>
+                <strong>Servilist Safe Exchange Recommended:</strong>
+                <p>
+                  For cash meetups, choose local designated police station parking or secure bank
+                  lobbies.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bidding / Buying & Info Panel -->
+          <div class="detail-content">
+            <div class="detail-breadcrumbs" id="detailBreadcrumbs">Electronics &gt; Computers</div>
+            <h2 class="detail-title" id="detailTitle">Listing Title</h2>
+
+            <!-- Seller Card -->
+            <div class="seller-strip">
+              <div class="seller-avatar" id="detailSellerAvatar">JD</div>
+              <div class="seller-info">
+                <div class="seller-name-row">
+                  <span class="seller-name" id="detailSellerName">Chukwudi Electronics</span>
+                  <span class="seller-badge">Verified Local</span>
+                </div>
+                <div class="seller-rating-row">
+                  <span class="stars">★★★★★</span>
+                  <span class="rating-text" id="detailSellerRating"
+                    >4.9 (128 sales &bull; 99.2% positive)</span
+                  >
+                </div>
+              </div>
+              <button class="btn-message-seller" id="btnContactSeller">💬 Message</button>
+            </div>
+
+            <!-- BIDDING OR BUYING INTERFACE BOX -->
+            <div class="auction-action-box" id="detailActionBox">
+              <!-- Dynamic auction / buy-it-now / service block -->
+            </div>
+
+            <!-- Item Description -->
+            <div class="detail-description-section">
+              <h4>Description & Specs</h4>
+              <p id="detailDescriptionText">Description text goes here...</p>
+            </div>
+
+            <!-- Bid History Accordion (for auctions) -->
+            <div class="bid-history-section" id="detailBidHistorySection" style="display: none">
+              <div class="bid-history-header">
+                <h4>Bid History (<span id="detailHistoryCount">0</span> bids)</h4>
+                <span class="reserve-status" id="detailReserveStatus">Reserve Met</span>
+              </div>
+              <div class="bid-history-list" id="detailBidHistoryList">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Quotes & Proposals Feed (for Requests) -->
+            <div class="quotes-history-section" id="detailQuotesSection" style="display: none">
+              <div class="quotes-history-header">
+                <h4>Proposals & Quotes (<span id="detailQuotesCount">0</span> received)</h4>
+                <span class="quotes-status-badge" id="detailQuotesStatus">Accepting Proposals</span>
+              </div>
+              <div class="quotes-history-list" id="detailQuotesList">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Action Bar footer in modal -->
+            <div class="detail-modal-footer">
+              <button class="btn-watchlist-toggle" id="detailWatchlistBtn">
+                <span class="heart-icon">🤍</span>
+                <span class="btn-text">Add to Watchlist</span>
+              </button>
+              <button class="btn-share" id="detailShareBtn">🔗 Share</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 2: POST A NEW LISTING MODAL -->
+    <div class="modal-overlay" id="postModalOverlay" style="display: none">
+      <div class="modal-card post-modal">
+        <div class="modal-header">
+          <div class="header-titles">
+            <h2 id="postModalTitle">Post on Servilist</h2>
+            <p id="postModalSubtitle">
+              Choose between selling an item, offering a local service, or posting a request for
+              goods/services you need.
+            </p>
+          </div>
+          <button class="modal-close-btn" id="closePostModalBtn">&times;</button>
+        </div>
+
+        <!-- Tab Switcher: Sell/Offer vs Post a Request -->
+        <div class="modal-tab-switcher">
+          <button type="button" class="modal-tab-btn active" id="modalTabSell">
+            <span class="tab-icon">🏷️</span>
+            <div class="tab-text">
+              <span class="tab-main">Sell or Offer Service</span>
+              <span class="tab-sub">Live Auction &bull; Buy It Now &bull; Handyman</span>
+            </div>
+          </button>
+          <button type="button" class="modal-tab-btn" id="modalTabRequest">
+            <span class="tab-icon">🙋</span>
+            <div class="tab-text">
+              <span class="tab-main">Post a Request</span>
+              <span class="tab-sub">Goods Wanted &bull; Services & Gigs Needed</span>
+            </div>
+          </button>
+        </div>
+
+        <form id="postListingForm" class="post-form">
+          <!-- Step 1: Listing Format Selector -->
+          <div class="form-group format-picker-group">
+            <label class="form-label">Select Listing Type <span class="required">*</span></label>
+            <div class="format-options-grid">
+              <label class="format-card">
+                <input type="radio" name="postFormat" value="auction" checked />
+                <div class="format-card-content">
+                  <span class="fmt-icon">🔨</span>
+                  <strong class="fmt-title">eBay Auction</strong>
+                  <span class="fmt-desc">Timed bidding with starting price and countdown</span>
+                </div>
+              </label>
+              <label class="format-card">
+                <input type="radio" name="postFormat" value="buy_now" />
+                <div class="format-card-content">
+                  <span class="fmt-icon">⚡</span>
+                  <strong class="fmt-title">Buy It Now</strong>
+                  <span class="fmt-desc">Fixed price for immediate online or local purchase</span>
+                </div>
+              </label>
+              <label class="format-card">
+                <input type="radio" name="postFormat" value="service" />
+                <div class="format-card-content">
+                  <span class="fmt-icon">🛠️</span>
+                  <strong class="fmt-title">Local Service / Gig</strong>
+                  <span class="fmt-desc">Hourly or flat quote service for local clients</span>
+                </div>
+              </label>
+              <label class="format-card">
+                <input type="radio" name="postFormat" value="free_barter" />
+                <div class="format-card-content">
+                  <span class="fmt-icon">🔄</span>
+                  <strong class="fmt-title">Free / Barter</strong>
+                  <span class="fmt-desc">Community curb alert or item trade</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Step 2: Basic Info -->
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="postTitle" class="form-label"
+                >Listing Title <span class="required">*</span></label
+              >
+              <input
+                type="text"
+                id="postTitle"
+                placeholder="e.g. 2021 Apple MacBook Pro 14' M1 Pro 512GB Space Gray"
+                required
+              />
+            </div>
+            <div class="form-group flex-1">
+              <label for="postCategory" class="form-label"
+                >Category <span class="required">*</span></label
+              >
+              <select id="postCategory" required>
+                <option value="electronics">Electronics & Tech</option>
+                <option value="solar">Solar & Power Backup</option>
+                <option value="services">Trades, Services & Gigs</option>
+                <option value="collectibles">Collectibles & Heritage Art</option>
+                <option value="vehicles">Vehicles & Tokunbo Parts</option>
+                <option value="housing">Housing & Shortlets</option>
+                <option value="home">Furniture & Home</option>
+                <option value="agriculture">Agriculture & Foodstuff</option>
+                <option value="community">Free & Barter</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 3: Dynamic Price / Auction Fields -->
+          <div class="form-row" id="pricingRowContainer">
+            <div class="form-group flex-1" id="startPriceGroup">
+              <label for="postStartPrice" class="form-label" id="priceInputLabel"
+                >Starting Bid <span class="required">*</span></label
+              >
+              <div class="input-with-symbol">
+                <span class="sym" id="postStartPriceSym">₦</span>
+                <input
+                  type="number"
+                  id="postStartPrice"
+                  min="0"
+                  step="1"
+                  placeholder="50000"
+                  required
+                />
+              </div>
+            </div>
+            <div class="form-group flex-1" id="auctionDurationGroup">
+              <label for="postDuration" class="form-label">Auction Duration</label>
+              <select id="postDuration">
+                <option value="2">2 Hours (Ending Soon test)</option>
+                <option value="12">12 Hours (Fast Auction)</option>
+                <option value="24" selected>24 Hours (1 Day)</option>
+                <option value="72">3 Days</option>
+                <option value="168">7 Days (Standard eBay)</option>
+              </select>
+            </div>
+            <div class="form-group flex-1" id="reservePriceGroup">
+              <label for="postReservePrice" class="form-label"
+                >Reserve Price <small>(Optional)</small></label
+              >
+              <div class="input-with-symbol">
+                <span class="sym" id="postReservePriceSym">₦</span>
+                <input
+                  type="number"
+                  id="postReservePrice"
+                  min="0"
+                  step="1"
+                  placeholder="Optional minimum"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4: Location & Fulfillment -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="postCity" class="form-label"
+                >City / Region <span class="required">*</span></label
+              >
+              <select id="postCity" required>
+                <optgroup label="🇳🇬 Nigeria">
+                  <option value="Lagos, Nigeria" selected>Lagos, Nigeria</option>
+                  <option value="Abuja, Nigeria">Abuja, Nigeria</option>
+                  <option value="Port Harcourt, Nigeria">Port Harcourt, Nigeria</option>
+                  <option value="Ibadan, Nigeria">Ibadan, Nigeria</option>
+                  <option value="Kano, Nigeria">Kano, Nigeria</option>
+                </optgroup>
+                <optgroup label="🇰🇪 Kenya">
+                  <option value="Nairobi, Kenya">Nairobi, Kenya</option>
+                  <option value="Mombasa, Kenya">Mombasa, Kenya</option>
+                  <option value="Kisumu, Kenya">Kisumu, Kenya</option>
+                </optgroup>
+                <optgroup label="🇬🇭 Ghana">
+                  <option value="Accra, Ghana">Accra, Ghana</option>
+                  <option value="Kumasi, Ghana">Kumasi, Ghana</option>
+                </optgroup>
+                <optgroup label="🇿🇦 South Africa">
+                  <option value="Johannesburg, South Africa">Johannesburg, South Africa</option>
+                  <option value="Cape Town, South Africa">Cape Town, South Africa</option>
+                  <option value="Durban, South Africa">Durban, South Africa</option>
+                </optgroup>
+                <optgroup label="🇷🇼 Rwanda">
+                  <option value="Kigali, Rwanda">Kigali, Rwanda</option>
+                </optgroup>
+                <optgroup label="🇹🇿 Tanzania">
+                  <option value="Dar es Salaam, Tanzania">Dar es Salaam, Tanzania</option>
+                </optgroup>
+                <optgroup label="🇺🇬 Uganda">
+                  <option value="Kampala, Uganda">Kampala, Uganda</option>
+                </optgroup>
+                <optgroup label="🇪🇬 Egypt">
+                  <option value="Cairo, Egypt">Cairo, Egypt</option>
+                </optgroup>
+                <optgroup label="🌍 Pan-African">
+                  <option value="All Africa">All Africa</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="postNeighborhood" class="form-label">Neighborhood / Area / Market</label>
+              <input
+                type="text"
+                id="postNeighborhood"
+                placeholder="e.g. Lekki Phase 1, Ikeja Computer Village, Westlands"
+              />
+            </div>
+            <div class="form-group flex-1">
+              <label for="postFulfillment" class="form-label">Fulfillment Options</label>
+              <select id="postFulfillment">
+                <option value="both" selected>Both: Local Meetup & Courier / Bus Delivery</option>
+                <option value="pickup">Local Meetup Only (Safe public hub / bank)</option>
+                <option value="shipping">
+                  Courier / Interstate Delivery Only (GIG, Sendy, Bus)
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 5: Photos Selection -->
+          <div class="form-group">
+            <label class="form-label">Photo <span class="required">*</span></label>
+            <div class="photo-picker-wrapper">
+              <input
+                type="url"
+                id="postImageUrl"
+                placeholder="Paste an Image URL or choose a sample photo below"
+                required
+              />
+              <div class="sample-photos-row" id="samplePhotosList">
+                <!-- Pre-configured sample photos for quick testing -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 6: Description -->
+          <div class="form-group">
+            <label for="postDescription" class="form-label"
+              >Detailed Description <span class="required">*</span></label
+            >
+            <textarea
+              id="postDescription"
+              rows="4"
+              placeholder="Detail condition, specs, warranty, pickup availability, or service deliverables..."
+              required
+            ></textarea>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" id="cancelPostBtn">Cancel</button>
+            <button type="submit" class="btn-submit-post">🚀 Publish Listing Now</button>
+          </div>
+        </form>
+
+        <!-- FORM 2: POST A REQUEST FOR GOOD OR SERVICE -->
+        <form id="postRequestForm" class="post-form" style="display: none">
+          <!-- Step 1: Request Type (Good vs Service) -->
+          <div class="form-group format-picker-group">
+            <label class="form-label"
+              >What type of request is this? <span class="required">*</span></label
+            >
+            <div class="format-options-grid format-options-requests">
+              <label class="format-card request-type-card">
+                <input type="radio" name="requestType" value="good" checked />
+                <div class="format-card-content">
+                  <span class="fmt-icon">📦</span>
+                  <strong class="fmt-title">Particular Good / Item Wanted (ISO)</strong>
+                  <span class="fmt-desc"
+                    >Looking to buy a product, gadget, solar inverter, vehicle part, machinery, or
+                    commodity</span
+                  >
+                </div>
+              </label>
+              <label class="format-card request-type-card">
+                <input type="radio" name="requestType" value="service" />
+                <div class="format-card-content">
+                  <span class="fmt-icon">🛠️</span>
+                  <strong class="fmt-title">Particular Service / Task Needed</strong>
+                  <span class="fmt-desc"
+                    >Need a solar installer, borehole driller, generator mechanic, developer,
+                    caterer, or artisan</span
+                  >
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Step 2: Title and Category -->
+          <div class="form-row">
+            <div class="form-group flex-2">
+              <label for="reqTitle" class="form-label" id="reqTitleLabel"
+                >Request Title / Item Wanted <span class="required">*</span></label
+              >
+              <input
+                type="text"
+                id="reqTitle"
+                placeholder="e.g. ISO: 5kVA Solar Inverter + Lithium Battery or MacBook Pro M3"
+                required
+              />
+            </div>
+            <div class="form-group flex-1">
+              <label for="reqCategory" class="form-label"
+                >Category <span class="required">*</span></label
+              >
+              <select id="reqCategory" required>
+                <option value="electronics">Electronics & Tech</option>
+                <option value="solar">Solar & Power Backup</option>
+                <option value="services" selected>Trades, Services & Gigs</option>
+                <option value="collectibles">Collectibles & Heritage Art</option>
+                <option value="vehicles">Vehicles & Tokunbo Parts</option>
+                <option value="housing">Housing & Shortlets</option>
+                <option value="home">Furniture & Home</option>
+                <option value="agriculture">Agriculture & Foodstuff</option>
+                <option value="community">Community & Barter</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 3: Budget, Urgency & Condition -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="reqBudget" class="form-label" id="reqBudgetLabel"
+                >Target / Max Budget <span class="required">*</span></label
+              >
+              <div class="input-with-symbol">
+                <span class="sym" id="reqBudgetSym">₦</span>
+                <input
+                  type="number"
+                  id="reqBudget"
+                  min="1"
+                  step="1"
+                  placeholder="150000"
+                  required
+                />
+              </div>
+            </div>
+            <div class="form-group flex-1" id="reqRateTypeGroup" style="display: none">
+              <label for="reqRateType" class="form-label">Pricing Type</label>
+              <select id="reqRateType">
+                <option value="flat">Total Job Budget (Flat)</option>
+                <option value="hourly">Hourly Rate Target ($/hr or Local)</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="reqUrgency" class="form-label"
+                >Urgency / Timeline <span class="required">*</span></label
+              >
+              <select id="reqUrgency" required>
+                <option value="ASAP (Within 24 Hours)">🔥 ASAP (Within 24 Hours)</option>
+                <option value="Within 2-3 Days" selected>⚡ Within 2-3 Days</option>
+                <option value="This Week">📅 This Week</option>
+                <option value="Flexible / Anytime">⏳ Flexible / Anytime</option>
+              </select>
+            </div>
+            <div class="form-group flex-1" id="reqConditionGroup">
+              <label for="reqCondition" class="form-label">Condition Desired</label>
+              <select id="reqCondition">
+                <option value="Any Condition">Any Working Condition</option>
+                <option value="Brand New / Mint">Brand New / Sealed</option>
+                <option value="Gently Used / Like New" selected>
+                  Gently Used / Tokunbo / Clean
+                </option>
+                <option value="Fair / For Parts">Fair / For Parts or Repair</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 4: Location & Delivery Preference -->
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="reqCity" class="form-label"
+                >City / Region <span class="required">*</span></label
+              >
+              <select id="reqCity" required>
+                <optgroup label="🇳🇬 Nigeria">
+                  <option value="Lagos, Nigeria" selected>Lagos, Nigeria</option>
+                  <option value="Abuja, Nigeria">Abuja, Nigeria</option>
+                  <option value="Port Harcourt, Nigeria">Port Harcourt, Nigeria</option>
+                  <option value="Ibadan, Nigeria">Ibadan, Nigeria</option>
+                  <option value="Kano, Nigeria">Kano, Nigeria</option>
+                </optgroup>
+                <optgroup label="🇰🇪 Kenya">
+                  <option value="Nairobi, Kenya">Nairobi, Kenya</option>
+                  <option value="Mombasa, Kenya">Mombasa, Kenya</option>
+                  <option value="Kisumu, Kenya">Kisumu, Kenya</option>
+                </optgroup>
+                <optgroup label="🇬🇭 Ghana">
+                  <option value="Accra, Ghana">Accra, Ghana</option>
+                  <option value="Kumasi, Ghana">Kumasi, Ghana</option>
+                </optgroup>
+                <optgroup label="🇿🇦 South Africa">
+                  <option value="Johannesburg, South Africa">Johannesburg, South Africa</option>
+                  <option value="Cape Town, South Africa">Cape Town, South Africa</option>
+                  <option value="Durban, South Africa">Durban, South Africa</option>
+                </optgroup>
+                <optgroup label="🇷🇼 Rwanda">
+                  <option value="Kigali, Rwanda">Kigali, Rwanda</option>
+                </optgroup>
+                <optgroup label="🇹🇿 Tanzania">
+                  <option value="Dar es Salaam, Tanzania">Dar es Salaam, Tanzania</option>
+                </optgroup>
+                <optgroup label="🇺🇬 Uganda">
+                  <option value="Kampala, Uganda">Kampala, Uganda</option>
+                </optgroup>
+                <optgroup label="🇪🇬 Egypt">
+                  <option value="Cairo, Egypt">Cairo, Egypt</option>
+                </optgroup>
+                <optgroup label="🌍 Pan-African">
+                  <option value="All Africa">All Africa</option>
+                </optgroup>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="reqNeighborhood" class="form-label">Neighborhood / Area / Market</label>
+              <input
+                type="text"
+                id="reqNeighborhood"
+                placeholder="e.g. Ikeja, Lekki Phase 1, Kilimani, Sandton"
+              />
+            </div>
+            <div class="form-group flex-1">
+              <label for="reqFulfillment" class="form-label">Fulfillment / Meetup</label>
+              <select id="reqFulfillment">
+                <option value="pickup">Local Meetup Only (Safe Exchange Mall/Bank)</option>
+                <option value="both" selected>Flexible: Local Meetup or Courier Dispatch</option>
+                <option value="shipping">Courier / Interstate Delivery Accepted</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 5: Reference Photo (Optional) -->
+          <div class="form-group">
+            <label class="form-label"
+              >Reference Image
+              <small style="color: #64748b"
+                >(Optional - paste image URL or pick preset)</small
+              ></label
+            >
+            <div class="photo-picker-wrapper">
+              <input
+                type="url"
+                id="reqImageUrl"
+                placeholder="Paste an Image URL or choose a sample photo below"
+              />
+              <div class="sample-photos-row" id="reqSamplePhotosList">
+                <!-- Pre-configured sample photos -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 6: Description & Scope -->
+          <div class="form-group">
+            <label for="reqDescription" class="form-label"
+              >Detailed Requirements & Scope <span class="required">*</span></label
+            >
+            <textarea
+              id="reqDescription"
+              rows="4"
+              placeholder="Describe specific model, part numbers, dimensions, or exact scope of work needed..."
+              required
+            ></textarea>
+          </div>
+
+          <!-- Submit Button -->
+          <div class="form-actions">
+            <button type="button" class="btn-cancel" id="cancelReqBtn">Cancel</button>
+            <button type="submit" class="btn-submit-post btn-submit-request">
+              🚀 Publish Request Now
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 3: WATCHLIST / MY BIDS / MY REQUESTS DRAWER -->
+    <div class="modal-overlay" id="drawerModalOverlay" style="display: none">
+      <div class="drawer-panel" id="drawerPanel">
+        <div class="drawer-header">
+          <div class="drawer-tabs">
+            <button class="drawer-tab active" id="tabWatchlist">
+              ❤️ Watchlist (<span id="drawerWatchlistCount">0</span>)
+            </button>
+            <button class="drawer-tab" id="tabMyBids">
+              🔨 My Bids (<span id="drawerBidsCount">0</span>)
+            </button>
+            <button class="drawer-tab" id="tabMyRequests">
+              🙋 My Requests (<span id="drawerRequestsCount">0</span>)
+            </button>
+            <button class="drawer-tab" id="tabMyQuotes">
+              💬 My Quotes (<span id="drawerQuotesCount">0</span>)
+            </button>
+          </div>
+          <button class="modal-close-btn" id="closeDrawerBtn">&times;</button>
+        </div>
+
+        <div class="drawer-body" id="drawerBody">
+          <!-- Dynamically filled with watchlisted or placed bids items -->
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 4: CONTACT SELLER / CHAT MODAL -->
+    <div class="modal-overlay" id="chatModalOverlay" style="display: none">
+      <div class="modal-card chat-modal">
+        <div class="modal-header">
+          <div class="header-titles">
+            <h3>Contact Seller &bull; <span id="chatSellerName">Verified Seller</span></h3>
+            <p>Re: <strong id="chatItemTitle">MacBook Pro</strong></p>
+          </div>
+          <button class="modal-close-btn" id="closeChatModalBtn">&times;</button>
+        </div>
+
+        <div class="chat-safe-notice">
+          <span>🛡️</span> Keep communication on Servilist for escrow & safe exchange protection.
+        </div>
+
+        <div class="chat-messages-container" id="chatMessages">
+          <div class="chat-msg msg-received">
+            <div class="msg-bubble">
+              Hello! Thanks for your interest in this listing. Feel free to ask about condition,
+              pickup availability, or propose an offer!
+            </div>
+            <span class="msg-time">Just now</span>
+          </div>
+        </div>
+
+        <form id="chatForm" class="chat-form">
+          <div class="chat-quick-templates">
+            <button
+              type="button"
+              class="btn-chat-chip"
+              data-template="Is this still available? Can pick up today with cash."
+            >
+              "Is this still available for pickup today?"
+            </button>
+            <button
+              type="button"
+              class="btn-chat-chip"
+              data-template="Would you accept a best offer?"
+            >
+              "Would you accept a best offer?"
+            </button>
+            <button
+              type="button"
+              class="btn-chat-chip"
+              data-template="Can we meet at a local safe exchange zone?"
+            >
+              "Safe meetup location?"
+            </button>
+          </div>
+          <div class="chat-input-row">
+            <input
+              type="text"
+              id="chatInput"
+              placeholder="Type your message to the seller..."
+              required
+            />
+            <button type="submit" class="btn-send-chat">Send</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 5: PAN-AFRICAN CURRENCY CONVERTER & CALCULATOR -->
+    <div class="modal-overlay" id="converterModalOverlay" style="display: none">
+      <div class="modal-card converter-modal">
+        <div class="modal-header">
+          <div class="header-titles">
+            <h2>💱 Pan-African Currency Converter</h2>
+            <p>
+              Live commercial exchange rates between African currencies and US Dollars for
+              transparent trade & escrow.
+            </p>
+          </div>
+          <button class="modal-close-btn" id="closeConverterModalBtn">&times;</button>
+        </div>
+
+        <div class="converter-modal-body">
+          <div class="converter-calc-box">
+            <div class="converter-calc-row">
+              <div class="conv-input-group">
+                <label for="calcAmountInput">Amount to Convert</label>
+                <div class="input-with-symbol">
+                  <span class="sym" id="calcFromSym">₦</span>
+                  <input type="number" id="calcAmountInput" value="100000" min="0" step="any" />
+                </div>
+              </div>
+              <div class="conv-input-group">
+                <label for="calcFromCurrency">From Currency</label>
+                <select id="calcFromCurrency">
+                  <option value="NGN" selected>🇳🇬 NGN - Nigerian Naira (₦)</option>
+                  <option value="KES">🇰🇪 KES - Kenyan Shilling (KSh)</option>
+                  <option value="GHS">🇬🇭 GHS - Ghanaian Cedi (GH₵)</option>
+                  <option value="ZAR">🇿🇦 ZAR - South African Rand (R)</option>
+                  <option value="USD">🇺🇸 USD - US Dollar ($)</option>
+                  <option value="EGP">🇪🇬 EGP - Egyptian Pound (E£)</option>
+                  <option value="RWF">🇷🇼 RWF - Rwandan Franc (FRw)</option>
+                  <option value="TZS">🇹🇿 TZS - Tanzanian Shilling (TSh)</option>
+                  <option value="UGX">🇺🇬 UGX - Ugandan Shilling (USh)</option>
+                  <option value="XOF">🇨🇮 XOF - West African CFA (CFA)</option>
+                </select>
+              </div>
+              <div class="conv-swap-wrap">
+                <button
+                  type="button"
+                  id="calcSwapBtn"
+                  class="btn-swap-currency"
+                  title="Swap currencies"
+                >
+                  ⇄
+                </button>
+              </div>
+              <div class="conv-input-group">
+                <label for="calcToCurrency">To Currency</label>
+                <select id="calcToCurrency">
+                  <option value="USD" selected>🇺🇸 USD - US Dollar ($)</option>
+                  <option value="NGN">🇳🇬 NGN - Nigerian Naira (₦)</option>
+                  <option value="KES">🇰🇪 KES - Kenyan Shilling (KSh)</option>
+                  <option value="GHS">🇬🇭 GHS - Ghanaian Cedi (GH₵)</option>
+                  <option value="ZAR">🇿🇦 ZAR - South African Rand (R)</option>
+                  <option value="EGP">🇪🇬 EGP - Egyptian Pound (E£)</option>
+                  <option value="RWF">🇷🇼 RWF - Rwandan Franc (FRw)</option>
+                  <option value="TZS">🇹🇿 TZS - Tanzanian Shilling (TSh)</option>
+                  <option value="UGX">🇺🇬 UGX - Ugandan Shilling (USh)</option>
+                  <option value="XOF">🇨🇮 XOF - West African CFA (CFA)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="converter-result-banner" id="converterResultBanner">
+              <div class="conv-sub-text" id="convRateBreakdown">
+                1 NGN = 0.00067 USD &bull; 1 USD = ₦1,500.00
+              </div>
+              <div class="conv-main-result" id="convMainResultDisplay">$66.67 USD</div>
+              <div class="conv-rate-note">
+                Mid-market Pan-African exchange rate for local commerce & cross-border escrow.
+              </div>
+            </div>
+
+            <!-- Quick Presets -->
+            <div class="conv-presets-row">
+              <span class="conv-presets-label">Quick Presets:</span>
+              <button type="button" class="btn-conv-preset" data-amount="50000" data-curr="NGN">
+                ₦50,000
+              </button>
+              <button type="button" class="btn-conv-preset" data-amount="200000" data-curr="NGN">
+                ₦200,000
+              </button>
+              <button type="button" class="btn-conv-preset" data-amount="1000000" data-curr="NGN">
+                ₦1,000,000
+              </button>
+              <button type="button" class="btn-conv-preset" data-amount="10000" data-curr="KES">
+                KSh 10,000
+              </button>
+              <button type="button" class="btn-conv-preset" data-amount="100" data-curr="USD">
+                $100 USD
+              </button>
+              <button type="button" class="btn-conv-preset" data-amount="500" data-curr="USD">
+                $500 USD
+              </button>
+            </div>
+          </div>
+
+          <!-- Multi-Currency Live Matrix -->
+          <div class="converter-matrix-section">
+            <div class="matrix-header">
+              <h4>All African Currencies & USD Matrix</h4>
+              <span class="matrix-sub">Calculated for the entered amount</span>
+            </div>
+            <div class="converter-matrix-grid" id="converterMatrixGrid">
+              <!-- Populated dynamically with converted value in each currency -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 6: AFRICAN COMMERCE DASHBOARDS & SUPABASE CLOUD HUB -->
+    <div class="modal-overlay" id="dashboardsModalOverlay" style="display: none">
+      <div class="modal-card dashboards-modal">
+        <div class="modal-header dashboards-header">
+          <div class="dashboards-header-left">
+            <div class="dash-title-row">
+              <span class="dash-header-icon">📊</span>
+              <h2>Servilist Africa &bull; Unified Dashboards & Hub</h2>
+              <span class="cloud-status-badge" id="cloudStatusBadge">
+                <span class="cloud-dot"></span>
+                <span id="cloudStatusText">Supabase Cloud: Ready</span>
+              </span>
+            </div>
+            <p class="dash-subtitle">
+              Command center for African sellers, buyer requests (ISO/RFQ), service providers, and
+              escrow safe trade.
+            </p>
+          </div>
+          <button class="modal-close-btn" id="closeDashboardModalBtn">&times;</button>
+        </div>
+
+        <!-- DASHBOARD TABS NAVIGATION -->
+        <div class="dashboards-nav-bar">
+          <button type="button" class="dash-nav-btn active" data-tab="overview">
+            <span class="dash-nav-icon">📈</span>
+            <span>Overview & Supabase Sync</span>
+          </button>
+          <button type="button" class="dash-nav-btn" data-tab="seller">
+            <span class="dash-nav-icon">🏪</span>
+            <span>Seller Hub (<span id="dashSellerCount">0</span>)</span>
+          </button>
+          <button type="button" class="dash-nav-btn" data-tab="buyer">
+            <span class="dash-nav-icon">🙋</span>
+            <span>Buyer Requests Hub (<span id="dashBuyerCount">0</span>)</span>
+          </button>
+          <button type="button" class="dash-nav-btn" data-tab="provider">
+            <span class="dash-nav-icon">💼</span>
+            <span>Service Provider Hub (<span id="dashProviderCount">0</span>)</span>
+          </button>
+          <button type="button" class="dash-nav-btn" data-tab="escrow">
+            <span class="dash-nav-icon">🛡️</span>
+            <span>Safe Escrow Tracker (<span id="dashEscrowCount">0</span>)</span>
+          </button>
+        </div>
+
+        <!-- DASHBOARD CONTENT PANELS -->
+        <div class="dashboards-body">
+          <!-- TAB 1: OVERVIEW & SUPABASE SYNC -->
+          <div class="dash-panel active" id="dashPanelOverview">
+            <!-- Metric Cards Row -->
+            <div class="dash-metrics-grid">
+              <div class="dash-metric-card metric-gmv">
+                <div class="metric-head">
+                  <span class="metric-title">Marketplace Volume (GMV)</span>
+                  <span class="metric-icon">💰</span>
+                </div>
+                <div class="metric-value" id="dashMetricGMV">₦0</div>
+                <div class="metric-sub" id="dashMetricGMVSub">
+                  Across active auctions & classifieds
+                </div>
+              </div>
+
+              <div class="dash-metric-card metric-auctions">
+                <div class="metric-head">
+                  <span class="metric-title">Live Auctions Active</span>
+                  <span class="metric-icon">🔨</span>
+                </div>
+                <div class="metric-value" id="dashMetricAuctions">0</div>
+                <div class="metric-sub" id="dashMetricAuctionsSub">
+                  Bidding in progress across Africa
+                </div>
+              </div>
+
+              <div class="dash-metric-card metric-requests">
+                <div class="metric-head">
+                  <span class="metric-title">Buyer Requests (Wanted / ISO)</span>
+                  <span class="metric-icon">📦</span>
+                </div>
+                <div class="metric-value" id="dashMetricRequests">0</div>
+                <div class="metric-sub" id="dashMetricRequestsSub">Reverse marketplace RFQs</div>
+              </div>
+
+              <div class="dash-metric-card metric-escrow">
+                <div class="metric-head">
+                  <span class="metric-title">Escrow Vault Protected</span>
+                  <span class="metric-icon">🛡️</span>
+                </div>
+                <div class="metric-value" id="dashMetricEscrow">₦0</div>
+                <div class="metric-sub" id="dashMetricEscrowSub">
+                  Paystack • Flutterwave • M-Pesa
+                </div>
+              </div>
+            </div>
+
+            <!-- SUPABASE DATABASE CLOUD INTEGRATION CARD -->
+            <div class="dash-supabase-card">
+              <div class="supabase-card-head">
+                <div class="supa-title-group">
+                  <span class="supa-logo">⚡</span>
+                  <div>
+                    <h3>Supabase Database & Cloud Connection</h3>
+                    <p>
+                      Connected to the Git repository. Real-time synchronization of listings, bids,
+                      requests, proposals, and escrow states.
+                    </p>
+                  </div>
+                </div>
+                <span class="supa-pill" id="supaStatusPill">🟢 Cloud Ready / Local Sync</span>
+              </div>
+
+              <div class="supabase-config-form">
+                <p>Database access is configured on the application server.</p>
+                <div class="supa-actions-row">
+                  <button type="button" id="btnTestSupabase" class="btn-dash-primary">
+                    <span>⚡ Test Connection</span>
+                  </button>
+                  <button type="button" id="btnSyncSupabase" class="btn-dash-secondary">
+                    <span>🔄 Sync All Marketplace Data to Cloud</span>
+                  </button>
+                  <button type="button" id="btnDownloadSchema" class="btn-dash-secondary">
+                    <span>📜 View / Download SQL Schema</span>
+                  </button>
+                  <button type="button" id="btnResetSeedData" class="btn-dash-link">
+                    <span>↺ Restore African Seed Data</span>
+                  </button>
+                </div>
+
+                <!-- Live Sync Terminal Console -->
+                <div class="supa-console-box">
+                  <div class="console-head">
+                    <span>Supabase Synchronization Activity Log</span>
+                    <button type="button" id="btnClearConsole" class="btn-clear-console">
+                      Clear
+                    </button>
+                  </div>
+                  <div class="console-logs" id="supaConsoleLogs">
+                    <div class="log-line info">
+                      [System] Servilist Africa initialised. Local storage reactive cache loaded.
+                    </div>
+                    <div class="log-line success">
+                      [Supabase] Database schema ready. Git integration verified with database
+                      credentials.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Activity Audit Stream -->
+            <div class="dash-activity-section">
+              <div class="dash-section-head">
+                <h3>⚡ Real-Time African Commerce Activity Stream</h3>
+                <span class="activity-note"
+                  >Live updates across Lagos, Nairobi, Accra, Johannesburg, Kigali</span
+                >
+              </div>
+              <div class="dash-activity-stream" id="dashActivityStream">
+                <!-- Populated with live actions -->
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: SELLER HUB -->
+          <div class="dash-panel" id="dashPanelSeller">
+            <div class="dash-panel-toolbar">
+              <div class="panel-left">
+                <h3>🏪 Seller Hub & Auction Management</h3>
+                <p>
+                  Manage your live auctions, Craigslist classifieds, active bids, and item
+                  fulfillment.
+                </p>
+              </div>
+              <div class="panel-right">
+                <button type="button" class="btn-dash-primary" id="dashNewListingBtn">
+                  <span>+ Post New Listing</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Filter pills for seller items -->
+            <div class="seller-sub-filters">
+              <button type="button" class="seller-sub-pill active" data-filter="all">
+                All My Listings (<span id="sellerFilterCountAll">0</span>)
+              </button>
+              <button type="button" class="seller-sub-pill" data-filter="auction">
+                Live Auctions (<span id="sellerFilterCountAuction">0</span>)
+              </button>
+              <button type="button" class="seller-sub-pill" data-filter="buy_now">
+                Fixed Price Buy-Now (<span id="sellerFilterCountBuyNow">0</span>)
+              </button>
+              <button type="button" class="seller-sub-pill" data-filter="sold">
+                Sold / Completed (<span id="sellerFilterCountSold">0</span>)
+              </button>
+            </div>
+
+            <!-- Seller Listings Table / List -->
+            <div class="seller-listings-container" id="sellerListingsContainer">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- TAB 3: BUYER REQUESTS HUB (ISO & RFQ) -->
+          <div class="dash-panel" id="dashPanelBuyer">
+            <div class="dash-panel-toolbar">
+              <div class="panel-left">
+                <h3>🙋 Buyer Requests Hub (Wanted / ISO / RFQ)</h3>
+                <p>
+                  Track your posted requests, review incoming proposals from verified African
+                  vendors, and award contracts.
+                </p>
+              </div>
+              <div class="panel-right">
+                <button type="button" class="btn-dash-primary" id="dashNewRequestBtn">
+                  <span>+ Post a Request</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="buyer-requests-container" id="buyerRequestsContainer">
+              <!-- Populated dynamically with user's posted requests & incoming quotes -->
+            </div>
+          </div>
+
+          <!-- TAB 4: SERVICE PROVIDER & PROPOSALS HUB -->
+          <div class="dash-panel" id="dashPanelProvider">
+            <div class="dash-panel-toolbar">
+              <div class="panel-left">
+                <h3>💼 Service Provider & Vendor Proposals Hub</h3>
+                <p>Track quotes and bids you have submitted on buyer requests across Africa.</p>
+              </div>
+            </div>
+
+            <div class="provider-proposals-container" id="providerProposalsContainer">
+              <!-- Populated dynamically with user's submitted quotes -->
+            </div>
+          </div>
+
+          <!-- TAB 5: ESCROW & SAFE MEETUP TRACKER -->
+          <div class="dash-panel" id="dashPanelEscrow">
+            <!-- Escrow Banner -->
+            <div class="escrow-banner-card">
+              <div class="escrow-banner-icon">🛡️</div>
+              <div class="escrow-banner-content">
+                <h4>African Safe Trade & Escrow Guarantee</h4>
+                <p>
+                  Funds are secured via licensed African payment gateways (Paystack, Flutterwave,
+                  M-Pesa). The seller only receives payout when the buyer confirms inspection with
+                  the secret Handover OTP.
+                </p>
+                <div class="escrow-steps-row">
+                  <div class="step-chip"><span class="step-num">1</span> Payment Deposited</div>
+                  <span class="step-arrow">&rarr;</span>
+                  <div class="step-chip">
+                    <span class="step-num">2</span> Safe Meetup / Courier Dispatch
+                  </div>
+                  <span class="step-arrow">&rarr;</span>
+                  <div class="step-chip"><span class="step-num">3</span> Handover OTP Verified</div>
+                  <span class="step-arrow">&rarr;</span>
+                  <div class="step-chip">
+                    <span class="step-num">4</span> Escrow Payout Released
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dash-panel-toolbar" style="margin-top: 20px">
+              <div class="panel-left">
+                <h3>Active Escrow Protected Transactions</h3>
+                <p>Monitor locked funds, verify handover OTPs, and release payments safely.</p>
+              </div>
+            </div>
+
+            <div class="escrow-orders-container" id="escrowOrdersContainer">
+              <!-- Populated dynamically with active escrow transactions -->
+            </div>
+
+            <!-- Safe Meetup Zones in Africa -->
+            <div class="safe-zones-guide-box">
+              <div class="safe-guide-head">
+                <span class="safe-pin">📍</span>
+                <h4>Recommended Safe Public Meetup Zones</h4>
+              </div>
+              <div class="safe-zones-grid">
+                <div class="safe-zone-item">
+                  <strong>🇳🇬 Lagos:</strong> Ikeja City Mall (Alausa) &bull; Lekki Phase 1 Police
+                  Post &bull; Silverbird Galleria Victoria Island
+                </div>
+                <div class="safe-zone-item">
+                  <strong>🇰🇪 Nairobi:</strong> Sarit Centre (Westlands) &bull; The Hub Karen &bull;
+                  Kilimani Police Station Public Desk
+                </div>
+                <div class="safe-zone-item">
+                  <strong>🇬🇭 Accra:</strong> Accra Mall (Tetteh Quarshie) &bull; Marina Mall
+                  (Airport Residential) &bull; Osu Police Station
+                </div>
+                <div class="safe-zone-item">
+                  <strong>🇿🇦 Johannesburg:</strong> Sandton City Mall &bull; Rosebank Mall &bull;
+                  Sandton SAPS Public Safe Exchange Desk
+                </div>
+                <div class="safe-zone-item">
+                  <strong>🇷🇼 Kigali:</strong> Kigali Heights (Kimihurura) &bull; BK Arena Plaza
+                  &bull; KBC Commercial Complex
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- SUPABASE CLIENT & MAIN SCRIPT -->
+    <script src="/supabaseClient.js"></script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
