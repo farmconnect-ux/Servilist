@@ -19,12 +19,17 @@ import { PolicyEvaluator } from './auth/policies';
 import { processAndUploadImage } from './storage/imageUpload';
 import { AppRouter } from './routing/router';
 import { SyncChannelManager } from './data/syncChannel';
+import { supabase } from './data/supabase';
+import { CloudStore } from './data/cloudStore';
+import { CloudController } from './cloud/cloudController';
 
 export class ServilistApp {
   public storage: LocalStorageManager;
   public authService: AuthService;
   public syncManager: SyncChannelManager;
   public dashboardManager!: DashboardManager;
+  /** Set when the build is connected to Supabase; null means local demo mode. */
+  public cloud: CloudController | null = null;
   public listings: Listing[] = [];
   public requests: BuyerRequest[] = [];
   public escrowOrders: EscrowOrder[] = [];
@@ -60,13 +65,38 @@ export class ServilistApp {
     this.storage = new LocalStorageManager();
     this.authService = new AuthService();
     this.syncManager = new SyncChannelManager();
+    if (supabase) {
+      this.cloud = new CloudController(supabase, new CloudStore(supabase), this);
+    }
+  }
+
+  public openAuthModal() {
+    this.dialogs['authModalOverlay']?.open();
+  }
+
+  public closeModal(id: string) {
+    this.dialogs[id]?.close();
+  }
+
+  public isModalOpen(id: string): boolean {
+    return this.dialogs[id]?.isOpen() ?? false;
+  }
+
+  public refreshMarketplaceUI() {
+    this.renderListings();
+    this.renderCategoryCounts();
+    this.updateTopBarStats();
+    this.updateDashboardMetrics();
   }
 
   public init() {
     this.activeCurrency = this.storage.getActiveCurrency();
-    this.listings = this.storage.getListings();
-    this.requests = this.storage.getRequests();
-    this.escrowOrders = this.storage.getEscrowOrders();
+    // In cloud mode the database is the source of truth; no seeds, no local cache
+    if (!this.cloud) {
+      this.listings = this.storage.getListings();
+      this.requests = this.storage.getRequests();
+      this.escrowOrders = this.storage.getEscrowOrders();
+    }
 
     this.populateLocationSelects();
     this.initDashboardManager();
@@ -89,7 +119,11 @@ export class ServilistApp {
     this.updateTopBarStats();
     this.updateDashboardMetrics();
     this.startTimerTicker();
-    this.checkUrlRoute();
+    if (this.cloud) {
+      void this.cloud.start().then(() => this.checkUrlRoute());
+    } else {
+      this.checkUrlRoute();
+    }
   }
 
   /**
@@ -457,7 +491,11 @@ export class ServilistApp {
 
       if (postChooseBtn) postChooseBtn.textContent = '⏳ Processing photo...';
       try {
-        const result = await processAndUploadImage(file, (window as any).supabase);
+        const result = await processAndUploadImage(
+          file,
+          supabase ?? (window as any).supabase,
+          this.cloud?.uploadFolder() ?? undefined
+        );
         if (postUrlInput) postUrlInput.value = result.url;
         if (postThumbImg) postThumbImg.src = result.thumbnailUrl;
         if (postThumbPreview) postThumbPreview.style.display = 'flex';
@@ -486,7 +524,11 @@ export class ServilistApp {
 
       if (reqChooseBtn) reqChooseBtn.textContent = '⏳ Processing photo...';
       try {
-        const result = await processAndUploadImage(file, (window as any).supabase);
+        const result = await processAndUploadImage(
+          file,
+          supabase ?? (window as any).supabase,
+          this.cloud?.uploadFolder() ?? undefined
+        );
         if (reqUrlInput) reqUrlInput.value = result.url;
         if (reqThumbImg) reqThumbImg.src = result.thumbnailUrl;
         if (reqThumbPreview) reqThumbPreview.style.display = 'flex';
@@ -671,7 +713,7 @@ export class ServilistApp {
           <p style="color: #64748b; max-width: 460px; margin: 0 auto 16px;">Try resetting filters or be the first to list items and services in ${this.escapeHtml(this.currentCity)}!</p>
           <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
             <button type="button" class="btn-primary" id="emptyStatePostBtn">Post a Listing</button>
-            <button type="button" class="btn-secondary" id="emptyStateSeedBtn">Load Sample African Listings</button>
+            ${this.cloud ? '' : '<button type="button" class="btn-secondary" id="emptyStateSeedBtn">Load Sample African Listings</button>'}
           </div>
         </div>
       `;
@@ -1089,6 +1131,10 @@ export class ServilistApp {
       this.showToast(validation.error || 'Invalid bid', 'warning');
       return;
     }
+    if (this.cloud) {
+      void this.cloud.placeBid(item.id, amountMinor);
+      return;
+    }
 
     const currentUser = this.authService.getCurrentUser();
     const newBid = {
@@ -1124,6 +1170,10 @@ export class ServilistApp {
   public submitQuote(requestId: string, amountMinor: number, timeline: string, message: string) {
     const req = this.requests.find((r) => r.id === requestId);
     if (!req) return;
+    if (this.cloud) {
+      void this.cloud.submitQuote(req, amountMinor, timeline, message);
+      return;
+    }
 
     const currentUser = this.authService.getCurrentUser();
     const newQuote = createQuote({
@@ -1154,6 +1204,10 @@ export class ServilistApp {
     const req = this.requests.find((r) => r.id === requestId);
     const offer = req?.offers?.find((o) => o.id === quoteId);
     if (!req || !offer) return;
+    if (this.cloud) {
+      void this.cloud.acceptQuote(req, offer.id);
+      return;
+    }
 
     const currentUser = this.authService.getCurrentUser();
     const order = createEscrowOrder({
@@ -1182,6 +1236,10 @@ export class ServilistApp {
   }
 
   public createEscrowFromListing(item: Listing) {
+    if (this.cloud) {
+      void this.cloud.buyListing(item);
+      return;
+    }
     const currentUser = this.authService.getCurrentUser();
     const order = createEscrowOrder({
       listingId: item.id,
@@ -1298,6 +1356,15 @@ export class ServilistApp {
       createdAt: Date.now(),
     };
 
+    if (this.cloud) {
+      void this.cloud.createListing(newListing).then((ok) => {
+        if (!ok) return;
+        this.dialogs['postModalOverlay']?.close();
+        (document.getElementById('postListingForm') as HTMLFormElement)?.reset();
+      });
+      return;
+    }
+
     this.listings.unshift(newListing);
     this.storage.saveListings(this.listings);
     this.syncManager.broadcast('LISTING_CREATED', newListing, currentUser.id);
@@ -1354,6 +1421,16 @@ export class ServilistApp {
         country: currentUser.country,
       },
     });
+
+    if (this.cloud) {
+      void this.cloud.createRequest(newReq).then((ok) => {
+        if (!ok) return;
+        this.dialogs['postModalOverlay']?.close();
+        (document.getElementById('postRequestForm') as HTMLFormElement)?.reset();
+        this.setFormatPill('requests');
+      });
+      return;
+    }
 
     this.requests.unshift(newReq);
     this.storage.saveRequests(this.requests);
@@ -1433,6 +1510,10 @@ export class ServilistApp {
       this.showToast('Escrow order not found', 'warning');
       return;
     }
+    if (this.cloud) {
+      void this.cloud.confirmHandover(order, otpInput.trim());
+      return;
+    }
     const res = transitionEscrow(order, 'otp_verified', { otpAttempt: otpInput.trim() });
     if (res.success && res.order) {
       const released = transitionEscrow(res.order, 'released');
@@ -1494,6 +1575,7 @@ export class ServilistApp {
   }
 
   public resetToSeedData() {
+    if (this.cloud) return;
     if (confirm('Reset marketplace to authentic African seed listings & requests?')) {
       this.listings = JSON.parse(JSON.stringify(SEED_LISTINGS));
       this.requests = JSON.parse(JSON.stringify(SEED_REQUESTS));
@@ -1689,7 +1771,7 @@ export class ServilistApp {
       }
     });
 
-    if (typeof window !== 'undefined' && (window as any).supabase) {
+    if (!this.cloud && typeof window !== 'undefined' && (window as any).supabase) {
       this.syncManager.initSupabaseRealtime((window as any).supabase, (newListing) => {
         if (!this.listings.some((l) => l.id === newListing.id)) {
           this.listings.unshift(newListing);
@@ -1726,7 +1808,7 @@ export class ServilistApp {
 
     userPill?.addEventListener('click', () => {
       this.dialogs['authModalOverlay']?.open();
-      this.renderTestUsersList();
+      if (!this.cloud) this.renderTestUsersList();
     });
 
     // Auth Modal Tabs
@@ -1772,6 +1854,12 @@ export class ServilistApp {
     emailForm?.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = (document.getElementById('authEmailInput') as HTMLInputElement)?.value || '';
+      if (this.cloud) {
+        const passwordInput = document.getElementById('authPasswordInput') as HTMLInputElement;
+        void this.cloud.signIn(email.trim(), passwordInput?.value || '');
+        if (passwordInput) passwordInput.value = '';
+        return;
+      }
       const user = this.authService.signInWithEmail(email);
       this.syncAuthUserUI();
       this.dialogs['authModalOverlay']?.close();
@@ -1785,6 +1873,17 @@ export class ServilistApp {
       const phone = (document.getElementById('regPhone') as HTMLInputElement)?.value || '';
       const city =
         (document.getElementById('regCity') as HTMLSelectElement)?.value || 'Lagos, Nigeria';
+      if (this.cloud) {
+        const passwordInput = document.getElementById('regPassword') as HTMLInputElement;
+        void this.cloud.signUp({
+          name: name.trim(),
+          email: email.trim(),
+          password: passwordInput?.value || '',
+          city,
+        });
+        if (passwordInput) passwordInput.value = '';
+        return;
+      }
       const user = this.authService.signUp({ name, email, phone, city, country: 'Africa' });
       this.syncAuthUserUI();
       this.dialogs['authModalOverlay']?.close();
@@ -1792,6 +1891,10 @@ export class ServilistApp {
     });
 
     signOutBtn?.addEventListener('click', () => {
+      if (this.cloud) {
+        void this.cloud.signOut();
+        return;
+      }
       this.authService.signOut();
       this.syncAuthUserUI();
       this.dialogs['authModalOverlay']?.close();
@@ -1842,7 +1945,9 @@ export class ServilistApp {
     const avatar = document.getElementById('navUserAvatar');
     const name = document.getElementById('navUserName');
     if (avatar) avatar.textContent = user.avatar;
-    if (name) name.textContent = `${user.name} (${user.rating} ★)`;
+    if (name) {
+      name.textContent = user.id === 'guest' ? 'Sign in' : `${user.name} (${user.rating} ★)`;
+    }
 
     const modalAvatar = document.getElementById('authCurrentAvatar');
     const modalName = document.getElementById('authCurrentName');

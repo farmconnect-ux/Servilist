@@ -87,7 +87,8 @@ export async function generateThumbnail(file: Blob, targetSize = 200): Promise<s
  */
 export async function processAndUploadImage(
   file: File,
-  supabaseClient?: any
+  supabaseClient?: any,
+  folder: string = 'listings'
 ): Promise<UploadResult> {
   const validation = validateImageFile(file);
   if (!validation.valid) {
@@ -100,7 +101,7 @@ export async function processAndUploadImage(
   if (supabaseClient && supabaseClient.storage) {
     try {
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const filePath = `listings/${Date.now()}_${sanitizedName}`;
+      const filePath = `${folder}/${Date.now()}_${sanitizedName}`;
 
       const { data, error } = await supabaseClient.storage
         .from('listing-images')
