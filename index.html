@@ -118,11 +118,33 @@
               <span id="watchlistCountBadge" class="badge-count">0</span>
             </button>
             <button
+              id="openBuyerDashBtn"
+              class="top-link-btn btn-dash-buyer"
+              title="Open Buyer Dashboard (Order Tracking, Wishlists, Receipts)"
+            >
+              <span>🛒 Buyer Hub</span>
+            </button>
+            <button
+              id="openSellerDashBtn"
+              class="top-link-btn btn-dash-seller"
+              title="Open Seller Dashboard (Sales Analytics, Inventory, Payouts)"
+            >
+              <span>💰 Seller Hub</span>
+            </button>
+            <button
+              id="openAdminDashBtn"
+              class="top-link-btn btn-dash-admin"
+              title="Open Multi-Vendor Admin Dashboard (Governance, KYC, Split Payouts)"
+            >
+              <span>🛡️ Admin Hub</span>
+            </button>
+            <button
               id="topDashboardsBtn"
               class="top-link-btn btn-dashboards-link"
-              title="Open Market Dashboards & Supabase Cloud Hub"
+              title="Open Dashboards & Escrow"
+              style="display: none"
             >
-              <span>📊 Dashboards & Escrow</span>
+              <span>📊 Dashboards</span>
             </button>
             <div class="user-profile-pill">
               <span class="avatar">JD</span>
@@ -1370,312 +1392,78 @@
       </div>
     </div>
 
-    <!-- MODAL 6: AFRICAN COMMERCE DASHBOARDS & SUPABASE CLOUD HUB -->
-    <div class="modal-overlay" id="dashboardsModalOverlay" style="display: none">
-      <div class="modal-card dashboards-modal">
-        <div class="modal-header dashboards-header">
+    <!-- =============================================================
+         MODAL 6A: SEPARATE BUYER DASHBOARD
+         ============================================================= -->
+    <div class="modal-overlay" id="buyerDashboardModalOverlay" style="display: none">
+      <div class="modal-card dashboards-modal buyer-modal-theme">
+        <div class="modal-header dashboards-header buyer-header-theme">
           <div class="dashboards-header-left">
             <div class="dash-title-row">
-              <span class="dash-header-icon">📊</span>
-              <h2>Servilist Africa &bull; Unified Dashboards & Hub</h2>
+              <span class="dash-header-icon">🛒</span>
+              <h2>Servilist Africa &bull; Buyer Dashboard</h2>
+              <span class="buyer-status-pill">✓ Buyer Safe Protection Active</span>
+            </div>
+            <p class="dash-subtitle">
+              Order Tracking, Delivery Statuses, Receipts, Wishlists & Account Settings
+            </p>
+          </div>
+          <button class="modal-close-btn" id="closeBuyerDashboardModalBtn">&times;</button>
+        </div>
+        <div class="dashboards-body buyer-dashboard-body" id="buyerDashboardBody">
+          <!-- Dynamically populated via BuyerDashboardView -->
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================================================
+         MODAL 6B: SEPARATE SELLER DASHBOARD
+         ============================================================= -->
+    <div class="modal-overlay" id="sellerDashboardModalOverlay" style="display: none">
+      <div class="modal-card dashboards-modal seller-modal-theme">
+        <div class="modal-header dashboards-header seller-header-theme">
+          <div class="dashboards-header-left">
+            <div class="dash-title-row">
+              <span class="dash-header-icon">💰</span>
+              <h2>Servilist Africa &bull; Seller Merchant Hub</h2>
+              <span class="seller-status-pill">⭐ Verified African Merchant</span>
+            </div>
+            <p class="dash-subtitle">
+              Sales Analytics, Inventory Control, Order Fulfillment, Support & Payouts
+            </p>
+          </div>
+          <button class="modal-close-btn" id="closeSellerDashboardModalBtn">&times;</button>
+        </div>
+        <div class="dashboards-body seller-dashboard-body" id="sellerDashboardBody">
+          <!-- Dynamically populated via SellerDashboardView -->
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================================================
+         MODAL 6C: SEPARATE MULTI-VENDOR ADMIN DASHBOARD
+         ============================================================= -->
+    <div class="modal-overlay" id="adminDashboardModalOverlay" style="display: none">
+      <div class="modal-card dashboards-modal admin-modal-theme">
+        <div class="modal-header dashboards-header admin-header-theme">
+          <div class="dashboards-header-left">
+            <div class="dash-title-row">
+              <span class="dash-header-icon">🛡️</span>
+              <h2>Servilist Africa &bull; Multi-Vendor Admin Command Center</h2>
               <span class="cloud-status-badge" id="cloudStatusBadge">
                 <span class="cloud-dot"></span>
                 <span id="cloudStatusText">Supabase Cloud: Ready</span>
               </span>
             </div>
             <p class="dash-subtitle">
-              Command center for African sellers, buyer requests (ISO/RFQ), service providers, and
-              escrow safe trade.
+              Platform Analytics, Vendor Onboarding & KYC, Split Payouts, Catalog Oversight &
+              Dispute Arbitration
             </p>
           </div>
-          <button class="modal-close-btn" id="closeDashboardModalBtn">&times;</button>
+          <button class="modal-close-btn" id="closeAdminDashboardModalBtn">&times;</button>
         </div>
-
-        <!-- DASHBOARD TABS NAVIGATION -->
-        <div class="dashboards-nav-bar">
-          <button type="button" class="dash-nav-btn active" data-tab="overview">
-            <span class="dash-nav-icon">📈</span>
-            <span>Overview & Supabase Sync</span>
-          </button>
-          <button type="button" class="dash-nav-btn" data-tab="seller">
-            <span class="dash-nav-icon">🏪</span>
-            <span>Seller Hub (<span id="dashSellerCount">0</span>)</span>
-          </button>
-          <button type="button" class="dash-nav-btn" data-tab="buyer">
-            <span class="dash-nav-icon">🙋</span>
-            <span>Buyer Requests Hub (<span id="dashBuyerCount">0</span>)</span>
-          </button>
-          <button type="button" class="dash-nav-btn" data-tab="provider">
-            <span class="dash-nav-icon">💼</span>
-            <span>Service Provider Hub (<span id="dashProviderCount">0</span>)</span>
-          </button>
-          <button type="button" class="dash-nav-btn" data-tab="escrow">
-            <span class="dash-nav-icon">🛡️</span>
-            <span>Safe Escrow Tracker (<span id="dashEscrowCount">0</span>)</span>
-          </button>
-        </div>
-
-        <!-- DASHBOARD CONTENT PANELS -->
-        <div class="dashboards-body">
-          <!-- TAB 1: OVERVIEW & SUPABASE SYNC -->
-          <div class="dash-panel active" id="dashPanelOverview">
-            <!-- Metric Cards Row -->
-            <div class="dash-metrics-grid">
-              <div class="dash-metric-card metric-gmv">
-                <div class="metric-head">
-                  <span class="metric-title">Marketplace Volume (GMV)</span>
-                  <span class="metric-icon">💰</span>
-                </div>
-                <div class="metric-value" id="dashMetricGMV">₦0</div>
-                <div class="metric-sub" id="dashMetricGMVSub">
-                  Across active auctions & classifieds
-                </div>
-              </div>
-
-              <div class="dash-metric-card metric-auctions">
-                <div class="metric-head">
-                  <span class="metric-title">Live Auctions Active</span>
-                  <span class="metric-icon">🔨</span>
-                </div>
-                <div class="metric-value" id="dashMetricAuctions">0</div>
-                <div class="metric-sub" id="dashMetricAuctionsSub">
-                  Bidding in progress across Africa
-                </div>
-              </div>
-
-              <div class="dash-metric-card metric-requests">
-                <div class="metric-head">
-                  <span class="metric-title">Buyer Requests (Wanted / ISO)</span>
-                  <span class="metric-icon">📦</span>
-                </div>
-                <div class="metric-value" id="dashMetricRequests">0</div>
-                <div class="metric-sub" id="dashMetricRequestsSub">Reverse marketplace RFQs</div>
-              </div>
-
-              <div class="dash-metric-card metric-escrow">
-                <div class="metric-head">
-                  <span class="metric-title">Escrow Vault Protected</span>
-                  <span class="metric-icon">🛡️</span>
-                </div>
-                <div class="metric-value" id="dashMetricEscrow">₦0</div>
-                <div class="metric-sub" id="dashMetricEscrowSub">
-                  Paystack • Flutterwave • M-Pesa
-                </div>
-              </div>
-            </div>
-
-            <!-- SUPABASE DATABASE CLOUD INTEGRATION CARD -->
-            <div class="dash-supabase-card">
-              <div class="supabase-card-head">
-                <div class="supa-title-group">
-                  <span class="supa-logo">⚡</span>
-                  <div>
-                    <h3>Supabase Database & Cloud Connection</h3>
-                    <p>
-                      Connected to the Git repository. Real-time synchronization of listings, bids,
-                      requests, proposals, and escrow states.
-                    </p>
-                  </div>
-                </div>
-                <span class="supa-pill" id="supaStatusPill">🟢 Cloud Ready / Local Sync</span>
-              </div>
-
-              <div class="supabase-config-form">
-                <p>Database access is configured on the application server.</p>
-                <div class="supa-actions-row">
-                  <button type="button" id="btnTestSupabase" class="btn-dash-primary">
-                    <span>⚡ Test Connection</span>
-                  </button>
-                  <button type="button" id="btnSyncSupabase" class="btn-dash-secondary">
-                    <span>🔄 Sync All Marketplace Data to Cloud</span>
-                  </button>
-                  <button type="button" id="btnDownloadSchema" class="btn-dash-secondary">
-                    <span>📜 View / Download SQL Schema</span>
-                  </button>
-                  <button type="button" id="btnResetSeedData" class="btn-dash-link">
-                    <span>↺ Restore African Seed Data</span>
-                  </button>
-                </div>
-
-                <!-- Live Sync Terminal Console -->
-                <div class="supa-console-box">
-                  <div class="console-head">
-                    <span>Supabase Synchronization Activity Log</span>
-                    <button type="button" id="btnClearConsole" class="btn-clear-console">
-                      Clear
-                    </button>
-                  </div>
-                  <div class="console-logs" id="supaConsoleLogs">
-                    <div class="log-line info">
-                      [System] Servilist Africa initialised. Local storage reactive cache loaded.
-                    </div>
-                    <div class="log-line success">
-                      [Supabase] Database schema ready. Git integration verified with database
-                      credentials.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Activity Audit Stream -->
-            <div class="dash-activity-section">
-              <div class="dash-section-head">
-                <h3>⚡ Real-Time African Commerce Activity Stream</h3>
-                <span class="activity-note"
-                  >Live updates across Lagos, Nairobi, Accra, Johannesburg, Kigali</span
-                >
-              </div>
-              <div class="dash-activity-stream" id="dashActivityStream">
-                <!-- Populated with live actions -->
-              </div>
-            </div>
-          </div>
-
-          <!-- TAB 2: SELLER HUB -->
-          <div class="dash-panel" id="dashPanelSeller">
-            <div class="dash-panel-toolbar">
-              <div class="panel-left">
-                <h3>🏪 Seller Hub & Auction Management</h3>
-                <p>
-                  Manage your live auctions, Craigslist classifieds, active bids, and item
-                  fulfillment.
-                </p>
-              </div>
-              <div class="panel-right">
-                <button type="button" class="btn-dash-primary" id="dashNewListingBtn">
-                  <span>+ Post New Listing</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Filter pills for seller items -->
-            <div class="seller-sub-filters">
-              <button type="button" class="seller-sub-pill active" data-filter="all">
-                All My Listings (<span id="sellerFilterCountAll">0</span>)
-              </button>
-              <button type="button" class="seller-sub-pill" data-filter="auction">
-                Live Auctions (<span id="sellerFilterCountAuction">0</span>)
-              </button>
-              <button type="button" class="seller-sub-pill" data-filter="buy_now">
-                Fixed Price Buy-Now (<span id="sellerFilterCountBuyNow">0</span>)
-              </button>
-              <button type="button" class="seller-sub-pill" data-filter="sold">
-                Sold / Completed (<span id="sellerFilterCountSold">0</span>)
-              </button>
-            </div>
-
-            <!-- Seller Listings Table / List -->
-            <div class="seller-listings-container" id="sellerListingsContainer">
-              <!-- Populated dynamically -->
-            </div>
-          </div>
-
-          <!-- TAB 3: BUYER REQUESTS HUB (ISO & RFQ) -->
-          <div class="dash-panel" id="dashPanelBuyer">
-            <div class="dash-panel-toolbar">
-              <div class="panel-left">
-                <h3>🙋 Buyer Requests Hub (Wanted / ISO / RFQ)</h3>
-                <p>
-                  Track your posted requests, review incoming proposals from verified African
-                  vendors, and award contracts.
-                </p>
-              </div>
-              <div class="panel-right">
-                <button type="button" class="btn-dash-primary" id="dashNewRequestBtn">
-                  <span>+ Post a Request</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="buyer-requests-container" id="buyerRequestsContainer">
-              <!-- Populated dynamically with user's posted requests & incoming quotes -->
-            </div>
-          </div>
-
-          <!-- TAB 4: SERVICE PROVIDER & PROPOSALS HUB -->
-          <div class="dash-panel" id="dashPanelProvider">
-            <div class="dash-panel-toolbar">
-              <div class="panel-left">
-                <h3>💼 Service Provider & Vendor Proposals Hub</h3>
-                <p>Track quotes and bids you have submitted on buyer requests across Africa.</p>
-              </div>
-            </div>
-
-            <div class="provider-proposals-container" id="providerProposalsContainer">
-              <!-- Populated dynamically with user's submitted quotes -->
-            </div>
-          </div>
-
-          <!-- TAB 5: ESCROW & SAFE MEETUP TRACKER -->
-          <div class="dash-panel" id="dashPanelEscrow">
-            <!-- Escrow Banner -->
-            <div class="escrow-banner-card">
-              <div class="escrow-banner-icon">🛡️</div>
-              <div class="escrow-banner-content">
-                <h4>African Safe Trade & Escrow Guarantee</h4>
-                <p>
-                  Funds are secured via licensed African payment gateways (Paystack, Flutterwave,
-                  M-Pesa). The seller only receives payout when the buyer confirms inspection with
-                  the secret Handover OTP.
-                </p>
-                <div class="escrow-steps-row">
-                  <div class="step-chip"><span class="step-num">1</span> Payment Deposited</div>
-                  <span class="step-arrow">&rarr;</span>
-                  <div class="step-chip">
-                    <span class="step-num">2</span> Safe Meetup / Courier Dispatch
-                  </div>
-                  <span class="step-arrow">&rarr;</span>
-                  <div class="step-chip"><span class="step-num">3</span> Handover OTP Verified</div>
-                  <span class="step-arrow">&rarr;</span>
-                  <div class="step-chip">
-                    <span class="step-num">4</span> Escrow Payout Released
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="dash-panel-toolbar" style="margin-top: 20px">
-              <div class="panel-left">
-                <h3>Active Escrow Protected Transactions</h3>
-                <p>Monitor locked funds, verify handover OTPs, and release payments safely.</p>
-              </div>
-            </div>
-
-            <div class="escrow-orders-container" id="escrowOrdersContainer">
-              <!-- Populated dynamically with active escrow transactions -->
-            </div>
-
-            <!-- Safe Meetup Zones in Africa -->
-            <div class="safe-zones-guide-box">
-              <div class="safe-guide-head">
-                <span class="safe-pin">📍</span>
-                <h4>Recommended Safe Public Meetup Zones</h4>
-              </div>
-              <div class="safe-zones-grid">
-                <div class="safe-zone-item">
-                  <strong>🇳🇬 Lagos:</strong> Ikeja City Mall (Alausa) &bull; Lekki Phase 1 Police
-                  Post &bull; Silverbird Galleria Victoria Island
-                </div>
-                <div class="safe-zone-item">
-                  <strong>🇰🇪 Nairobi:</strong> Sarit Centre (Westlands) &bull; The Hub Karen &bull;
-                  Kilimani Police Station Public Desk
-                </div>
-                <div class="safe-zone-item">
-                  <strong>🇬🇭 Accra:</strong> Accra Mall (Tetteh Quarshie) &bull; Marina Mall
-                  (Airport Residential) &bull; Osu Police Station
-                </div>
-                <div class="safe-zone-item">
-                  <strong>🇿🇦 Johannesburg:</strong> Sandton City Mall &bull; Rosebank Mall &bull;
-                  Sandton SAPS Public Safe Exchange Desk
-                </div>
-                <div class="safe-zone-item">
-                  <strong>🇷🇼 Kigali:</strong> Kigali Heights (Kimihurura) &bull; BK Arena Plaza
-                  &bull; KBC Commercial Complex
-                </div>
-              </div>
-            </div>
-          </div>
+        <div class="dashboards-body admin-dashboard-body" id="adminDashboardBody">
+          <!-- Dynamically populated via AdminDashboardView -->
         </div>
       </div>
     </div>

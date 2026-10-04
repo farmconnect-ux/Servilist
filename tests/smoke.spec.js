@@ -172,8 +172,8 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await expect(acceptOfferBtn).toBeVisible();
     await acceptOfferBtn.click();
 
-    // Detail modal closes and dashboards modal opens to escrow tab
-    const dashboardsModal = page.locator('#dashboardsModalOverlay');
+    // Detail modal closes and separate Buyer dashboard modal opens to Order Tracking & Escrow tab
+    const dashboardsModal = page.locator('#buyerDashboardModalOverlay, #dashboardsModalOverlay');
     await expect(dashboardsModal).toBeVisible();
 
     // Escrow panel should be active
@@ -207,8 +207,8 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await expect(escrowOrder).toContainText('Payout Released');
     await expect(escrowOrder).toContainText('successfully released');
 
-    // Close dashboards modal
-    await page.locator('#closeDashboardModalBtn').click();
+    // Close buyer dashboard modal
+    await page.locator('#closeBuyerDashboardModalBtn, #closeDashboardModalBtn').click();
     await expect(dashboardsModal).toBeHidden();
   });
 
@@ -316,5 +316,110 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     // 6. Test bottom nav navigation to Requests filter
     await page.locator('#bottomNavRequests').click();
     await expect(page.locator('.pill-btn[data-format="requests"]')).toHaveClass(/active/);
+  });
+
+  test('Independent Dashboards: Buyer, Seller, and Multi-Vendor Admin Dashboards are non-unified', async ({
+    page,
+  }) => {
+    // 1. Buyer Dashboard Verification
+    const openBuyerBtn = page.locator('#openBuyerDashBtn');
+    await expect(openBuyerBtn).toBeVisible();
+    await openBuyerBtn.click();
+
+    const buyerModal = page.locator('#buyerDashboardModalOverlay');
+    await expect(buyerModal).toBeVisible();
+    await expect(page.locator('#sellerDashboardModalOverlay')).toBeHidden();
+    await expect(page.locator('#adminDashboardModalOverlay')).toBeHidden();
+
+    // Verify Buyer Sub-tabs
+    await expect(page.locator('.dash-subnav-btn[data-buyer-tab="orders"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-buyer-tab="history"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-buyer-tab="wishlist"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-buyer-tab="communication"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-buyer-tab="settings"]')).toBeVisible();
+
+    // Switch to Wishlist & Price Alerts tab
+    await page.locator('.dash-subnav-btn[data-buyer-tab="wishlist"]').click();
+    await expect(page.locator('.wishlist-item-card').first()).toBeVisible();
+
+    // Switch to Account Settings
+    await page.locator('.dash-subnav-btn[data-buyer-tab="settings"]').click();
+    await expect(page.locator('.address-card').first()).toBeVisible();
+
+    // Close Buyer Dashboard
+    await page.locator('#closeBuyerDashboardModalBtn').click();
+    await expect(buyerModal).toBeHidden();
+
+    // 2. Seller Dashboard Verification
+    const openSellerBtn = page.locator('#openSellerDashBtn');
+    await expect(openSellerBtn).toBeVisible();
+    await openSellerBtn.click();
+
+    const sellerModal = page.locator('#sellerDashboardModalOverlay');
+    await expect(sellerModal).toBeVisible();
+    await expect(page.locator('#buyerDashboardModalOverlay')).toBeHidden();
+    await expect(page.locator('#adminDashboardModalOverlay')).toBeHidden();
+
+    // Verify Seller Sub-tabs
+    await expect(page.locator('.dash-subnav-btn[data-seller-tab="analytics"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-seller-tab="inventory"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-seller-tab="fulfillment"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-seller-tab="support"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-seller-tab="finance"]')).toBeVisible();
+
+    // Switch to Inventory Management
+    await page.locator('.dash-subnav-btn[data-seller-tab="inventory"]').click();
+    await expect(page.locator('.inventory-table')).toBeVisible();
+
+    // Switch to Order Fulfillment
+    await page.locator('.dash-subnav-btn[data-seller-tab="fulfillment"]').click();
+    await expect(page.locator('.fulfillment-card').first()).toBeVisible();
+
+    // Close Seller Dashboard
+    await page.locator('#closeSellerDashboardModalBtn').click();
+    await expect(sellerModal).toBeHidden();
+
+    // 3. Multi-Vendor Admin Dashboard Verification
+    const openAdminBtn = page.locator('#openAdminDashBtn');
+    await expect(openAdminBtn).toBeVisible();
+    await openAdminBtn.click();
+
+    const adminModal = page.locator('#adminDashboardModalOverlay');
+    await expect(adminModal).toBeVisible();
+    await expect(page.locator('#buyerDashboardModalOverlay')).toBeHidden();
+    await expect(page.locator('#sellerDashboardModalOverlay')).toBeHidden();
+
+    // Verify mandatory admin statement
+    await expect(adminModal).toContainText(
+      'An admin dashboard must include platform-wide analytics, user and vendor management controls, dispute resolution tools, and system configuration settings to oversee the entire marketplace.'
+    );
+
+    // Verify Admin Sub-tabs
+    await expect(page.locator('.dash-subnav-btn[data-admin-tab="analytics"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-admin-tab="compliance"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-admin-tab="finance"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-admin-tab="catalog"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-admin-tab="performance"]')).toBeVisible();
+    await expect(page.locator('.dash-subnav-btn[data-admin-tab="settings"]')).toBeVisible();
+
+    // Switch to Vendor Onboarding & KYC
+    await page.locator('.dash-subnav-btn[data-admin-tab="compliance"]').click();
+    await expect(page.locator('.compliance-table')).toBeVisible();
+
+    // Switch to Split Payouts & VAT
+    await page.locator('.dash-subnav-btn[data-admin-tab="finance"]').click();
+    await expect(page.locator('#splitRouterSelect')).toBeVisible();
+
+    // Switch to Catalog Oversight
+    await page.locator('.dash-subnav-btn[data-admin-tab="catalog"]').click();
+    await expect(page.locator('input[name="skuModeRadio"]').first()).toBeVisible();
+
+    // Switch to Vendor Scorecards & Disputes
+    await page.locator('.dash-subnav-btn[data-admin-tab="performance"]').click();
+    await expect(page.locator('.scorecards-grid').first()).toBeVisible();
+
+    // Close Admin Dashboard
+    await page.locator('#closeAdminDashboardModalBtn').click();
+    await expect(adminModal).toBeHidden();
   });
 });

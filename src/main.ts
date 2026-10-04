@@ -10,9 +10,13 @@ import { AccessibleDialog } from './ui/dialog';
 import { BottomNav } from './ui/bottomNav';
 import { setupMobileSheetEnhancements } from './ui/bottomSheet';
 import { ICONS } from './ui/icons';
+import { DashboardManager } from './dashboards';
+import { BuyerSubTab, SellerSubTab, AdminSubTab } from './dashboards/types';
+import { SEED_LISTINGS, SEED_REQUESTS } from './data/seeds';
 
 export class ServilistApp {
   public storage: LocalStorageManager;
+  public dashboardManager!: DashboardManager;
   public listings: Listing[] = [];
   public requests: BuyerRequest[] = [];
   public escrowOrders: EscrowOrder[] = [];
@@ -54,6 +58,7 @@ export class ServilistApp {
     this.escrowOrders = this.storage.getEscrowOrders();
 
     this.populateLocationSelects();
+    this.initDashboardManager();
     this.initDialogs();
     this.initBottomNav();
     this.bindEvents();
@@ -101,6 +106,39 @@ export class ServilistApp {
     }
   }
 
+  private initDashboardManager() {
+    this.dashboardManager = new DashboardManager({
+      onReleaseEscrowOtp: (orderId: string, otpInput: string) => {
+        this.verifyAndReleaseEscrow(orderId, otpInput);
+      },
+      onOpenPostListing: () => {
+        this.openPostModal('sell');
+      },
+      onOpenPostRequest: () => {
+        this.openPostModal('request');
+      },
+      onTestSupabase: () => {
+        this.testSupabaseConnection();
+      },
+      onSyncSupabase: () => {
+        this.syncWithSupabase();
+      },
+      onDownloadSchema: () => {
+        this.downloadSchema();
+      },
+      onResetSeedData: () => {
+        this.resetToSeedData();
+      },
+      onClearConsole: () => {
+        const c = document.getElementById('supaConsoleLogs');
+        if (c) c.innerHTML = '';
+      },
+      onToast: (msg: string, type?: 'info' | 'success' | 'warning') => {
+        this.showToast(msg, type);
+      },
+    });
+  }
+
   private initDialogs() {
     const dialogConfigs = [
       { id: 'detailModalOverlay', closeBtn: '#closeDetailModalBtn' },
@@ -108,6 +146,9 @@ export class ServilistApp {
       { id: 'drawerModalOverlay', closeBtn: '#closeDrawerBtn' },
       { id: 'chatModalOverlay', closeBtn: '#closeChatBtn' },
       { id: 'converterModalOverlay', closeBtn: '#closeConverterModalBtn' },
+      { id: 'buyerDashboardModalOverlay', closeBtn: '#closeBuyerDashboardModalBtn' },
+      { id: 'sellerDashboardModalOverlay', closeBtn: '#closeSellerDashboardModalBtn' },
+      { id: 'adminDashboardModalOverlay', closeBtn: '#closeAdminDashboardModalBtn' },
       { id: 'dashboardsModalOverlay', closeBtn: '#closeDashboardModalBtn' },
     ];
 
@@ -164,7 +205,7 @@ export class ServilistApp {
         this.openDrawer('my_bids');
       },
       onDashboards: () => {
-        this.openDashboardsModal('escrow');
+        this.openBuyerDashboard('orders');
       },
     });
     this.bottomNav.render();
@@ -290,12 +331,23 @@ export class ServilistApp {
       this.openConverterModal();
     });
 
-    // Dashboards CTA
+    // Separate Non-Unified Dashboards CTAs
+    document.getElementById('openBuyerDashBtn')?.addEventListener('click', () => {
+      this.openBuyerDashboard('orders');
+    });
+    document.getElementById('openSellerDashBtn')?.addEventListener('click', () => {
+      this.openSellerDashboard('analytics');
+    });
+    document.getElementById('openAdminDashBtn')?.addEventListener('click', () => {
+      this.openAdminDashboard('analytics');
+    });
+
+    // Fallback/Legacy Dashboards CTA
     document.getElementById('openDashboardsBtn')?.addEventListener('click', () => {
-      this.openDashboardsModal('overview');
+      this.openAdminDashboard('analytics');
     });
     document.getElementById('topDashboardsBtn')?.addEventListener('click', () => {
-      this.openDashboardsModal('overview');
+      this.openAdminDashboard('analytics');
     });
 
     // Post modal tab switcher
@@ -357,6 +409,27 @@ export class ServilistApp {
     this.updateDashboardMetrics();
     if (this.currentListingDetail) {
       this.renderDetailActionBox(this.currentListingDetail);
+    }
+    const buyerBody = document.getElementById('buyerDashboardBody');
+    if (
+      buyerBody &&
+      document.getElementById('buyerDashboardModalOverlay')?.style.display !== 'none'
+    ) {
+      this.dashboardManager.renderBuyerDashboard(buyerBody, this.escrowOrders, this.activeCurrency);
+    }
+    const sellerBody = document.getElementById('sellerDashboardBody');
+    if (
+      sellerBody &&
+      document.getElementById('sellerDashboardModalOverlay')?.style.display !== 'none'
+    ) {
+      this.dashboardManager.renderSellerDashboard(sellerBody, this.listings, this.activeCurrency);
+    }
+    const adminBody = document.getElementById('adminDashboardBody');
+    if (
+      adminBody &&
+      document.getElementById('adminDashboardModalOverlay')?.style.display !== 'none'
+    ) {
+      this.dashboardManager.renderAdminDashboard(adminBody, this.activeCurrency);
     }
   }
 
@@ -913,7 +986,7 @@ export class ServilistApp {
 
     this.dialogs['detailModalOverlay']?.close();
     this.showToast(`🎉 Offer accepted! Funds secured in Escrow!`, 'success');
-    this.openDashboardsModal('escrow');
+    this.openBuyerDashboard('orders');
   }
 
   public createEscrowFromListing(item: Listing) {
@@ -938,7 +1011,7 @@ export class ServilistApp {
     this.dialogs['detailModalOverlay']?.close();
     this.renderListings();
     this.showToast(`🎉 Order Placed! Payment secured in Escrow.`, 'success');
-    this.openDashboardsModal('escrow');
+    this.openBuyerDashboard('orders');
   }
 
   public openPostModal(mode: 'sell' | 'request' = 'sell') {
@@ -1093,132 +1166,138 @@ export class ServilistApp {
     this.updateDashboardMetrics();
   }
 
+  public openBuyerDashboard(subTab: BuyerSubTab = 'orders') {
+    const body = document.getElementById('buyerDashboardBody');
+    if (body) {
+      this.dashboardManager.setBuyerSubTab(subTab);
+      this.dashboardManager.renderBuyerDashboard(body, this.escrowOrders, this.activeCurrency);
+    }
+    this.dialogs['buyerDashboardModalOverlay']?.open();
+  }
+
+  public openSellerDashboard(subTab: SellerSubTab = 'analytics') {
+    const body = document.getElementById('sellerDashboardBody');
+    if (body) {
+      this.dashboardManager.setSellerSubTab(subTab);
+      this.dashboardManager.renderSellerDashboard(body, this.listings, this.activeCurrency);
+    }
+    this.dialogs['sellerDashboardModalOverlay']?.open();
+  }
+
+  public openAdminDashboard(subTab: AdminSubTab = 'analytics') {
+    const body = document.getElementById('adminDashboardBody');
+    if (body) {
+      this.dashboardManager.setAdminSubTab(subTab);
+      this.dashboardManager.renderAdminDashboard(body, this.activeCurrency);
+    }
+    this.dialogs['adminDashboardModalOverlay']?.open();
+  }
+
   public openDashboardsModal(tab: string = 'overview') {
-    this.dialogs['dashboardsModalOverlay']?.open();
-    this.switchDashboardTab(tab);
+    if (tab === 'seller') {
+      this.openSellerDashboard('analytics');
+    } else if (tab === 'buyer' || tab === 'escrow') {
+      this.openBuyerDashboard('orders');
+    } else {
+      this.openAdminDashboard('analytics');
+    }
   }
 
   public switchDashboardTab(tab: string) {
-    this.activeDashboardTab = tab;
-    document.querySelectorAll('.dash-nav-btn').forEach((btn) => {
-      if ((btn as HTMLElement).dataset.tab === tab) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-    });
-
-    document.querySelectorAll('.dash-panel').forEach((p) => p.classList.remove('active'));
-    const panelId = {
-      overview: 'dashPanelOverview',
-      seller: 'dashPanelSeller',
-      buyer: 'dashPanelBuyer',
-      provider: 'dashPanelProvider',
-      escrow: 'dashPanelEscrow',
-    }[tab];
-
-    if (panelId) {
-      document.getElementById(panelId)?.classList.add('active');
-    }
-
-    if (tab === 'escrow') {
-      this.renderEscrowOrders();
+    if (tab === 'seller') {
+      this.openSellerDashboard('analytics');
+    } else if (tab === 'buyer' || tab === 'escrow') {
+      this.openBuyerDashboard('orders');
+    } else {
+      this.openAdminDashboard('analytics');
     }
   }
 
-  private renderEscrowOrders() {
-    const container = document.getElementById('escrowOrdersContainer');
-    if (!container) return;
+  public renderEscrowOrders() {
+    const body = document.getElementById('buyerDashboardBody');
+    if (body) {
+      this.dashboardManager.renderBuyerDashboard(body, this.escrowOrders, this.activeCurrency);
+    }
+  }
 
-    if (this.escrowOrders.length === 0) {
-      container.innerHTML = `
-        <div class="empty-escrow-card">
-          <span style="font-size: 2rem;">🛡️</span>
-          <h4>No active escrow orders</h4>
-          <p>Orders appear here when you accept a quote or win an auction.</p>
-        </div>
-      `;
+  public verifyAndReleaseEscrow(orderId: string, otpInput: string) {
+    const order = this.escrowOrders.find((o) => o.id === orderId);
+    if (!order) {
+      this.showToast('Escrow order not found', 'warning');
       return;
     }
-
-    container.innerHTML = this.escrowOrders
-      .map((order) => {
-        const isReleased = order.status === 'released';
-        const formattedAmount = formatMoney(order.amountMinor, order.currency, {
-          showSecondary: true,
-          targetCurrency: this.activeCurrency,
-        });
-
-        return `
-        <div class="escrow-order-card" data-id="${order.id}">
-          <div class="escrow-order-head">
-            <div>
-              <h4>🛡️ ${this.escapeHtml(order.title)}</h4>
-              <div class="escrow-meta">Order #${order.orderCode} &bull; Counterparty: <strong>${this.escapeHtml(order.sellerName)}</strong></div>
-            </div>
-            <div style="text-align: right;">
-              <div class="escrow-amount">${formattedAmount}</div>
-              <span class="escrow-status-tag ${isReleased ? 'accepted' : 'pending'}">
-                ${isReleased ? '✅ Payout Released' : '🔒 Funds Locked in Escrow'}
-              </span>
-            </div>
-          </div>
-
-          ${
-            !isReleased
-              ? `
-            <div class="otp-box">
-              <div>
-                <div class="otp-title">Secret Handover OTP (Buyer Verification Code)</div>
-                <div class="otp-hint">Provide this code to the seller ONLY after physical meetup inspection or service handover.</div>
-              </div>
-              <div class="otp-display-badge">${order.otpCode}</div>
-            </div>
-
-            <div class="otp-release-action-row">
-              <input type="text" placeholder="Enter OTP code to release payout..." class="otp-input-field" data-order-id="${order.id}">
-              <button type="button" class="btn-dash-primary btn-release-escrow" data-order-id="${order.id}">
-                ✅ Verify & Release Payout
-              </button>
-            </div>
-          `
-              : `
-            <div class="payout-released-box">
-              🎉 Payout was successfully released to <strong>${this.escapeHtml(order.sellerName)}</strong> via Paystack / Flutterwave / M-Pesa.
-            </div>
-          `
-          }
-        </div>
-      `;
-      })
-      .join('');
-
-    container.querySelectorAll('.btn-release-escrow').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const orderId = (btn as HTMLElement).dataset.orderId;
-        const order = this.escrowOrders.find((o) => o.id === orderId);
-        const input = container.querySelector(
-          `.otp-input-field[data-order-id="${orderId}"]`
-        ) as HTMLInputElement | null;
-        if (order && input) {
-          const otpAttempt = input.value.trim();
-          const res = transitionEscrow(order, 'otp_verified', { otpAttempt });
-          if (res.success && res.order) {
-            // Move into released
-            const released = transitionEscrow(res.order, 'released');
-            if (released.success && released.order) {
-              const idx = this.escrowOrders.findIndex((o) => o.id === orderId);
-              if (idx !== -1) this.escrowOrders[idx] = released.order;
-              this.storage.saveEscrowOrders(this.escrowOrders);
-              this.showToast(`🎉 Escrow payout released!`, 'success');
-              this.renderEscrowOrders();
-            }
-          } else {
-            this.showToast(res.error || 'Incorrect OTP code', 'warning');
-          }
+    const res = transitionEscrow(order, 'otp_verified', { otpAttempt: otpInput.trim() });
+    if (res.success && res.order) {
+      const released = transitionEscrow(res.order, 'released');
+      if (released.success && released.order) {
+        const idx = this.escrowOrders.findIndex((o) => o.id === orderId);
+        if (idx !== -1) this.escrowOrders[idx] = released.order;
+        this.storage.saveEscrowOrders(this.escrowOrders);
+        this.showToast('🎉 Escrow payout released!', 'success');
+        this.updateDashboardMetrics();
+        const buyerBody = document.getElementById('buyerDashboardBody');
+        if (buyerBody) {
+          this.dashboardManager.renderBuyerDashboard(
+            buyerBody,
+            this.escrowOrders,
+            this.activeCurrency
+          );
         }
+      }
+    } else {
+      this.showToast(res.error || 'Incorrect OTP code', 'warning');
+    }
+  }
+
+  public async testSupabaseConnection() {
+    const supa = (window as any).servilistSupabase || (window as any).servlistSupabase;
+    if (supa && typeof supa.testConnection === 'function') {
+      const res = await supa.testConnection();
+      if (res?.success) {
+        this.showToast('🟢 Supabase cloud ping successful!', 'success');
+      } else {
+        this.showToast('Supabase ping failed: ' + (res?.error || 'Backend unavailable'), 'info');
+      }
+    } else {
+      this.showToast('Supabase client not loaded', 'warning');
+    }
+  }
+
+  public async syncWithSupabase() {
+    const supa = (window as any).servilistSupabase || (window as any).servlistSupabase;
+    if (supa && typeof supa.syncToCloud === 'function') {
+      const res = await supa.syncToCloud({
+        listings: this.listings,
+        requests: this.requests,
+        escrow: this.escrowOrders,
       });
-    });
+      if (res?.success) {
+        this.showToast('🎉 All local data synced to Supabase!', 'success');
+      } else {
+        this.showToast('Saved locally. Backend Supabase sync is unavailable.', 'info');
+      }
+    } else {
+      this.showToast('Saved locally. Backend Supabase sync is unavailable.', 'info');
+    }
+  }
+
+  public downloadSchema() {
+    window.open('supabase_schema.sql', '_blank');
+    this.showToast('Opening supabase_schema.sql', 'info');
+  }
+
+  public resetToSeedData() {
+    if (confirm('Reset marketplace to authentic African seed listings & requests?')) {
+      this.listings = JSON.parse(JSON.stringify(SEED_LISTINGS));
+      this.requests = JSON.parse(JSON.stringify(SEED_REQUESTS));
+      this.storage.saveListings(this.listings);
+      this.storage.saveRequests(this.requests);
+      this.renderListings();
+      this.renderCategoryCounts();
+      this.updateTopBarStats();
+      this.updateDashboardMetrics();
+      this.showToast('African marketplace seed data restored', 'success');
+    }
   }
 
   public openConverterModal() {
