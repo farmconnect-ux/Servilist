@@ -1,11 +1,9 @@
 import { Listing, BuyerRequest, EscrowOrder, CurrencyCode, ListingFormat } from './types';
 import { AFRICAN_LOCATIONS, getCurrencyForCity } from './data/locations';
 import { LocalStorageManager } from './data/storage';
-import { toMinorUnits, fromMinorUnits, convertMinor, formatMoney, CURRENCY_CONFIGS } from './money';
+import { formatMoney, CURRENCY_CONFIGS } from './money';
 import { filterListings, sortListings, SortMode, ListingFilterCriteria } from './listings';
-import { calculateMinimumNextBid, validateBid } from './auctions';
-import { createBuyerRequest, createQuote } from './requests';
-import { createEscrowOrder, transitionEscrow } from './escrow';
+
 import { AccessibleDialog } from './ui/dialog';
 import { BottomNav } from './ui/bottomNav';
 import { initMemberNav } from './ui/memberNav';
@@ -20,15 +18,23 @@ import { setupMobileSheetEnhancements } from './ui/bottomSheet';
 import { ICONS } from './ui/icons';
 import { DashboardManager } from './dashboards';
 import { BuyerSubTab, SellerSubTab, AdminSubTab } from './dashboards/types';
-import { AuthService, TEST_USERS } from './auth/authService';
-import { SEED_LISTINGS, SEED_REQUESTS } from './data/seeds';
-import { PolicyEvaluator } from './auth/policies';
+import { AuthService } from './auth/authService';
+
 import { processAndUploadImage } from './storage/imageUpload';
 import { AppRouter } from './routing/router';
 import { SyncChannelManager } from './data/syncChannel';
 import { supabase } from './data/supabase';
 import { CloudStore } from './data/cloudStore';
 import { CloudController } from './cloud/cloudController';
+import * as authUI from './app/authUI';
+import * as detailView from './app/detailView';
+import * as cards from './app/cards';
+import * as trading from './app/trading';
+import * as posting from './app/posting';
+import * as syncListener from './app/syncListener';
+import * as converter from './app/converter';
+import * as dashboards from './app/dashboards';
+import * as supabaseConsole from './app/supabaseConsole';
 
 export class ServilistApp {
   public storage: LocalStorageManager;
@@ -138,7 +144,7 @@ export class ServilistApp {
    * Single Source of Truth: populates all city selectors dynamically from AFRICAN_LOCATIONS
    * eliminating the 3 hardcoded copies across HTML and JS.
    */
-  private populateLocationSelects() {
+  public populateLocationSelects() {
     const citySelector = document.getElementById('citySelector') as HTMLSelectElement | null;
     const postCity = document.getElementById('postCity') as HTMLSelectElement | null;
     const reqCity = document.getElementById('reqCity') as HTMLSelectElement | null;
@@ -170,7 +176,7 @@ export class ServilistApp {
     }
   }
 
-  private initDashboardManager() {
+  public initDashboardManager() {
     this.dashboardManager = new DashboardManager({
       onReleaseEscrowOtp: (orderId: string, otpInput: string) => {
         this.verifyAndReleaseEscrow(orderId, otpInput);
@@ -203,7 +209,7 @@ export class ServilistApp {
     });
   }
 
-  private initDialogs() {
+  public initDialogs() {
     const dialogConfigs = [
       { id: 'detailModalOverlay', closeBtn: '#closeDetailModalBtn' },
       { id: 'postModalOverlay', closeBtn: '#closePostModalBtn' },
@@ -263,7 +269,7 @@ export class ServilistApp {
     this.renderListings();
   }
 
-  private initBottomNav() {
+  public initBottomNav() {
     this.bottomNav = new BottomNav({
       onBrowse: () => {
         this.setFormatPill('all');
@@ -286,7 +292,7 @@ export class ServilistApp {
     this.bottomNav.render();
   }
 
-  private bindEvents() {
+  public bindEvents() {
     // City Selector
     const citySelector = document.getElementById('citySelector') as HTMLSelectElement | null;
     citySelector?.addEventListener('change', () => {
@@ -650,7 +656,7 @@ export class ServilistApp {
     }
   }
 
-  private syncCurrencyUI() {
+  public syncCurrencyUI() {
     const sel = document.getElementById('currencySelector') as HTMLSelectElement | null;
     if (sel && sel.value !== this.activeCurrency) {
       sel.value = this.activeCurrency;
@@ -773,898 +779,128 @@ export class ServilistApp {
     this.bindCardEvents(container);
   }
 
-  private buildListingCardHtml(item: Listing): string {
-    const isSold = item.isSold || item.status === 'sold';
-    const isEnded = Boolean(item.endTime && item.endTime <= Date.now());
-    const formattedPrice = formatMoney(item.amountMinor, item.currency, {
-      showSecondary: true,
-      targetCurrency: this.activeCurrency,
-    });
-
-    return `
-      <article class="listing-card ${isSold ? 'card-sold' : ''} ${isEnded ? 'card-ended' : ''}" data-id="${item.id}">
-        <div class="card-image-wrap">
-          <img src="${item.imageUrl}" alt="${this.escapeHtml(item.title)}" loading="lazy" decoding="async">
-          <span class="card-badge badge-${item.format}">${item.format.toUpperCase()}</span>
-          ${isSold ? '<span class="sold-banner">SOLD</span>' : isEnded ? '<span class="ended-banner">ENDED</span>' : ''}
-        </div>
-        <div class="card-content">
-          <div class="card-meta">
-            <span class="card-location">${ICONS.location} ${this.escapeHtml(item.city)}</span>
-            <span class="card-category">${item.category}</span>
-          </div>
-          <h3 class="card-title">${this.escapeHtml(item.title)}</h3>
-          <div class="card-price-row">
-            <div>
-              <span class="price-label">${item.format === 'auction' ? 'Current Bid' : 'Price'}</span>
-              <div class="price-value">${formattedPrice}</div>
-            </div>
-            ${item.format === 'auction' ? `<div class="card-bids-count">${item.bidsCount} bids</div>` : ''}
-          </div>
-          <div class="card-footer">
-            <span class="seller-name">${this.escapeHtml(item.seller.name)}</span>
-            <span class="verified-tag">${item.seller.verified ? '✓ Verified' : ''}</span>
-          </div>
-        </div>
-      </article>
-    `;
+  public buildListingCardHtml(item: Listing): string {
+    return cards.buildListingCardHtml(this, item);
   }
 
-  private buildRequestCardHtml(req: BuyerRequest): string {
-    const budgetFormatted = formatMoney(req.budgetAmountMinor, req.currency, {
-      showSecondary: true,
-      targetCurrency: this.activeCurrency,
-    });
-
-    return `
-      <article class="listing-card card-request" data-req-id="${req.id}">
-        <div class="card-image-wrap">
-          <img src="${req.imageUrl || 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80'}" alt="${this.escapeHtml(req.title)}" loading="lazy" decoding="async">
-          <span class="card-badge badge-request">REQUEST (${req.requestType.toUpperCase()})</span>
-        </div>
-        <div class="card-content">
-          <div class="card-meta">
-            <span class="card-location">${ICONS.location} ${this.escapeHtml(req.city)}</span>
-            <span class="card-urgency">⏱️ ${this.escapeHtml(req.urgency)}</span>
-          </div>
-          <h3 class="card-title">${this.escapeHtml(req.title)}</h3>
-          <div class="card-price-row">
-            <div>
-              <span class="price-label">Target Budget</span>
-              <div class="price-value">${budgetFormatted}</div>
-            </div>
-            <div class="card-offers-count">${req.offers?.length || 0} quotes</div>
-          </div>
-          <div class="card-footer">
-            <span class="buyer-name">${this.escapeHtml(req.buyer.name)}</span>
-            <span class="action-hint">Submit Quote &rarr;</span>
-          </div>
-        </div>
-      </article>
-    `;
+  public buildRequestCardHtml(req: BuyerRequest): string {
+    return cards.buildRequestCardHtml(this, req);
   }
 
-  private bindCardEvents(container: HTMLElement) {
-    container.querySelectorAll('.listing-card').forEach((card) => {
-      card.addEventListener('click', () => {
-        const id = (card as HTMLElement).dataset.id;
-        const reqId = (card as HTMLElement).dataset.reqId;
-        if (id) {
-          this.openDetailModal(id);
-        } else if (reqId) {
-          this.openRequestDetailModal(reqId);
-        }
-      });
-    });
+  public bindCardEvents(container: HTMLElement) {
+    cards.bindCardEvents(this, container);
   }
 
   public openDetailModal(listingId: string) {
-    const item = this.listings.find((l) => l.id === listingId);
-    if (!item) return;
-
-    this.currentListingDetail = item;
-    const modal = document.getElementById('detailModalOverlay');
-    if (!modal) return;
-
-    const img = document.getElementById('detailMainImg') as HTMLImageElement | null;
-    if (img) img.src = item.imageUrl;
-
-    const title = document.getElementById('detailTitle');
-    if (title) title.textContent = item.title;
-
-    const locationText = document.getElementById('detailLocationText');
-    if (locationText) locationText.textContent = `📍 ${item.city}, ${item.country}`;
-
-    const descText = document.getElementById('detailDescriptionText');
-    if (descText) descText.textContent = item.description;
-
-    const sellerName = document.getElementById('detailSellerName');
-    if (sellerName) sellerName.textContent = item.seller.name;
-
-    this.renderDetailActionBox(item);
-    this.renderBidHistory(item);
-    this.syncWatchlistButton(item.id);
-
-    AppRouter.setListingUrl(item.id);
-    this.dialogs['detailModalOverlay']?.open();
+    detailView.openDetailModal(this, listingId);
   }
 
   public openRequestDetailModal(requestId: string) {
-    const req = this.requests.find((r) => r.id === requestId);
-    if (!req) return;
-
-    this.currentRequestDetail = req;
-    const modal = document.getElementById('detailModalOverlay');
-    if (!modal) return;
-
-    const img = document.getElementById('detailMainImg') as HTMLImageElement | null;
-    if (img)
-      img.src =
-        req.imageUrl ||
-        'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80';
-
-    const title = document.getElementById('detailTitle');
-    if (title) title.textContent = req.title;
-
-    const locationText = document.getElementById('detailLocationText');
-    if (locationText) locationText.textContent = `📍 ${req.city}, ${req.country}`;
-
-    const descText = document.getElementById('detailDescriptionText');
-    if (descText) descText.textContent = req.description;
-
-    this.renderRequestActionBox(req);
-    this.renderQuotesList(req);
-
-    AppRouter.setRequestUrl(req.id);
-    this.dialogs['detailModalOverlay']?.open();
+    detailView.openRequestDetailModal(this, requestId);
   }
 
-  private renderDetailActionBox(item: Listing) {
-    const box = document.getElementById('detailActionBox');
-    if (!box) return;
-
-    const isSold = item.isSold || item.status === 'sold';
-    const isEnded = item.endTime && item.endTime <= Date.now();
-    const formattedPrice = formatMoney(item.amountMinor, item.currency, {
-      showSecondary: true,
-      targetCurrency: this.activeCurrency,
-    });
-
-    if (item.format === 'auction') {
-      const minNext = calculateMinimumNextBid(item.amountMinor, item.currency, item.bidsCount > 0);
-      const minMajor = minNext.minimumNextBidMajor;
-
-      box.innerHTML = `
-        <div class="action-card">
-          <div class="action-head">
-            <div>
-              <span class="action-price-label">${isSold ? 'Sold Price' : 'Current Bid'} (${item.bidsCount} bids)</span>
-              <div class="action-current-bid">${formattedPrice}</div>
-            </div>
-            <div class="modal-timer-badge">
-              <span>⏱️ Status:</span>
-              <strong id="modalTimerClock">${isSold ? 'Item Sold' : isEnded ? 'Auction Ended' : 'Active'}</strong>
-            </div>
-          </div>
-          ${
-            !isSold && !isEnded
-              ? `
-            <form id="detailBidForm" class="bid-action-form">
-              <div class="bid-input-group">
-                <span class="bid-prefix">${CURRENCY_CONFIGS[item.currency].symbol.trim()}</span>
-                <input type="number" id="detailBidInput" value="${minMajor}" min="${minMajor}" step="any" required>
-              </div>
-              <button type="submit" class="btn-place-bid">🔨 Place Bid Now</button>
-            </form>
-            <div class="bid-hint">Minimum next bid: ${formatMoney(minNext.minimumNextBidMinor, item.currency)}</div>
-          `
-              : `
-            <div class="alert-box-ended">
-              ${isSold ? '✅ This item has been sold.' : '⏱️ Auction has ended. Bidding closed.'}
-            </div>
-          `
-          }
-        </div>
-      `;
-
-      box.querySelector('#detailBidForm')?.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const inp = (box.querySelector('#detailBidInput') as HTMLInputElement)?.value;
-        const majorVal = parseFloat(inp);
-        if (majorVal > 0) {
-          const minorVal = toMinorUnits(majorVal, item.currency);
-          this.placeBid(item.id, minorVal);
-        }
-      });
-    } else {
-      // Buy It Now or Service
-      box.innerHTML = `
-        <div class="action-card">
-          <div class="action-head">
-            <div>
-              <span class="action-price-label">Price</span>
-              <div class="action-current-bid">${formattedPrice}</div>
-            </div>
-          </div>
-          <button type="button" class="btn-buy-now" id="detailBuyNowBtn">
-            ⚡ Buy Now with Escrow Protection
-          </button>
-        </div>
-      `;
-
-      box.querySelector('#detailBuyNowBtn')?.addEventListener('click', () => {
-        this.createEscrowFromListing(item);
-      });
-    }
+  public renderDetailActionBox(item: Listing) {
+    detailView.renderDetailActionBox(this, item);
   }
 
-  private renderRequestActionBox(req: BuyerRequest) {
-    const box = document.getElementById('detailActionBox');
-    if (!box) return;
-
-    const formattedBudget = formatMoney(req.budgetAmountMinor, req.currency, {
-      showSecondary: true,
-      targetCurrency: this.activeCurrency,
-    });
-    const budgetMajor = fromMinorUnits(req.budgetAmountMinor, req.currency);
-
-    box.innerHTML = `
-      <div class="action-card action-card-request">
-        <div class="action-head">
-          <div>
-            <span class="action-price-label">Buyer's Target Budget</span>
-            <div class="action-current-bid">${formattedBudget}</div>
-          </div>
-          <div class="urgency-badge">
-            <span>⏱️ ${this.escapeHtml(req.urgency)}</span>
-          </div>
-        </div>
-        <div class="quote-form-container">
-          <h4 class="quote-form-title">Submit a Proposal / Quote to Buyer:</h4>
-          <form id="detailQuoteForm" class="detail-quote-form">
-            <div class="form-row">
-              <div class="form-group flex-1">
-                <label class="form-label">Proposed Price (${CURRENCY_CONFIGS[req.currency].symbol.trim()})</label>
-                <input type="number" id="quotePriceInput" value="${budgetMajor}" min="1" step="any" required>
-              </div>
-              <div class="form-group flex-1">
-                <label class="form-label">Availability / Timeline</label>
-                <input type="text" id="quoteTimelineInput" placeholder="e.g. Can deliver today in Ikeja" required>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Message / Details</label>
-              <textarea id="quoteMessageInput" rows="2" placeholder="Detail condition, warranty, or scope..." required></textarea>
-            </div>
-            <button type="submit" class="btn-submit-quote">
-              🚀 Send Quote to Buyer
-            </button>
-          </form>
-        </div>
-      </div>
-    `;
-
-    box.querySelector('#detailQuoteForm')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const priceVal = parseFloat(
-        (box.querySelector('#quotePriceInput') as HTMLInputElement).value
-      );
-      const timeline = (box.querySelector('#quoteTimelineInput') as HTMLInputElement).value;
-      const message = (box.querySelector('#quoteMessageInput') as HTMLTextAreaElement).value;
-
-      const minorPrice = toMinorUnits(priceVal, req.currency);
-      this.submitQuote(req.id, minorPrice, timeline, message);
-    });
+  public renderRequestActionBox(req: BuyerRequest) {
+    detailView.renderRequestActionBox(this, req);
   }
 
-  private renderBidHistory(item: Listing) {
-    const list = document.getElementById('detailBidHistoryList');
-    const sec = document.getElementById('detailBidHistorySection');
-    const count = document.getElementById('detailHistoryCount');
-    if (!list || !sec) return;
-
-    if (item.format !== 'auction') {
-      sec.style.display = 'none';
-      return;
-    }
-
-    sec.style.display = 'block';
-    if (count) count.textContent = String(item.bidsCount || 0);
-
-    const history = item.bidHistory || [];
-    if (history.length === 0) {
-      list.innerHTML = `<div class="empty-hint">No bids placed yet. Be the first!</div>`;
-      return;
-    }
-
-    list.innerHTML = history
-      .map(
-        (b) => `
-        <div class="bid-history-item">
-          <div>
-            <strong>${this.escapeHtml(b.bidderName)}</strong>
-            <span class="bid-time">${b.timeFormatted || 'Just now'}</span>
-          </div>
-          <div class="bid-val">${formatMoney(b.amountMinor, b.currency)}</div>
-        </div>
-      `
-      )
-      .join('');
+  public renderBidHistory(item: Listing) {
+    detailView.renderBidHistory(this, item);
   }
 
-  private renderQuotesList(req: BuyerRequest) {
-    const list = document.getElementById('detailQuotesList');
-    const sec = document.getElementById('detailQuotesSection');
-    const count = document.getElementById('detailQuotesCount');
-    if (!list || !sec) return;
-
-    sec.style.display = 'block';
-    const currentUser = this.authService.getCurrentUser();
-    // Enforce RLS policy: Quotes on a request are readable only by the requester and quoting vendor
-    const isRequester = req.buyer?.id === currentUser.id || currentUser.role === 'admin';
-
-    const allOffers = req.offers || [];
-    const visibleOffers = allOffers.filter(
-      (off) =>
-        isRequester ||
-        off.providerName === currentUser.name ||
-        (off as any).providerId === currentUser.id
-    );
-
-    if (count) count.textContent = String(visibleOffers.length);
-
-    if (visibleOffers.length === 0) {
-      list.innerHTML = isRequester
-        ? `<div class="empty-hint">No quotes submitted yet. Verified vendors will submit quotes here.</div>`
-        : `<div class="empty-hint">Quotes on this request are private between the requester and vendor. Use the form above to submit your proposal!</div>`;
-      return;
-    }
-
-    list.innerHTML = visibleOffers
-      .map(
-        (off) => `
-        <div class="quote-item-card">
-          <div class="quote-item-head">
-            <div>
-              <strong>${this.escapeHtml(off.providerName)}</strong>
-              <span class="rating">(${off.providerRating} ★)</span>
-            </div>
-            <div class="quote-price">${formatMoney(off.amountMinor, off.currency)}</div>
-          </div>
-          <div class="quote-body">
-            <div><strong>Timeline:</strong> ${this.escapeHtml(off.timeline)}</div>
-            <p>"${this.escapeHtml(off.message)}"</p>
-          </div>
-          ${
-            isRequester
-              ? `
-          <div class="quote-footer">
-            <button type="button" class="btn-detail-accept-quote" data-req-id="${req.id}" data-off-id="${off.id}">
-              🤝 Accept Offer & Escrow
-            </button>
-          </div>
-          `
-              : ''
-          }
-        </div>
-      `
-      )
-      .join('');
-
-    list.querySelectorAll('.btn-detail-accept-quote').forEach((b) => {
-      b.addEventListener('click', () => {
-        const reqId = (b as HTMLElement).dataset.reqId;
-        const offId = (b as HTMLElement).dataset.offId;
-        this.acceptQuote(reqId!, offId!);
-      });
-    });
+  public renderQuotesList(req: BuyerRequest) {
+    detailView.renderQuotesList(this, req);
   }
 
   public placeBid(listingId: string, amountMinor: number) {
-    const item = this.listings.find((l) => l.id === listingId);
-    if (!item) return;
-
-    const validation = validateBid(item, amountMinor);
-    if (!validation.valid) {
-      this.showToast(validation.error || 'Invalid bid', 'warning');
-      return;
-    }
-    if (this.cloud) {
-      void this.cloud.placeBid(item.id, amountMinor);
-      return;
-    }
-
-    const currentUser = this.authService.getCurrentUser();
-    const newBid = {
-      id: `bid-${Date.now()}`,
-      listingId: item.id,
-      bidderId: currentUser.id,
-      bidderName: currentUser.name,
-      amountMinor,
-      currency: item.currency,
-      createdAt: Date.now(),
-      timeFormatted: 'Just now',
-    };
-
-    item.amountMinor = amountMinor;
-    item.bidsCount = (item.bidsCount || 0) + 1;
-    if (!item.bidHistory) item.bidHistory = [];
-    item.bidHistory.unshift(newBid);
-
-    this.storage.saveListings(this.listings);
-    this.syncManager.broadcast(
-      'BID_PLACED',
-      { listingId: item.id, bid: newBid, amountMinor },
-      currentUser.id
-    );
-    this.renderListings();
-    this.openDetailModal(item.id);
-
-    this.showToast(
-      `🎉 Highest Bid placed! You are currently winning at ${formatMoney(amountMinor, item.currency)}`,
-      'success'
-    );
+    trading.placeBid(this, listingId, amountMinor);
   }
 
   public submitQuote(requestId: string, amountMinor: number, timeline: string, message: string) {
-    const req = this.requests.find((r) => r.id === requestId);
-    if (!req) return;
-    if (this.cloud) {
-      void this.cloud.submitQuote(req, amountMinor, timeline, message);
-      return;
-    }
-
-    const currentUser = this.authService.getCurrentUser();
-    const newQuote = createQuote({
-      requestId: req.id,
-      providerName: currentUser.name,
-      amountMinor,
-      currency: req.currency,
-      timeline,
-      message,
-    });
-    newQuote.providerId = currentUser.id;
-
-    if (!req.offers) req.offers = [];
-    req.offers.unshift(newQuote);
-
-    this.storage.saveRequests(this.requests);
-    this.syncManager.broadcast(
-      'QUOTE_PLACED',
-      { requestId: req.id, quote: newQuote },
-      currentUser.id
-    );
-    this.renderListings();
-    this.renderQuotesList(req);
-    this.showToast(`🚀 Quote sent to buyer!`, 'success');
+    trading.submitQuote(this, requestId, amountMinor, timeline, message);
   }
 
   public acceptQuote(requestId: string, quoteId: string) {
-    const req = this.requests.find((r) => r.id === requestId);
-    const offer = req?.offers?.find((o) => o.id === quoteId);
-    if (!req || !offer) return;
-    if (this.cloud) {
-      void this.cloud.acceptQuote(req, offer.id);
-      return;
-    }
-
-    const currentUser = this.authService.getCurrentUser();
-    const order = createEscrowOrder({
-      requestId: req.id,
-      quoteId: offer.id,
-      title: req.title,
-      buyerName: currentUser.name,
-      buyerId: currentUser.id,
-      sellerName: offer.providerName,
-      amountMinor: offer.amountMinor,
-      currency: offer.currency,
-      targetCurrency: this.activeCurrency,
-      safeZone: `${req.city} Safe Commercial Zone`,
-    });
-
-    this.escrowOrders.unshift(order);
-    offer.status = 'accepted';
-    req.status = 'matched';
-
-    this.storage.saveRequests(this.requests);
-    this.storage.saveEscrowOrders(this.escrowOrders);
-
-    this.dialogs['detailModalOverlay']?.close();
-    this.showToast(`🎉 Offer accepted! Funds secured in Escrow!`, 'success');
-    this.openBuyerDashboard('orders');
+    trading.acceptQuote(this, requestId, quoteId);
   }
 
   public createEscrowFromListing(item: Listing) {
-    if (this.cloud) {
-      void this.cloud.buyListing(item);
-      return;
-    }
-    const currentUser = this.authService.getCurrentUser();
-    const order = createEscrowOrder({
-      listingId: item.id,
-      title: item.title,
-      buyerName: currentUser.name,
-      buyerId: currentUser.id,
-      sellerName: item.seller.name,
-      sellerId: item.seller.id,
-      amountMinor: item.amountMinor,
-      currency: item.currency,
-      targetCurrency: this.activeCurrency,
-      safeZone: `${item.city} Safe Meetup Zone`,
-    });
-
-    item.isSold = true;
-    item.status = 'sold';
-    this.escrowOrders.unshift(order);
-
-    this.storage.saveListings(this.listings);
-    this.storage.saveEscrowOrders(this.escrowOrders);
-
-    this.dialogs['detailModalOverlay']?.close();
-    this.renderListings();
-    this.showToast(`🎉 Order Placed! Payment secured in Escrow.`, 'success');
-    this.openBuyerDashboard('orders');
+    trading.createEscrowFromListing(this, item);
   }
 
   public openPostModal(mode: 'sell' | 'request' = 'sell') {
-    this.switchPostTab(mode);
-    this.dialogs['postModalOverlay']?.open();
+    posting.openPostModal(this, mode);
   }
 
   public switchPostTab(mode: 'sell' | 'request') {
-    const tabSell = document.getElementById('modalTabSell');
-    const tabReq = document.getElementById('modalTabRequest');
-    const postForm = document.getElementById('postListingForm');
-    const reqForm = document.getElementById('postRequestForm');
-
-    if (mode === 'sell') {
-      tabSell?.classList.add('active');
-      tabReq?.classList.remove('active');
-      if (postForm) postForm.style.display = 'block';
-      if (reqForm) reqForm.style.display = 'none';
-    } else {
-      tabReq?.classList.add('active');
-      tabSell?.classList.remove('active');
-      if (postForm) postForm.style.display = 'none';
-      if (reqForm) reqForm.style.display = 'block';
-    }
+    posting.switchPostTab(this, mode);
   }
 
-  private updatePostFormatFields(format: ListingFormat) {
-    const durGroup = document.getElementById('auctionDurationGroup');
-    const resGroup = document.getElementById('reservePriceGroup');
-    if (durGroup) durGroup.style.display = format === 'auction' ? 'block' : 'none';
-    if (resGroup) resGroup.style.display = format === 'auction' ? 'block' : 'none';
+  public updatePostFormatFields(format: ListingFormat) {
+    posting.updatePostFormatFields(this, format);
   }
 
-  private handleCreateListing() {
-    const title = (document.getElementById('postTitle') as HTMLInputElement)?.value.trim();
-    const category = (document.getElementById('postCategory') as HTMLSelectElement)?.value as any;
-    const formatRadio = document.querySelector(
-      "input[name='postFormat']:checked"
-    ) as HTMLInputElement | null;
-    const format = (formatRadio?.value || 'buy_now') as ListingFormat;
-    const priceMajor =
-      parseFloat((document.getElementById('postStartPrice') as HTMLInputElement)?.value) || 0;
-    const reserveMajor =
-      parseFloat((document.getElementById('postReservePrice') as HTMLInputElement)?.value) || 0;
-    const durationHours =
-      parseFloat((document.getElementById('postDuration') as HTMLSelectElement)?.value) || 24;
-    const city =
-      (document.getElementById('postCity') as HTMLSelectElement)?.value || 'Lagos, Nigeria';
-    const imageUrl =
-      (document.getElementById('postImageUrl') as HTMLInputElement)?.value.trim() ||
-      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80';
-    const description = (
-      document.getElementById('postDescription') as HTMLTextAreaElement
-    )?.value.trim();
-
-    const currency = getCurrencyForCity(city);
-    const amountMinor = toMinorUnits(priceMajor, currency);
-    const reserveMinor = reserveMajor > 0 ? toMinorUnits(reserveMajor, currency) : null;
-    const currentUser = this.authService.getCurrentUser();
-
-    const newListing: Listing = {
-      id: `serv-${Date.now()}`,
-      title,
-      category,
-      format,
-      status: 'active',
-      amountMinor,
-      currency,
-      reserveAmountMinor: reserveMinor,
-      buyItNowAmountMinor: format === 'buy_now' ? amountMinor : null,
-      bidsCount: 0,
-      endTime: format === 'auction' ? Date.now() + 1000 * 60 * 60 * durationHours : null,
-      city,
-      country: 'Africa',
-      fulfillment: 'both',
-      imageUrl,
-      description,
-      seller: {
-        id: currentUser.id,
-        name: currentUser.name,
-        avatar: currentUser.avatar,
-        rating: currentUser.rating,
-        reviewsCount: currentUser.reviewsCount,
-        verified: currentUser.verified,
-        city: currentUser.city,
-        country: currentUser.country,
-      },
-      bidHistory: [],
-      createdAt: Date.now(),
-    };
-
-    if (this.cloud) {
-      void this.cloud.createListing(newListing).then((ok) => {
-        if (!ok) return;
-        this.dialogs['postModalOverlay']?.close();
-        (document.getElementById('postListingForm') as HTMLFormElement)?.reset();
-      });
-      return;
-    }
-
-    this.listings.unshift(newListing);
-    this.storage.saveListings(this.listings);
-    this.syncManager.broadcast('LISTING_CREATED', newListing, currentUser.id);
-
-    this.dialogs['postModalOverlay']?.close();
-    (document.getElementById('postListingForm') as HTMLFormElement)?.reset();
-
-    this.showToast('🚀 Listing published across African commerce hubs!', 'success');
-    this.renderListings();
-    this.renderCategoryCounts();
-    this.updateTopBarStats();
-    this.updateDashboardMetrics();
+  public handleCreateListing() {
+    posting.handleCreateListing(this);
   }
 
-  private handleCreateRequest() {
-    const title = (document.getElementById('reqTitle') as HTMLInputElement)?.value.trim();
-    const category = (document.getElementById('reqCategory') as HTMLSelectElement)?.value as any;
-    const typeRadio = document.querySelector(
-      "input[name='requestType']:checked"
-    ) as HTMLInputElement | null;
-    const requestType = (typeRadio?.value || 'good') as any;
-    const budgetMajor =
-      parseFloat((document.getElementById('reqBudget') as HTMLInputElement)?.value) || 0;
-    const rateType = ((document.getElementById('reqRateType') as HTMLSelectElement)?.value ||
-      'flat') as any;
-    const city =
-      (document.getElementById('reqCity') as HTMLSelectElement)?.value || 'Lagos, Nigeria';
-    const description = (
-      document.getElementById('reqDescription') as HTMLTextAreaElement
-    )?.value.trim();
-
-    const currency = getCurrencyForCity(city);
-    const budgetAmountMinor = toMinorUnits(budgetMajor, currency);
-    const currentUser = this.authService.getCurrentUser();
-
-    const newReq = createBuyerRequest({
-      title,
-      category,
-      requestType,
-      budgetAmountMinor,
-      currency,
-      rateType,
-      city,
-      country: 'Africa',
-      description,
-      buyer: {
-        id: currentUser.id,
-        name: currentUser.name,
-        avatar: currentUser.avatar,
-        rating: currentUser.rating,
-        reviewsCount: currentUser.reviewsCount,
-        verified: currentUser.verified,
-        city: currentUser.city,
-        country: currentUser.country,
-      },
-    });
-
-    if (this.cloud) {
-      void this.cloud.createRequest(newReq).then((ok) => {
-        if (!ok) return;
-        this.dialogs['postModalOverlay']?.close();
-        (document.getElementById('postRequestForm') as HTMLFormElement)?.reset();
-        this.setFormatPill('requests');
-      });
-      return;
-    }
-
-    this.requests.unshift(newReq);
-    this.storage.saveRequests(this.requests);
-    this.syncManager.broadcast('REQUEST_CREATED', newReq, currentUser.id);
-
-    this.dialogs['postModalOverlay']?.close();
-    (document.getElementById('postRequestForm') as HTMLFormElement)?.reset();
-
-    this.showToast('🙋 Buyer request published!', 'success');
-    this.filters.formatPill = 'requests';
-    this.renderListings();
-    this.updateTopBarStats();
-    this.updateDashboardMetrics();
+  public handleCreateRequest() {
+    posting.handleCreateRequest(this);
   }
 
   public openBuyerDashboard(subTab: BuyerSubTab = 'orders') {
-    // The hubs run on sample figures; live members get their real activity instead
-    if (this.cloud) {
-      this.openDrawer(subTab === 'wishlist' ? 'watchlist' : 'orders');
-      return;
-    }
-    const body = document.getElementById('buyerDashboardBody');
-    if (body) {
-      this.dashboardManager.setBuyerSubTab(subTab);
-      const currentUser = this.authService.getCurrentUser();
-      const visibleOrders = this.escrowOrders.filter((order) =>
-        PolicyEvaluator.canReadEscrowOrder(currentUser, order)
-      );
-      this.dashboardManager.renderBuyerDashboard(body, visibleOrders, this.activeCurrency);
-    }
-    this.dialogs['buyerDashboardModalOverlay']?.open();
+    dashboards.openBuyerDashboard(this, subTab);
   }
 
   public openSellerDashboard(subTab: SellerSubTab = 'analytics') {
-    if (this.cloud) {
-      this.openDrawer('my_listings');
-      return;
-    }
-    const body = document.getElementById('sellerDashboardBody');
-    if (body) {
-      this.dashboardManager.setSellerSubTab(subTab);
-      this.dashboardManager.renderSellerDashboard(body, this.listings, this.activeCurrency);
-    }
-    this.dialogs['sellerDashboardModalOverlay']?.open();
+    dashboards.openSellerDashboard(this, subTab);
   }
 
   public openAdminDashboard(subTab: AdminSubTab = 'analytics') {
-    if (this.cloud) return;
-    const body = document.getElementById('adminDashboardBody');
-    if (body) {
-      this.dashboardManager.setAdminSubTab(subTab);
-      this.dashboardManager.renderAdminDashboard(body, this.activeCurrency);
-    }
-    this.dialogs['adminDashboardModalOverlay']?.open();
+    dashboards.openAdminDashboard(this, subTab);
   }
 
   public openDashboardsModal(tab: string = 'overview') {
-    if (tab === 'seller') {
-      this.openSellerDashboard('analytics');
-    } else if (tab === 'buyer' || tab === 'escrow') {
-      this.openBuyerDashboard('orders');
-    } else {
-      this.openAdminDashboard('analytics');
-    }
+    dashboards.openDashboardsModal(this, tab);
   }
 
   public switchDashboardTab(tab: string) {
-    if (tab === 'seller') {
-      this.openSellerDashboard('analytics');
-    } else if (tab === 'buyer' || tab === 'escrow') {
-      this.openBuyerDashboard('orders');
-    } else {
-      this.openAdminDashboard('analytics');
-    }
+    dashboards.switchDashboardTab(this, tab);
   }
 
   public renderEscrowOrders() {
-    const body = document.getElementById('buyerDashboardBody');
-    if (body) {
-      this.dashboardManager.renderBuyerDashboard(body, this.escrowOrders, this.activeCurrency);
-    }
+    dashboards.renderEscrowOrders(this);
   }
 
   public verifyAndReleaseEscrow(orderId: string, otpInput: string) {
-    const order = this.escrowOrders.find((o) => o.id === orderId);
-    if (!order) {
-      this.showToast('Escrow order not found', 'warning');
-      return;
-    }
-    if (this.cloud) {
-      void this.cloud.confirmHandover(order, otpInput.trim());
-      return;
-    }
-    const res = transitionEscrow(order, 'otp_verified', { otpAttempt: otpInput.trim() });
-    if (res.success && res.order) {
-      const released = transitionEscrow(res.order, 'released');
-      if (released.success && released.order) {
-        const idx = this.escrowOrders.findIndex((o) => o.id === orderId);
-        if (idx !== -1) this.escrowOrders[idx] = released.order;
-        this.storage.saveEscrowOrders(this.escrowOrders);
-        this.showToast('🎉 Escrow payout released!', 'success');
-        this.updateDashboardMetrics();
-        this.updateActivityBadges();
-        const buyerBody = document.getElementById('buyerDashboardBody');
-        if (buyerBody) {
-          this.dashboardManager.renderBuyerDashboard(
-            buyerBody,
-            this.escrowOrders,
-            this.activeCurrency
-          );
-        }
-      }
-    } else {
-      this.showToast(res.error || 'Incorrect OTP code', 'warning');
-    }
+    trading.verifyAndReleaseEscrow(this, orderId, otpInput);
   }
 
   public async testSupabaseConnection() {
-    const supa = (window as any).servilistSupabase || (window as any).servlistSupabase;
-    if (supa && typeof supa.testConnection === 'function') {
-      const res = await supa.testConnection();
-      if (res?.success) {
-        this.showToast('🟢 Supabase cloud ping successful!', 'success');
-      } else {
-        this.showToast('Supabase ping failed: ' + (res?.error || 'Backend unavailable'), 'info');
-      }
-    } else {
-      this.showToast('Supabase client not loaded', 'warning');
-    }
+    await supabaseConsole.testSupabaseConnection(this);
   }
 
   public async syncWithSupabase() {
-    const supa = (window as any).servilistSupabase || (window as any).servlistSupabase;
-    if (supa && typeof supa.syncToCloud === 'function') {
-      const res = await supa.syncToCloud({
-        listings: this.listings,
-        requests: this.requests,
-        escrow: this.escrowOrders,
-      });
-      if (res?.success) {
-        this.showToast('🎉 All local data synced to Supabase!', 'success');
-      } else {
-        this.showToast('Saved locally. Backend Supabase sync is unavailable.', 'info');
-      }
-    } else {
-      this.showToast('Saved locally. Backend Supabase sync is unavailable.', 'info');
-    }
+    await supabaseConsole.syncWithSupabase(this);
   }
 
   public downloadSchema() {
-    window.open('supabase_schema.sql', '_blank');
-    this.showToast('Opening supabase_schema.sql', 'info');
+    supabaseConsole.downloadSchema(this);
   }
 
   public resetToSeedData() {
-    if (this.cloud) return;
-    if (confirm('Reset marketplace to authentic African seed listings & requests?')) {
-      this.listings = JSON.parse(JSON.stringify(SEED_LISTINGS));
-      this.requests = JSON.parse(JSON.stringify(SEED_REQUESTS));
-      this.storage.saveListings(this.listings);
-      this.storage.saveRequests(this.requests);
-      this.renderListings();
-      this.renderCategoryCounts();
-      this.updateTopBarStats();
-      this.updateDashboardMetrics();
-      this.showToast('African marketplace seed data restored', 'success');
-    }
+    supabaseConsole.resetToSeedData(this);
   }
 
   public openConverterModal() {
-    this.dialogs['converterModalOverlay']?.open();
-    this.updateConverterResults();
+    converter.openConverterModal(this);
   }
 
-  private updateConverterResults() {
-    const input = document.getElementById('calcAmountInput') as HTMLInputElement | null;
-    const fromSel = document.getElementById('calcFromCurrency') as HTMLSelectElement | null;
-    const toSel = document.getElementById('calcToCurrency') as HTMLSelectElement | null;
-    const display = document.getElementById('convMainResultDisplay');
-    const breakdown = document.getElementById('convRateBreakdown');
-
-    if (!input || !fromSel || !toSel || !display) return;
-
-    const amount = parseFloat(input.value) || 0;
-    const fromCurr = fromSel.value as CurrencyCode;
-    const toCurr = toSel.value as CurrencyCode;
-
-    const fromMinor = toMinorUnits(amount, fromCurr);
-    const convertedMinor = convertMinor(fromMinor, fromCurr, toCurr);
-    display.textContent = formatMoney(convertedMinor, toCurr);
-
-    if (breakdown) {
-      const oneFromInTo = convertMinor(toMinorUnits(1, fromCurr), fromCurr, toCurr);
-      breakdown.textContent = `1 ${fromCurr} = ${fromMinorUnits(oneFromInTo, toCurr).toFixed(4)} ${toCurr}`;
-    }
+  public updateConverterResults() {
+    converter.updateConverterResults(this);
   }
 
   public openDrawer(tab: ActivityTab = 'orders') {
@@ -1674,7 +910,7 @@ export class ServilistApp {
     this.dialogs['drawerModalOverlay']?.open();
   }
 
-  private activityData(): ActivityData {
+  public activityData(): ActivityData {
     return {
       userId: this.authService.getCurrentUser().id,
       listings: this.listings,
@@ -1704,7 +940,7 @@ export class ServilistApp {
     });
   }
 
-  private updateActivityBadges() {
+  public updateActivityBadges() {
     const counts = activityCounts(buildActivityView(this.activityData()));
     const set = (id: string, n: number) => {
       const el = document.getElementById(id);
@@ -1716,9 +952,9 @@ export class ServilistApp {
     if (this.isModalOpen('drawerModalOverlay')) this.renderDrawer();
   }
 
-  private static readonly WATCHLIST_KEY = 'servilist_watchlist';
+  public static readonly WATCHLIST_KEY = 'servilist_watchlist';
 
-  private loadWatchlist() {
+  public loadWatchlist() {
     try {
       const raw = localStorage.getItem(ServilistApp.WATCHLIST_KEY);
       this.watchlistIds = new Set(raw ? (JSON.parse(raw) as string[]) : []);
@@ -1741,7 +977,7 @@ export class ServilistApp {
     this.showToast(saved ? 'Saved to your watchlist' : 'Removed from your watchlist', 'info');
   }
 
-  private syncWatchlistButton(listingId: string) {
+  public syncWatchlistButton(listingId: string) {
     const label = document.querySelector('#detailWatchlistBtn .btn-text');
     if (label) {
       label.textContent = this.watchlistIds.has(listingId)
@@ -1750,7 +986,7 @@ export class ServilistApp {
     }
   }
 
-  private renderCategoryCounts() {
+  public renderCategoryCounts() {
     const counts: Record<string, number> = {
       electronics: 0,
       solar: 0,
@@ -1774,7 +1010,7 @@ export class ServilistApp {
     });
   }
 
-  private updateTopBarStats() {
+  public updateTopBarStats() {
     const activeStats = document.getElementById('activeStats');
     if (activeStats) {
       const activeListings = this.listings.filter((l) => !l.isSold).length;
@@ -1785,31 +1021,11 @@ export class ServilistApp {
     this.updateActivityBadges();
   }
 
-  private updateDashboardMetrics() {
-    const gmvEl = document.getElementById('dashMetricGMV');
-    const aucEl = document.getElementById('dashMetricAuctions');
-    const reqEl = document.getElementById('dashMetricRequests');
-    const escEl = document.getElementById('dashMetricEscrow');
-
-    if (aucEl)
-      aucEl.textContent = String(this.listings.filter((l) => l.format === 'auction').length);
-    if (reqEl) reqEl.textContent = String(this.requests.length);
-
-    let totalGmvMinor = 0;
-    this.listings.forEach((l) => {
-      totalGmvMinor += convertMinor(l.amountMinor, l.currency, this.activeCurrency);
-    });
-
-    if (gmvEl) gmvEl.textContent = formatMoney(totalGmvMinor, this.activeCurrency);
-
-    let totalEscrowMinor = 0;
-    this.escrowOrders.forEach((o) => {
-      totalEscrowMinor += convertMinor(o.amountMinor, o.currency, this.activeCurrency);
-    });
-    if (escEl) escEl.textContent = formatMoney(totalEscrowMinor, this.activeCurrency);
+  public updateDashboardMetrics() {
+    dashboards.updateDashboardMetrics(this);
   }
 
-  private startTimerTicker() {
+  public startTimerTicker() {
     setInterval(() => {
       const clock = document.getElementById('modalTimerClock');
       if (clock && this.currentListingDetail && this.currentListingDetail.endTime) {
@@ -1844,76 +1060,11 @@ export class ServilistApp {
     }, 3500);
   }
 
-  private initSyncListener() {
-    this.syncManager.subscribe((msg) => {
-      if (msg.type === 'LISTING_CREATED' && msg.payload) {
-        const newListing: Listing = msg.payload;
-        if (!this.listings.some((l) => l.id === newListing.id)) {
-          this.listings.unshift(newListing);
-          this.storage.saveListings(this.listings);
-          this.renderListings();
-          this.renderCategoryCounts();
-          this.updateTopBarStats();
-          this.updateDashboardMetrics();
-          this.showToast(`✨ Live update: New listing "${newListing.title}"`, 'info');
-        }
-      } else if (msg.type === 'REQUEST_CREATED' && msg.payload) {
-        const newReq: BuyerRequest = msg.payload;
-        if (!this.requests.some((r) => r.id === newReq.id)) {
-          this.requests.unshift(newReq);
-          this.storage.saveRequests(this.requests);
-          this.renderListings();
-          this.renderCategoryCounts();
-          this.updateTopBarStats();
-          this.updateDashboardMetrics();
-          this.showToast(`✨ Live update: New request "${newReq.title}"`, 'info');
-        }
-      } else if (msg.type === 'BID_PLACED' && msg.payload) {
-        const { listingId, bid, amountMinor } = msg.payload;
-        const item = this.listings.find((l) => l.id === listingId);
-        if (item) {
-          item.amountMinor = amountMinor;
-          item.bidsCount = (item.bidsCount || 0) + 1;
-          if (!item.bidHistory) item.bidHistory = [];
-          if (!item.bidHistory.some((b) => b.id === bid.id)) {
-            item.bidHistory.unshift(bid);
-          }
-          this.storage.saveListings(this.listings);
-          this.renderListings();
-          if (this.currentListingDetail?.id === listingId) {
-            this.openDetailModal(listingId);
-          }
-        }
-      } else if (msg.type === 'QUOTE_PLACED' && msg.payload) {
-        const { requestId, quote } = msg.payload;
-        const req = this.requests.find((r) => r.id === requestId);
-        if (req) {
-          if (!req.offers) req.offers = [];
-          if (!req.offers.some((o) => o.id === quote.id)) {
-            req.offers.unshift(quote);
-          }
-          this.storage.saveRequests(this.requests);
-          if (this.currentRequestDetail?.id === requestId) {
-            this.openRequestDetailModal(requestId);
-          }
-        }
-      }
-    });
-
-    if (!this.cloud && typeof window !== 'undefined' && (window as any).supabase) {
-      this.syncManager.initSupabaseRealtime((window as any).supabase, (newListing) => {
-        if (!this.listings.some((l) => l.id === newListing.id)) {
-          this.listings.unshift(newListing);
-          this.storage.saveListings(this.listings);
-          this.renderListings();
-          this.renderCategoryCounts();
-          this.updateTopBarStats();
-        }
-      });
-    }
+  public initSyncListener() {
+    syncListener.initSyncListener(this);
   }
 
-  private checkUrlRoute() {
+  public checkUrlRoute() {
     const route = AppRouter.parseRoute();
     if (route.type === 'listing' && route.id) {
       const match = this.listings.find((l) => l.id === route.id);
@@ -1928,167 +1079,16 @@ export class ServilistApp {
     }
   }
 
-  private initAuthUI() {
-    const userPill = document.getElementById('userProfilePill');
-    const signOutBtn = document.getElementById('authSignOutBtn');
-    const phoneForm = document.getElementById('phoneAuthForm') as HTMLFormElement | null;
-    const emailForm = document.getElementById('emailAuthForm') as HTMLFormElement | null;
-    const regForm = document.getElementById('registerAuthForm') as HTMLFormElement | null;
-
-    userPill?.addEventListener('click', () => {
-      this.dialogs['authModalOverlay']?.open();
-      if (!this.cloud) this.renderTestUsersList();
-    });
-
-    // Auth Modal Tabs
-    document.querySelectorAll('#authModalTabs .modal-tab-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        document
-          .querySelectorAll('#authModalTabs .modal-tab-btn')
-          .forEach((b) => b.classList.remove('active'));
-        btn.classList.add('active');
-        const tab = (btn as HTMLElement).dataset.authTab;
-
-        document
-          .querySelectorAll('.auth-tab-panel')
-          .forEach((p) => ((p as HTMLElement).style.display = 'none'));
-        if (tab === 'switch') {
-          const p = document.getElementById('authPanelSwitch');
-          if (p) p.style.display = 'block';
-          this.renderTestUsersList();
-        } else if (tab === 'phone') {
-          const p = document.getElementById('authPanelPhone');
-          if (p) p.style.display = 'block';
-        } else if (tab === 'email') {
-          const p = document.getElementById('authPanelEmail');
-          if (p) p.style.display = 'block';
-        } else if (tab === 'register') {
-          const p = document.getElementById('authPanelRegister');
-          if (p) p.style.display = 'block';
-        }
-      });
-    });
-
-    phoneForm?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const code =
-        (document.getElementById('authPhoneCountry') as HTMLSelectElement)?.value || '+234';
-      const num = (document.getElementById('authPhoneNumber') as HTMLInputElement)?.value || '';
-      const user = this.authService.signInWithPhone(`${code}${num}`);
-      this.syncAuthUserUI();
-      this.dialogs['authModalOverlay']?.close();
-      this.showToast(`Signed in via mobile phone as ${user.name}`, 'success');
-    });
-
-    emailForm?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = (document.getElementById('authEmailInput') as HTMLInputElement)?.value || '';
-      if (this.cloud) {
-        const passwordInput = document.getElementById('authPasswordInput') as HTMLInputElement;
-        void this.cloud.signIn(email.trim(), passwordInput?.value || '');
-        if (passwordInput) passwordInput.value = '';
-        return;
-      }
-      const user = this.authService.signInWithEmail(email);
-      this.syncAuthUserUI();
-      this.dialogs['authModalOverlay']?.close();
-      this.showToast(`Signed in as ${user.name}`, 'success');
-    });
-
-    regForm?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const name = (document.getElementById('regFullName') as HTMLInputElement)?.value || '';
-      const email = (document.getElementById('regEmail') as HTMLInputElement)?.value || '';
-      const phone = (document.getElementById('regPhone') as HTMLInputElement)?.value || '';
-      const city =
-        (document.getElementById('regCity') as HTMLSelectElement)?.value || 'Lagos, Nigeria';
-      if (this.cloud) {
-        const passwordInput = document.getElementById('regPassword') as HTMLInputElement;
-        void this.cloud.signUp({
-          name: name.trim(),
-          email: email.trim(),
-          password: passwordInput?.value || '',
-          city,
-        });
-        if (passwordInput) passwordInput.value = '';
-        return;
-      }
-      const user = this.authService.signUp({ name, email, phone, city, country: 'Africa' });
-      this.syncAuthUserUI();
-      this.dialogs['authModalOverlay']?.close();
-      this.showToast(`Welcome to Servilist Africa, ${user.name}!`, 'success');
-    });
-
-    signOutBtn?.addEventListener('click', () => {
-      if (this.cloud) {
-        void this.cloud.signOut();
-        return;
-      }
-      this.authService.signOut();
-      this.syncAuthUserUI();
-      this.dialogs['authModalOverlay']?.close();
-      this.showToast('Signed out to guest test profile', 'info');
-    });
-
-    this.authService.onAuthStateChange(() => {
-      this.syncAuthUserUI();
-    });
-
-    this.syncAuthUserUI();
+  public initAuthUI() {
+    authUI.initAuthUI(this);
   }
 
-  private renderTestUsersList() {
-    const grid = document.getElementById('testUsersGrid');
-    if (!grid) return;
-
-    const current = this.authService.getCurrentUser();
-    grid.innerHTML = TEST_USERS.map((u) => {
-      const isActive = u.id === current.id;
-      return `
-        <div class="test-user-card ${isActive ? 'active-user' : ''}" data-user-id="${u.id}">
-          <div class="test-user-avatar">${u.avatar}</div>
-          <div class="test-user-info">
-            <div class="test-user-name">${u.name} ${isActive ? '✓' : ''}</div>
-            <div class="test-user-city">📍 ${u.city} &bull; ${u.role}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    grid.querySelectorAll('.test-user-card').forEach((card) => {
-      card.addEventListener('click', () => {
-        const uid = (card as HTMLElement).dataset.userId;
-        if (uid) {
-          const user = this.authService.switchUser(uid);
-          this.syncAuthUserUI();
-          this.showToast(`Switched active profile to ${user.name} (${user.city})`, 'info');
-          this.dialogs['authModalOverlay']?.close();
-          this.renderListings();
-        }
-      });
-    });
+  public renderTestUsersList() {
+    authUI.renderTestUsersList(this);
   }
 
-  private syncAuthUserUI() {
-    const user = this.authService.getCurrentUser();
-    const avatar = document.getElementById('navUserAvatar');
-    const name = document.getElementById('navUserName');
-    if (avatar) avatar.textContent = user.avatar;
-    if (name) {
-      name.textContent = user.id === 'guest' ? 'Sign in' : `${user.name} (${user.rating} ★)`;
-    }
-
-    const modalAvatar = document.getElementById('authCurrentAvatar');
-    const modalName = document.getElementById('authCurrentName');
-    const modalDetails = document.getElementById('authCurrentDetails');
-    const modalRole = document.getElementById('authCurrentRole');
-    if (modalAvatar) modalAvatar.textContent = user.avatar;
-    if (modalName) modalName.textContent = user.name;
-    if (modalDetails) {
-      modalDetails.textContent = `📍 ${user.city || 'Africa Hub'} • ${user.verified ? 'Verified Merchant' : 'Community Trader'} (${user.rating} ★)`;
-    }
-    if (modalRole) modalRole.textContent = `Role: ${user.role.toUpperCase()}`;
-    this.updateActivityBadges();
+  public syncAuthUserUI() {
+    authUI.syncAuthUserUI(this);
   }
 
   public escapeHtml(str: string): string {
