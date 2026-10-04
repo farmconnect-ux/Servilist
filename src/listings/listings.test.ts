@@ -132,5 +132,29 @@ describe('Listings Module', () => {
       expect(sorted[1].title).toBe('Toyota Hilux 2020'); // 5 bids
       expect(sorted[2].title).toBe('MacBook Pro 14 M1'); // 0 bids
     });
+
+    it('sorts by geographic distance from a reference city using Haversine formula', () => {
+      // From Lagos, Nigeria:
+      // 1. Lagos (0 km) -> MacBook Pro 14 M1
+      // 2. Accra (~400 km) -> Toyota Hilux 2020
+      // 3. Nairobi (~3,800 km) -> Solar Panels 400W Mono
+      const sorted = sortListings(mockListings, 'distance', undefined, 'Lagos');
+      expect(sorted[0].title).toBe('MacBook Pro 14 M1');
+      expect(sorted[1].title).toBe('Toyota Hilux 2020');
+      expect(sorted[2].title).toBe('Solar Panels 400W Mono');
+    });
+
+    it('filters listings by maximum geographic radius from user city', () => {
+      // From Lagos: Accra is ~400km, Nairobi is ~3800km.
+      // With radius 600km, Lagos and Accra should pass, Nairobi should be filtered out.
+      const results = filterListings(mockListings, {
+        userCity: 'Lagos',
+        maxRadiusKm: 600,
+      });
+      expect(results.length).toBe(2);
+      expect(results.some((r) => r.city === 'Nairobi')).toBe(false);
+      expect(results.some((r) => r.city === 'Lagos')).toBe(true);
+      expect(results.some((r) => r.city === 'Accra')).toBe(true);
+    });
   });
 });

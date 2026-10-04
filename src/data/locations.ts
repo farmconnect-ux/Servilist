@@ -22,6 +22,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'NGN',
         neighborhoods: ['Ikeja', 'Lekki', 'Yaba', 'Alaba', 'Victoria Island'],
         label: 'Lagos (Ikeja, Lekki, Yaba, Alaba)',
+        lat: 6.5244,
+        lng: 3.3792,
       },
       {
         city: 'Abuja',
@@ -30,6 +32,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'NGN',
         neighborhoods: ['Wuse II', 'Maitama', 'Garki'],
         label: 'Abuja (Wuse II, Maitama, Garki)',
+        lat: 9.0765,
+        lng: 7.3986,
       },
       {
         city: 'Port Harcourt',
@@ -38,6 +42,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'NGN',
         neighborhoods: ['GRA', 'Trans-Amadi'],
         label: 'Port Harcourt (GRA, Trans-Amadi)',
+        lat: 4.8156,
+        lng: 7.0498,
       },
       {
         city: 'Ibadan',
@@ -46,6 +52,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'NGN',
         neighborhoods: ['Bodija', 'Dugbe'],
         label: 'Ibadan (Bodija, Dugbe)',
+        lat: 7.3775,
+        lng: 3.947,
       },
       {
         city: 'Kano',
@@ -54,6 +62,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'NGN',
         neighborhoods: ['Sabon Gari', 'Fagge'],
         label: 'Kano (Sabon Gari, Fagge)',
+        lat: 12.0022,
+        lng: 8.592,
       },
     ],
   },
@@ -70,6 +80,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'KES',
         neighborhoods: ['Westlands', 'Kilimani', 'CBD'],
         label: 'Nairobi (Westlands, Kilimani, CBD)',
+        lat: -1.2921,
+        lng: 36.8219,
       },
       {
         city: 'Mombasa',
@@ -78,6 +90,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'KES',
         neighborhoods: ['Nyali', 'Old Town'],
         label: 'Mombasa (Nyali, Old Town)',
+        lat: -4.0435,
+        lng: 39.6682,
       },
       {
         city: 'Kisumu',
@@ -86,6 +100,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'KES',
         neighborhoods: ['Milimani'],
         label: 'Kisumu (Milimani)',
+        lat: -0.0917,
+        lng: 34.768,
       },
     ],
   },
@@ -102,6 +118,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'GHS',
         neighborhoods: ['Osu', 'East Legon', 'Circle'],
         label: 'Accra (Osu, East Legon, Circle)',
+        lat: 5.6037,
+        lng: -0.187,
       },
       {
         city: 'Kumasi',
@@ -110,6 +128,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'GHS',
         neighborhoods: ['Adum', 'Bantama'],
         label: 'Kumasi (Adum, Bantama)',
+        lat: 6.6885,
+        lng: -1.6244,
       },
     ],
   },
@@ -126,6 +146,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'ZAR',
         neighborhoods: ['Sandton', 'Rosebank'],
         label: 'Johannesburg (Sandton, Rosebank)',
+        lat: -26.2041,
+        lng: 28.0473,
       },
       {
         city: 'Cape Town',
@@ -134,6 +156,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'ZAR',
         neighborhoods: ['CBD', 'Camps Bay'],
         label: 'Cape Town (CBD, Camps Bay)',
+        lat: -33.9249,
+        lng: 18.4241,
       },
       {
         city: 'Durban',
@@ -142,6 +166,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'ZAR',
         neighborhoods: ['Umhlanga'],
         label: 'Durban (Umhlanga)',
+        lat: -29.8587,
+        lng: 31.0218,
       },
     ],
   },
@@ -158,6 +184,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'RWF',
         neighborhoods: ['Kiyovu', 'Kimihurura'],
         label: 'Kigali (Kiyovu, Kimihurura)',
+        lat: -1.9441,
+        lng: 30.0619,
       },
     ],
   },
@@ -174,6 +202,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'TZS',
         neighborhoods: ['Kariakoo', 'Masaki'],
         label: 'Dar es Salaam (Kariakoo, Masaki)',
+        lat: -6.7924,
+        lng: 39.2083,
       },
     ],
   },
@@ -190,6 +220,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'UGX',
         neighborhoods: ['Kololo', 'Nakasero'],
         label: 'Kampala (Kololo, Nakasero)',
+        lat: 0.3476,
+        lng: 32.5825,
       },
     ],
   },
@@ -206,6 +238,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'EGP',
         neighborhoods: ['Maadi', 'Zamalek', 'New Cairo'],
         label: 'Cairo (Maadi, Zamalek, New Cairo)',
+        lat: 30.0444,
+        lng: 31.2357,
       },
     ],
   },
@@ -222,6 +256,8 @@ export const AFRICAN_LOCATIONS: CountryGroup[] = [
         currency: 'USD',
         neighborhoods: ['Cross-Border Hubs'],
         label: 'All Africa (Cross-Border Trade & Shipping)',
+        lat: 0.0,
+        lng: 25.0,
       },
     ],
   },
@@ -251,4 +287,40 @@ export function findCity(cityName: string): CityLocation | undefined {
 export function getCurrencyForCity(cityName: string): CurrencyCode {
   const loc = findCity(cityName);
   return loc ? loc.currency : 'NGN';
+}
+
+/**
+ * Calculates Great-Circle distance between two coordinates in kilometers using Haversine formula.
+ */
+export function haversineDistanceKm(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371; // Earth's mean radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c);
+}
+
+/**
+ * Computes distance in kilometers between two African cities.
+ */
+export function getDistanceBetweenCitiesKm(
+  city1Name: string,
+  city2Name: string
+): number | null {
+  const c1 = findCity(city1Name);
+  const c2 = findCity(city2Name);
+  if (!c1 || !c2) return null;
+  if (c1.city === 'All Africa' || c2.city === 'All Africa') return 0;
+  return haversineDistanceKm(c1.lat, c1.lng, c2.lat, c2.lng);
 }

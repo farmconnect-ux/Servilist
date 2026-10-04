@@ -148,4 +148,6 @@ export interface CityLocation {
   currency: CurrencyCode;
   neighborhoods: string[];
   label: string;
+  lat: number;
+  lng: number;
 }
