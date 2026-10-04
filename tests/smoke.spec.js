@@ -422,4 +422,102 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await page.locator('#closeAdminDashboardModalBtn').click();
     await expect(adminModal).toBeHidden();
   });
+
+  test('Multi-User Live Collaboration & Real-Time Sync: Context B sees Context A new listing without refresh', async ({
+    browser,
+  }) => {
+    // -------------------------------------------------------------
+    // Context A: User Kofi Mensah (Lagos)
+    // -------------------------------------------------------------
+    const contextA = await browser.newContext();
+    const pageA = await contextA.newPage();
+    await pageA.goto('/');
+    await pageA.evaluate(() => localStorage.clear());
+    await pageA.reload();
+    await pageA.waitForLoadState('domcontentloaded');
+
+    // Verify User A profile is Kofi Mensah
+    await expect(pageA.locator('#navUserName')).toContainText('Kofi Mensah');
+
+    // -------------------------------------------------------------
+    // Context B: User Amina Diallo (Nairobi) in separate context
+    // -------------------------------------------------------------
+    const contextB = await browser.newContext();
+    const pageB = await contextB.newPage();
+    await pageB.goto('/');
+    await pageB.evaluate(() => localStorage.clear());
+    await pageB.reload();
+    await pageB.waitForLoadState('domcontentloaded');
+
+    // Switch Context B identity to Amina Diallo
+    await pageB.locator('#userProfilePill').click();
+    const authModalB = pageB.locator('#authModalOverlay');
+    await expect(authModalB).toBeVisible();
+
+    const aminaCard = pageB.locator('.test-user-card[data-user-id="usr-nairobi-amina"]');
+    await expect(aminaCard).toBeVisible();
+    await aminaCard.click();
+    await expect(authModalB).toBeHidden();
+    await expect(pageB.locator('#navUserName')).toContainText('Amina Diallo');
+
+    // Ensure Page B is set to city "Lagos, Nigeria" or has all formats active to see the listing
+    await pageB.locator('#citySelector').selectOption('Lagos, Nigeria');
+
+    // -------------------------------------------------------------
+    // Context A publishes a new Buy-Now listing
+    // -------------------------------------------------------------
+    await pageA.locator('#openPostModalBtn').click();
+    const postModalA = pageA.locator('#postModalOverlay');
+    await expect(postModalA).toBeVisible();
+
+    await pageA.locator('#modalTabSell').click();
+    await pageA.locator('input[name="postFormat"][value="buy_now"]').check();
+
+    const liveItemTitle = 'Victron 5kVA Solar Inverter Lagos Realtime Test';
+    await pageA.locator('#postTitle').fill(liveItemTitle);
+    await pageA.locator('#postCategory').selectOption('electronics');
+    await pageA.locator('#postCity').selectOption('Lagos, Nigeria');
+    await pageA.locator('#postStartPrice').fill('1450000');
+    await pageA
+      .locator('#postImageUrl')
+      .fill(
+        'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80'
+      );
+    await pageA
+      .locator('#postDescription')
+      .fill(
+        'Pure sine wave multi-plus inverter with Bluetooth monitor. High efficiency for off-grid.'
+      );
+
+    await pageA.locator('#postListingForm button[type="submit"]').click();
+    await expect(postModalA).toBeHidden();
+
+    // Verify Context A immediately shows the listing
+    await expect(pageA.locator('#listingsContainer')).toContainText(liveItemTitle);
+
+    // -------------------------------------------------------------
+    // Gate Check: Context B sees Context A's listing WITHOUT calling pageB.reload()
+    // -------------------------------------------------------------
+    const listingInB = pageB.locator('#listingsContainer', { hasText: liveItemTitle });
+    await expect(listingInB).toBeVisible({ timeout: 10000 });
+
+    // Open detail modal in Context B and verify seller metadata & WhatsApp sharing
+    const itemCardB = pageB.locator('.listing-card', { hasText: liveItemTitle }).first();
+    await itemCardB.click();
+
+    const detailModalB = pageB.locator('#detailModalOverlay');
+    await expect(detailModalB).toBeVisible();
+    await expect(pageB.locator('#detailTitle')).toContainText(liveItemTitle);
+    await expect(pageB.locator('#detailSellerName')).toContainText('Kofi Mensah');
+    await expect(pageB.locator('#detailShareWhatsAppBtn')).toBeVisible();
+    await expect(pageB.locator('#detailShareBtn')).toBeVisible();
+
+    // Close detail modal
+    await pageB.locator('#closeDetailModalBtn').click();
+    await expect(detailModalB).toBeHidden();
+
+    // Clean up contexts
+    await contextA.close();
+    await contextB.close();
+  });
 });

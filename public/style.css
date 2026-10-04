@@ -6001,3 +6001,235 @@ input:checked + .slider:before {
   background: #0284c7 !important;
   color: white !important;
 }
+
+/* ==========================================================================
+   Phase 2: Auth Modal, User Profiles, WhatsApp Share & Storage Upload
+   ========================================================================== */
+.user-profile-pill {
+  cursor: pointer;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  padding: 4px 12px 4px 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+.user-profile-pill:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+.user-profile-pill .avatar {
+  background: #0f172a;
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 0.75rem;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-profile-pill .username {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Auth Modal Card */
+.auth-modal {
+  max-width: 580px;
+  width: 90%;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+.auth-modal-header {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 20px 24px;
+}
+.auth-modal-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.active-user-status-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+}
+.user-avatar-large {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #38bdf8;
+  font-weight: 800;
+  font-size: 1.125rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.user-meta {
+  flex: 1;
+}
+.user-meta h3 {
+  margin: 0 0 2px 0;
+  font-size: 1.05rem;
+  color: #0f172a;
+}
+.user-meta p {
+  margin: 0 0 4px 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+.user-badge-role {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: #e0f2fe;
+  color: #0284c7;
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.btn-signout {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  color: #ef4444;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.15s ease;
+}
+.btn-signout:hover {
+  background: #fecaca;
+}
+
+/* Test Users Switch Grid */
+.auth-hint {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 12px;
+}
+.test-users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.test-user-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+.test-user-card:hover {
+  border-color: #0ea5e9;
+  background: #f0f9ff;
+  transform: translateY(-1px);
+}
+.test-user-card.active-user {
+  border-color: #10b981;
+  background: #ecfdf5;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+.test-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1e293b;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.test-user-info {
+  flex: 1;
+  overflow: hidden;
+}
+.test-user-name {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.test-user-city {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* WhatsApp Share Button */
+.btn-share-whatsapp {
+  background: #25d366 !important;
+  color: #ffffff !important;
+  border: none;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+.btn-share-whatsapp:hover {
+  filter: brightness(1.08);
+}
+
+/* Photo Upload Dropzone */
+.photo-upload-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.btn-choose-file {
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px dashed #94a3b8;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-choose-file:hover {
+  background: #e2e8f0;
+  border-color: #0ea5e9;
+  color: #0284c7;
+}
+.upload-tip {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+.radius-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.875rem;
+}
+

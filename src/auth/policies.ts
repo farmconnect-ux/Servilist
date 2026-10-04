@@ -1,4 +1,4 @@
-import { Listing, BuyerRequest, EscrowOrder, UserProfile } from '../types';
+import { Listing, BuyerRequest, EscrowOrder } from '../types';
 
 export interface AuthUserContext {
   id: string;
@@ -16,10 +16,7 @@ export class PolicyEvaluator {
    * Listings SELECT policy:
    * Public can read active listings. Inactive listings readable only by owner.
    */
-  public static canReadListing(
-    user: AuthUserContext | null,
-    listing: Listing
-  ): boolean {
+  public static canReadListing(user: AuthUserContext | null, listing: Listing): boolean {
     if (listing.status === 'active') return true;
     if (!user) return false;
     return user.id === listing.seller.id;
@@ -29,10 +26,7 @@ export class PolicyEvaluator {
    * Listings UPDATE policy:
    * Only the creator/seller can update their own listing.
    */
-  public static canUpdateListing(
-    user: AuthUserContext | null,
-    listing: Listing
-  ): boolean {
+  public static canUpdateListing(user: AuthUserContext | null, listing: Listing): boolean {
     if (!user) return false;
     return user.id === listing.seller.id;
   }
@@ -41,10 +35,7 @@ export class PolicyEvaluator {
    * Listings DELETE policy:
    * Only the creator/seller can delete their own listing.
    */
-  public static canDeleteListing(
-    user: AuthUserContext | null,
-    listing: Listing
-  ): boolean {
+  public static canDeleteListing(user: AuthUserContext | null, listing: Listing): boolean {
     if (!user) return false;
     return user.id === listing.seller.id;
   }
@@ -53,10 +44,7 @@ export class PolicyEvaluator {
    * Buyer Requests SELECT policy:
    * Publicly visible to all potential vendors.
    */
-  public static canReadRequest(
-    _user: AuthUserContext | null,
-    _request: BuyerRequest
-  ): boolean {
+  public static canReadRequest(_user: AuthUserContext | null, _request: BuyerRequest): boolean {
     return true;
   }
 
@@ -64,10 +52,7 @@ export class PolicyEvaluator {
    * Buyer Requests UPDATE policy:
    * Only the buyer who created the request can edit it.
    */
-  public static canUpdateRequest(
-    user: AuthUserContext | null,
-    request: BuyerRequest
-  ): boolean {
+  public static canUpdateRequest(user: AuthUserContext | null, request: BuyerRequest): boolean {
     if (!user) return false;
     return user.id === request.buyer.id;
   }
@@ -76,10 +61,7 @@ export class PolicyEvaluator {
    * Buyer Requests DELETE policy:
    * Only the buyer who created the request can delete/cancel it.
    */
-  public static canDeleteRequest(
-    user: AuthUserContext | null,
-    request: BuyerRequest
-  ): boolean {
+  public static canDeleteRequest(user: AuthUserContext | null, request: BuyerRequest): boolean {
     if (!user) return false;
     return user.id === request.buyer.id;
   }

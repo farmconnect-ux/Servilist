@@ -146,10 +146,15 @@
             >
               <span>📊 Dashboards</span>
             </button>
-            <div class="user-profile-pill">
-              <span class="avatar">JD</span>
-              <span class="username">John Doe (4.9 ★)</span>
-            </div>
+            <button
+              type="button"
+              class="user-profile-pill"
+              id="userProfilePill"
+              title="Account, Switch Identity & Supabase Auth"
+            >
+              <span class="avatar" id="navUserAvatar">KM</span>
+              <span class="username" id="navUserName">Kofi Mensah (4.9 ★)</span>
+            </button>
           </div>
         </div>
       </div>
@@ -439,6 +444,21 @@
           </div>
         </div>
 
+        <!-- Distance Radius Filter -->
+        <div class="filter-section">
+          <h4 class="section-title">Distance Radius</h4>
+          <div class="radius-select-box">
+            <select id="radiusFilterSelect" class="radius-select" aria-label="Distance radius">
+              <option value="any" selected>Any Distance (Pan-Africa)</option>
+              <option value="25">Within 25 km</option>
+              <option value="50">Within 50 km</option>
+              <option value="100">Within 100 km</option>
+              <option value="250">Within 250 km</option>
+              <option value="500">Within 500 km</option>
+            </select>
+          </div>
+        </div>
+
         <!-- Craigslist Direct Contact / Community Safety Tip Box -->
         <div class="sidebar-promo-card">
           <div class="promo-header">
@@ -713,7 +733,10 @@
                 <span class="heart-icon">🤍</span>
                 <span class="btn-text">Add to Watchlist</span>
               </button>
-              <button class="btn-share" id="detailShareBtn">🔗 Share</button>
+              <button class="btn-share" id="detailShareBtn">🔗 Copy Link</button>
+              <button class="btn-share-whatsapp" id="detailShareWhatsAppBtn">
+                📱 Share on WhatsApp
+              </button>
             </div>
           </div>
         </div>
@@ -933,16 +956,46 @@
             </div>
           </div>
 
-          <!-- Step 5: Photos Selection -->
+          <!-- Step 5: Photos Selection (Supabase Storage + 200x200 Canvas Thumbnail) -->
           <div class="form-group">
-            <label class="form-label">Photo <span class="required">*</span></label>
+            <label class="form-label">Photo Upload <span class="required">*</span></label>
             <div class="photo-picker-wrapper">
-              <input
-                type="url"
-                id="postImageUrl"
-                placeholder="Paste an Image URL or choose a sample photo below"
-                required
-              />
+              <div class="photo-upload-dropzone" id="postImageDropzone">
+                <input
+                  type="file"
+                  id="postImageFileInput"
+                  accept="image/png,image/jpeg,image/webp"
+                  style="display: none"
+                />
+                <button type="button" class="btn-choose-file" id="postImageChooseBtn">
+                  📷 Choose Image File (Max 5MB)
+                </button>
+                <span class="upload-tip"
+                  >JPG, PNG, or WebP &bull; Generates 200x200 instant thumbnail</span
+                >
+              </div>
+              <input type="url" id="postImageUrl" placeholder="Or paste an Image URL" required />
+              <div
+                class="uploaded-thumbnail-preview"
+                id="postThumbnailPreview"
+                style="display: none; margin-top: 8px"
+              >
+                <img
+                  id="postThumbnailImg"
+                  src=""
+                  alt="Thumbnail preview"
+                  style="
+                    width: 72px;
+                    height: 72px;
+                    object-fit: cover;
+                    border-radius: 6px;
+                    border: 2px solid var(--primary-accent, #10b981);
+                  "
+                />
+                <span style="font-size: 0.8rem; color: #10b981; margin-left: 8px"
+                  >✓ 200x200 Thumbnail Processed</span
+                >
+              </div>
               <div class="sample-photos-row" id="samplePhotosList">
                 <!-- Pre-configured sample photos for quick testing -->
               </div>
@@ -1154,11 +1207,39 @@
               ></label
             >
             <div class="photo-picker-wrapper">
-              <input
-                type="url"
-                id="reqImageUrl"
-                placeholder="Paste an Image URL or choose a sample photo below"
-              />
+              <div class="photo-upload-dropzone" id="reqImageDropzone">
+                <input
+                  type="file"
+                  id="reqImageFileInput"
+                  accept="image/png,image/jpeg,image/webp"
+                  style="display: none"
+                />
+                <button type="button" class="btn-choose-file" id="reqImageChooseBtn">
+                  📷 Choose Reference Photo (Max 5MB)
+                </button>
+              </div>
+              <input type="url" id="reqImageUrl" placeholder="Or paste an Image URL" />
+              <div
+                class="uploaded-thumbnail-preview"
+                id="reqThumbnailPreview"
+                style="display: none; margin-top: 8px"
+              >
+                <img
+                  id="reqThumbnailImg"
+                  src=""
+                  alt="Thumbnail preview"
+                  style="
+                    width: 72px;
+                    height: 72px;
+                    object-fit: cover;
+                    border-radius: 6px;
+                    border: 2px solid var(--primary-accent, #10b981);
+                  "
+                />
+                <span style="font-size: 0.8rem; color: #10b981; margin-left: 8px"
+                  >✓ 200x200 Thumbnail Processed</span
+                >
+              </div>
               <div class="sample-photos-row" id="reqSamplePhotosList">
                 <!-- Pre-configured sample photos -->
               </div>
@@ -1464,6 +1545,166 @@
         </div>
         <div class="dashboards-body admin-dashboard-body" id="adminDashboardBody">
           <!-- Dynamically populated via AdminDashboardView -->
+        </div>
+      </div>
+    </div>
+
+    <!-- =============================================================
+         MODAL 7: SUPABASE AUTH & AFRICAN USER ACCOUNTS
+         ============================================================= -->
+    <div class="modal-overlay" id="authModalOverlay" style="display: none">
+      <div class="modal-card auth-modal">
+        <div class="modal-header auth-modal-header">
+          <div class="header-titles">
+            <h2 id="authModalTitle">Servilist Africa &bull; Account & Identity</h2>
+            <p id="authModalSubtitle">
+              Sign in with African mobile number, email, or switch test profiles
+            </p>
+          </div>
+          <button class="modal-close-btn" id="closeAuthModalBtn">&times;</button>
+        </div>
+
+        <div class="auth-modal-body">
+          <!-- Active User Profile Card -->
+          <div class="active-user-status-card" id="authActiveUserCard">
+            <div class="user-avatar-large" id="authCurrentAvatar">KM</div>
+            <div class="user-meta">
+              <h3 id="authCurrentName">Kofi Mensah</h3>
+              <p id="authCurrentDetails">📍 Lagos, Nigeria &bull; Verified Merchant (4.9 ★)</p>
+              <span class="user-badge-role" id="authCurrentRole">Active Profile</span>
+            </div>
+            <button
+              type="button"
+              class="btn-signout"
+              id="authSignOutBtn"
+              title="Sign out to default"
+            >
+              Sign Out
+            </button>
+          </div>
+
+          <!-- Auth Tabs -->
+          <div class="modal-tabs" id="authModalTabs">
+            <button
+              type="button"
+              class="modal-tab-btn active"
+              id="authTabSwitch"
+              data-auth-tab="switch"
+            >
+              Switch Identity
+            </button>
+            <button type="button" class="modal-tab-btn" id="authTabPhone" data-auth-tab="phone">
+              Phone Sign-In
+            </button>
+            <button type="button" class="modal-tab-btn" id="authTabEmail" data-auth-tab="email">
+              Email Sign-In
+            </button>
+            <button
+              type="button"
+              class="modal-tab-btn"
+              id="authTabRegister"
+              data-auth-tab="register"
+            >
+              New Account
+            </button>
+          </div>
+
+          <!-- Tab Content: Switch Profiles (for instant multi-user / cross-browser testing) -->
+          <div class="auth-tab-panel" id="authPanelSwitch">
+            <p class="auth-hint">
+              Switch between African test identities to test multi-vendor permissions, buyer-seller
+              escrow, and real-time sync:
+            </p>
+            <div class="test-users-grid" id="testUsersGrid">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Tab Content: Phone Sign-In -->
+          <div class="auth-tab-panel" id="authPanelPhone" style="display: none">
+            <form id="phoneAuthForm" class="auth-form">
+              <div class="form-group">
+                <label for="authPhoneCountry" class="form-label">Country & Dial Code</label>
+                <select id="authPhoneCountry" class="form-select">
+                  <option value="+234" selected>🇳🇬 Nigeria (+234)</option>
+                  <option value="+254">🇰🇪 Kenya (+254)</option>
+                  <option value="+233">🇬🇭 Ghana (+233)</option>
+                  <option value="+27">🇿🇦 South Africa (+27)</option>
+                  <option value="+250">🇷🇼 Rwanda (+250)</option>
+                  <option value="+255">🇹🇿 Tanzania (+255)</option>
+                  <option value="+256">🇺🇬 Uganda (+256)</option>
+                  <option value="+20">🇪🇬 Egypt (+20)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="authPhoneNumber" class="form-label">Mobile Phone Number</label>
+                <input type="tel" id="authPhoneNumber" placeholder="e.g. 8012345678" required />
+              </div>
+              <div class="form-group" id="phoneOtpGroup">
+                <label for="authPhoneOtp" class="form-label">SMS Verification Code (OTP)</label>
+                <input
+                  type="text"
+                  id="authPhoneOtp"
+                  placeholder="Enter 6-digit OTP (e.g. 123456)"
+                />
+              </div>
+              <button type="submit" class="btn-primary btn-block" id="btnSubmitPhoneAuth">
+                Verify & Sign In
+              </button>
+            </form>
+          </div>
+
+          <!-- Tab Content: Email Sign-In -->
+          <div class="auth-tab-panel" id="authPanelEmail" style="display: none">
+            <form id="emailAuthForm" class="auth-form">
+              <div class="form-group">
+                <label for="authEmailInput" class="form-label">Email Address</label>
+                <input type="email" id="authEmailInput" placeholder="name@example.com" required />
+              </div>
+              <div class="form-group">
+                <label for="authPasswordInput" class="form-label">Password</label>
+                <input
+                  type="password"
+                  id="authPasswordInput"
+                  placeholder="Enter password (optional in dev)"
+                />
+              </div>
+              <button type="submit" class="btn-primary btn-block" id="btnSubmitEmailAuth">
+                Sign In with Email
+              </button>
+            </form>
+          </div>
+
+          <!-- Tab Content: Register New Account -->
+          <div class="auth-tab-panel" id="authPanelRegister" style="display: none">
+            <form id="registerAuthForm" class="auth-form">
+              <div class="form-group">
+                <label for="regFullName" class="form-label">Full Name / Merchant Name</label>
+                <input type="text" id="regFullName" placeholder="e.g. Adebayo Ogunlesi" required />
+              </div>
+              <div class="form-group">
+                <label for="regEmail" class="form-label">Email Address</label>
+                <input type="email" id="regEmail" placeholder="adebayo@example.com" />
+              </div>
+              <div class="form-group">
+                <label for="regPhone" class="form-label">Mobile Phone</label>
+                <input type="tel" id="regPhone" placeholder="+2348012345678" />
+              </div>
+              <div class="form-group">
+                <label for="regCity" class="form-label">Primary Trading City</label>
+                <select id="regCity" class="form-select">
+                  <option value="Lagos, Nigeria" selected>Lagos, Nigeria</option>
+                  <option value="Nairobi, Kenya">Nairobi, Kenya</option>
+                  <option value="Accra, Ghana">Accra, Ghana</option>
+                  <option value="Johannesburg, South Africa">Johannesburg, South Africa</option>
+                  <option value="Kigali, Rwanda">Kigali, Rwanda</option>
+                </select>
+              </div>
+              <button type="submit" class="btn-primary btn-block" id="btnSubmitRegister">
+                Create Account
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>

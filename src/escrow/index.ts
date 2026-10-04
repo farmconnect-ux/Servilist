@@ -86,7 +86,9 @@ export function createEscrowOrder(params: {
   quoteId?: string;
   title: string;
   buyerName: string;
+  buyerId?: string;
   sellerName: string;
+  sellerId?: string;
   amountMinor: number;
   currency: CurrencyCode;
   targetCurrency?: CurrencyCode;
@@ -100,7 +102,9 @@ export function createEscrowOrder(params: {
     orderCode: generateEscrowCode(),
     title: params.title,
     buyerName: params.buyerName,
+    buyerId: params.buyerId,
     sellerName: params.sellerName,
+    sellerId: params.sellerId,
     amountMinor: params.amountMinor,
     currency: params.currency,
     targetCurrency: params.targetCurrency || params.currency,

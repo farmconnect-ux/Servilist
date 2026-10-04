@@ -12,10 +12,17 @@ import { setupMobileSheetEnhancements } from './ui/bottomSheet';
 import { ICONS } from './ui/icons';
 import { DashboardManager } from './dashboards';
 import { BuyerSubTab, SellerSubTab, AdminSubTab } from './dashboards/types';
+import { AuthService, TEST_USERS } from './auth/authService';
 import { SEED_LISTINGS, SEED_REQUESTS } from './data/seeds';
+import { PolicyEvaluator } from './auth/policies';
+import { processAndUploadImage } from './storage/imageUpload';
+import { AppRouter } from './routing/router';
+import { SyncChannelManager } from './data/syncChannel';
 
 export class ServilistApp {
   public storage: LocalStorageManager;
+  public authService: AuthService;
+  public syncManager: SyncChannelManager;
   public dashboardManager!: DashboardManager;
   public listings: Listing[] = [];
   public requests: BuyerRequest[] = [];
@@ -41,6 +48,7 @@ export class ServilistApp {
     minPriceMinor: null,
     maxPriceMinor: null,
     searchQuery: '',
+    maxRadiusKm: null,
   };
 
   // Accessible dialog controllers
@@ -49,6 +57,8 @@ export class ServilistApp {
 
   constructor() {
     this.storage = new LocalStorageManager();
+    this.authService = new AuthService();
+    this.syncManager = new SyncChannelManager();
   }
 
   public init() {
@@ -63,11 +73,14 @@ export class ServilistApp {
     this.initBottomNav();
     this.bindEvents();
     this.syncCurrencyUI();
+    this.initSyncListener();
+    this.initAuthUI();
     this.renderCategoryCounts();
     this.renderListings();
     this.updateTopBarStats();
     this.updateDashboardMetrics();
     this.startTimerTicker();
+    this.checkUrlRoute();
   }
 
   /**
@@ -150,6 +163,7 @@ export class ServilistApp {
       { id: 'sellerDashboardModalOverlay', closeBtn: '#closeSellerDashboardModalBtn' },
       { id: 'adminDashboardModalOverlay', closeBtn: '#closeAdminDashboardModalBtn' },
       { id: 'dashboardsModalOverlay', closeBtn: '#closeDashboardModalBtn' },
+      { id: 'authModalOverlay', closeBtn: '#closeAuthModalBtn' },
     ];
 
     dialogConfigs.forEach((cfg) => {
@@ -163,12 +177,22 @@ export class ServilistApp {
         // Close button click
         el.querySelector(cfg.closeBtn)?.addEventListener('click', () => {
           this.dialogs[cfg.id].close();
+          if (cfg.id === 'detailModalOverlay') {
+            AppRouter.clearDetailUrl();
+            this.currentListingDetail = null;
+            this.currentRequestDetail = null;
+          }
         });
 
         // Backdrop click
         el.addEventListener('click', (e) => {
           if (e.target === el) {
             this.dialogs[cfg.id].close();
+            if (cfg.id === 'detailModalOverlay') {
+              AppRouter.clearDetailUrl();
+              this.currentListingDetail = null;
+              this.currentRequestDetail = null;
+            }
           }
         });
       }
@@ -398,6 +422,111 @@ export class ServilistApp {
         }
       });
     });
+
+    // Distance Radius Filter
+    const radiusSelect = document.getElementById('radiusFilterSelect') as HTMLSelectElement | null;
+    radiusSelect?.addEventListener('change', () => {
+      const val = radiusSelect.value;
+      this.filters.maxRadiusKm = val === 'any' ? null : parseInt(val, 10);
+      this.renderListings();
+    });
+
+    // Photo Upload Picker for Listing (with 200x200 canvas thumbnail)
+    const postChooseBtn = document.getElementById('postImageChooseBtn');
+    const postFileInput = document.getElementById('postImageFileInput') as HTMLInputElement | null;
+    const postUrlInput = document.getElementById('postImageUrl') as HTMLInputElement | null;
+    const postThumbPreview = document.getElementById('postThumbnailPreview');
+    const postThumbImg = document.getElementById('postThumbnailImg') as HTMLImageElement | null;
+
+    postChooseBtn?.addEventListener('click', () => {
+      postFileInput?.click();
+    });
+
+    postFileInput?.addEventListener('change', async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      if (postChooseBtn) postChooseBtn.textContent = '⏳ Processing photo...';
+      try {
+        const result = await processAndUploadImage(file, (window as any).supabase);
+        if (postUrlInput) postUrlInput.value = result.url;
+        if (postThumbImg) postThumbImg.src = result.thumbnailUrl;
+        if (postThumbPreview) postThumbPreview.style.display = 'flex';
+        this.showToast('📷 Photo processed with 200x200 client thumbnail!', 'success');
+      } catch (err: any) {
+        this.showToast(err.message || 'Failed to process image file', 'warning');
+      } finally {
+        if (postChooseBtn) postChooseBtn.textContent = '📷 Choose Image File (Max 5MB)';
+      }
+    });
+
+    // Photo Upload Picker for Request
+    const reqChooseBtn = document.getElementById('reqImageChooseBtn');
+    const reqFileInput = document.getElementById('reqImageFileInput') as HTMLInputElement | null;
+    const reqUrlInput = document.getElementById('reqImageUrl') as HTMLInputElement | null;
+    const reqThumbPreview = document.getElementById('reqThumbnailPreview');
+    const reqThumbImg = document.getElementById('reqThumbnailImg') as HTMLImageElement | null;
+
+    reqChooseBtn?.addEventListener('click', () => {
+      reqFileInput?.click();
+    });
+
+    reqFileInput?.addEventListener('change', async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      if (reqChooseBtn) reqChooseBtn.textContent = '⏳ Processing photo...';
+      try {
+        const result = await processAndUploadImage(file, (window as any).supabase);
+        if (reqUrlInput) reqUrlInput.value = result.url;
+        if (reqThumbImg) reqThumbImg.src = result.thumbnailUrl;
+        if (reqThumbPreview) reqThumbPreview.style.display = 'flex';
+        this.showToast('📷 Reference photo thumbnail generated!', 'success');
+      } catch (err: any) {
+        this.showToast(err.message || 'Failed to process image file', 'warning');
+      } finally {
+        if (reqChooseBtn) reqChooseBtn.textContent = '📷 Choose Reference Photo (Max 5MB)';
+      }
+    });
+
+    // WhatsApp Share Button in Detail Modal
+    const shareWhatsAppBtn = document.getElementById('detailShareWhatsAppBtn');
+    shareWhatsAppBtn?.addEventListener('click', () => {
+      if (this.currentListingDetail) {
+        const item = this.currentListingDetail;
+        const formatted = formatMoney(item.amountMinor, item.currency);
+        const url = AppRouter.generateWhatsAppShareUrl({
+          title: item.title,
+          priceFormatted: formatted,
+          city: item.city,
+          itemId: item.id,
+          type: 'listing',
+        });
+        window.open(url, '_blank');
+      } else if (this.currentRequestDetail) {
+        const req = this.currentRequestDetail;
+        const formatted = formatMoney(req.budgetAmountMinor, req.currency);
+        const url = AppRouter.generateWhatsAppShareUrl({
+          title: req.title,
+          priceFormatted: formatted,
+          city: req.city,
+          itemId: req.id,
+          type: 'request',
+        });
+        window.open(url, '_blank');
+      }
+    });
+
+    // Copy Link Button in Detail Modal
+    const shareBtn = document.getElementById('detailShareBtn');
+    shareBtn?.addEventListener('click', async () => {
+      const itemId = this.currentListingDetail?.id || this.currentRequestDetail?.id;
+      const itemType = this.currentListingDetail ? 'listing' : 'request';
+      if (itemId) {
+        await AppRouter.copyLinkToClipboard(itemId, itemType);
+        this.showToast('🔗 Direct link copied to clipboard!', 'success');
+      }
+    });
   }
 
   public setCurrency(curr: CurrencyCode) {
@@ -527,11 +656,28 @@ export class ServilistApp {
 
     if (sorted.length === 0) {
       container.innerHTML = `
-        <div class="empty-state-card">
-          <h3>No listings match your criteria</h3>
-          <p>Try resetting filters or changing your search terms.</p>
+        <div class="empty-state-card" style="text-align: center; padding: 48px 20px; grid-column: 1 / -1;">
+          <span style="font-size: 2.5rem;">🌍</span>
+          <h3 style="margin: 12px 0 6px;">No listings match your criteria</h3>
+          <p style="color: #64748b; max-width: 460px; margin: 0 auto 16px;">Try resetting filters or be the first to list items and services in ${this.escapeHtml(this.currentCity)}!</p>
+          <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" class="btn-primary" id="emptyStatePostBtn">Post a Listing</button>
+            <button type="button" class="btn-secondary" id="emptyStateSeedBtn">Load Sample African Listings</button>
+          </div>
         </div>
       `;
+      document.getElementById('emptyStatePostBtn')?.addEventListener('click', () => {
+        this.openPostModal('sell');
+      });
+      document.getElementById('emptyStateSeedBtn')?.addEventListener('click', () => {
+        this.storage.seedDemoData();
+        this.listings = this.storage.getListings();
+        this.requests = this.storage.getRequests();
+        this.renderListings();
+        this.renderCategoryCounts();
+        this.updateTopBarStats();
+        this.showToast('Demo African listings and requests loaded!', 'success');
+      });
       return;
     }
 
@@ -650,6 +796,7 @@ export class ServilistApp {
     this.renderDetailActionBox(item);
     this.renderBidHistory(item);
 
+    AppRouter.setListingUrl(item.id);
     this.dialogs['detailModalOverlay']?.open();
   }
 
@@ -679,6 +826,7 @@ export class ServilistApp {
     this.renderRequestActionBox(req);
     this.renderQuotesList(req);
 
+    AppRouter.setRequestUrl(req.id);
     this.dialogs['detailModalOverlay']?.open();
   }
 
@@ -862,15 +1010,28 @@ export class ServilistApp {
     if (!list || !sec) return;
 
     sec.style.display = 'block';
-    const offers = req.offers || [];
-    if (count) count.textContent = String(offers.length);
+    const currentUser = this.authService.getCurrentUser();
+    // Enforce RLS policy: Quotes on a request are readable only by the requester and quoting vendor
+    const isRequester = req.buyer?.id === currentUser.id || currentUser.role === 'admin';
 
-    if (offers.length === 0) {
-      list.innerHTML = `<div class="empty-hint">No quotes submitted yet. Use the form above to submit your proposal!</div>`;
+    const allOffers = req.offers || [];
+    const visibleOffers = allOffers.filter(
+      (off) =>
+        isRequester ||
+        off.providerName === currentUser.name ||
+        (off as any).providerId === currentUser.id
+    );
+
+    if (count) count.textContent = String(visibleOffers.length);
+
+    if (visibleOffers.length === 0) {
+      list.innerHTML = isRequester
+        ? `<div class="empty-hint">No quotes submitted yet. Verified vendors will submit quotes here.</div>`
+        : `<div class="empty-hint">Quotes on this request are private between the requester and vendor. Use the form above to submit your proposal!</div>`;
       return;
     }
 
-    list.innerHTML = offers
+    list.innerHTML = visibleOffers
       .map(
         (off) => `
         <div class="quote-item-card">
@@ -885,11 +1046,17 @@ export class ServilistApp {
             <div><strong>Timeline:</strong> ${this.escapeHtml(off.timeline)}</div>
             <p>"${this.escapeHtml(off.message)}"</p>
           </div>
+          ${
+            isRequester
+              ? `
           <div class="quote-footer">
             <button type="button" class="btn-detail-accept-quote" data-req-id="${req.id}" data-off-id="${off.id}">
               🤝 Accept Offer & Escrow
             </button>
           </div>
+          `
+              : ''
+          }
         </div>
       `
       )
@@ -914,21 +1081,28 @@ export class ServilistApp {
       return;
     }
 
-    item.amountMinor = amountMinor;
-    item.bidsCount = (item.bidsCount || 0) + 1;
-    if (!item.bidHistory) item.bidHistory = [];
-
-    item.bidHistory.unshift({
+    const currentUser = this.authService.getCurrentUser();
+    const newBid = {
       id: `bid-${Date.now()}`,
       listingId: item.id,
-      bidderName: 'John Doe (You)',
+      bidderName: currentUser.name,
       amountMinor,
       currency: item.currency,
       createdAt: Date.now(),
       timeFormatted: 'Just now',
-    });
+    };
+
+    item.amountMinor = amountMinor;
+    item.bidsCount = (item.bidsCount || 0) + 1;
+    if (!item.bidHistory) item.bidHistory = [];
+    item.bidHistory.unshift(newBid);
 
     this.storage.saveListings(this.listings);
+    this.syncManager.broadcast(
+      'BID_PLACED',
+      { listingId: item.id, bid: newBid, amountMinor },
+      currentUser.id
+    );
     this.renderListings();
     this.openDetailModal(item.id);
 
@@ -942,19 +1116,26 @@ export class ServilistApp {
     const req = this.requests.find((r) => r.id === requestId);
     if (!req) return;
 
+    const currentUser = this.authService.getCurrentUser();
     const newQuote = createQuote({
       requestId: req.id,
-      providerName: 'John Doe (You)',
+      providerName: currentUser.name,
       amountMinor,
       currency: req.currency,
       timeline,
       message,
     });
+    (newQuote as any).providerId = currentUser.id;
 
     if (!req.offers) req.offers = [];
     req.offers.unshift(newQuote);
 
     this.storage.saveRequests(this.requests);
+    this.syncManager.broadcast(
+      'QUOTE_PLACED',
+      { requestId: req.id, quote: newQuote },
+      currentUser.id
+    );
     this.renderListings();
     this.renderQuotesList(req);
     this.showToast(`🚀 Quote sent to buyer!`, 'success');
@@ -965,11 +1146,13 @@ export class ServilistApp {
     const offer = req?.offers?.find((o) => o.id === quoteId);
     if (!req || !offer) return;
 
+    const currentUser = this.authService.getCurrentUser();
     const order = createEscrowOrder({
       requestId: req.id,
       quoteId: offer.id,
       title: req.title,
-      buyerName: 'John Doe (You)',
+      buyerName: currentUser.name,
+      buyerId: currentUser.id,
       sellerName: offer.providerName,
       amountMinor: offer.amountMinor,
       currency: offer.currency,
@@ -990,11 +1173,14 @@ export class ServilistApp {
   }
 
   public createEscrowFromListing(item: Listing) {
+    const currentUser = this.authService.getCurrentUser();
     const order = createEscrowOrder({
       listingId: item.id,
       title: item.title,
-      buyerName: 'John Doe (You)',
+      buyerName: currentUser.name,
+      buyerId: currentUser.id,
       sellerName: item.seller.name,
+      sellerId: item.seller.id,
       amountMinor: item.amountMinor,
       currency: item.currency,
       targetCurrency: this.activeCurrency,
@@ -1070,6 +1256,7 @@ export class ServilistApp {
     const currency = getCurrencyForCity(city);
     const amountMinor = toMinorUnits(priceMajor, currency);
     const reserveMinor = reserveMajor > 0 ? toMinorUnits(reserveMajor, currency) : null;
+    const currentUser = this.authService.getCurrentUser();
 
     const newListing: Listing = {
       id: `serv-${Date.now()}`,
@@ -1089,12 +1276,14 @@ export class ServilistApp {
       imageUrl,
       description,
       seller: {
-        id: 'usr-current',
-        name: 'John Doe (You)',
-        avatar: 'JD',
-        rating: 5.0,
-        reviewsCount: 1,
-        verified: true,
+        id: currentUser.id,
+        name: currentUser.name,
+        avatar: currentUser.avatar,
+        rating: currentUser.rating,
+        reviewsCount: currentUser.reviewsCount,
+        verified: currentUser.verified,
+        city: currentUser.city,
+        country: currentUser.country,
       },
       bidHistory: [],
       createdAt: Date.now(),
@@ -1102,6 +1291,7 @@ export class ServilistApp {
 
     this.listings.unshift(newListing);
     this.storage.saveListings(this.listings);
+    this.syncManager.broadcast('LISTING_CREATED', newListing, currentUser.id);
 
     this.dialogs['postModalOverlay']?.close();
     (document.getElementById('postListingForm') as HTMLFormElement)?.reset();
@@ -1132,6 +1322,7 @@ export class ServilistApp {
 
     const currency = getCurrencyForCity(city);
     const budgetAmountMinor = toMinorUnits(budgetMajor, currency);
+    const currentUser = this.authService.getCurrentUser();
 
     const newReq = createBuyerRequest({
       title,
@@ -1144,17 +1335,20 @@ export class ServilistApp {
       country: 'Africa',
       description,
       buyer: {
-        id: 'usr-current',
-        name: 'John Doe (You)',
-        avatar: 'JD',
-        rating: 5.0,
-        reviewsCount: 1,
-        verified: true,
+        id: currentUser.id,
+        name: currentUser.name,
+        avatar: currentUser.avatar,
+        rating: currentUser.rating,
+        reviewsCount: currentUser.reviewsCount,
+        verified: currentUser.verified,
+        city: currentUser.city,
+        country: currentUser.country,
       },
     });
 
     this.requests.unshift(newReq);
     this.storage.saveRequests(this.requests);
+    this.syncManager.broadcast('REQUEST_CREATED', newReq, currentUser.id);
 
     this.dialogs['postModalOverlay']?.close();
     (document.getElementById('postRequestForm') as HTMLFormElement)?.reset();
@@ -1170,7 +1364,11 @@ export class ServilistApp {
     const body = document.getElementById('buyerDashboardBody');
     if (body) {
       this.dashboardManager.setBuyerSubTab(subTab);
-      this.dashboardManager.renderBuyerDashboard(body, this.escrowOrders, this.activeCurrency);
+      const currentUser = this.authService.getCurrentUser();
+      const visibleOrders = this.escrowOrders.filter((order) =>
+        PolicyEvaluator.canReadEscrowOrder(currentUser, order)
+      );
+      this.dashboardManager.renderBuyerDashboard(body, visibleOrders, this.activeCurrency);
     }
     this.dialogs['buyerDashboardModalOverlay']?.open();
   }
@@ -1424,6 +1622,229 @@ export class ServilistApp {
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
     }, 3500);
+  }
+
+  private initSyncListener() {
+    this.syncManager.subscribe((msg) => {
+      if (msg.type === 'LISTING_CREATED' && msg.payload) {
+        const newListing: Listing = msg.payload;
+        if (!this.listings.some((l) => l.id === newListing.id)) {
+          this.listings.unshift(newListing);
+          this.storage.saveListings(this.listings);
+          this.renderListings();
+          this.renderCategoryCounts();
+          this.updateTopBarStats();
+          this.updateDashboardMetrics();
+          this.showToast(`✨ Live update: New listing "${newListing.title}"`, 'info');
+        }
+      } else if (msg.type === 'REQUEST_CREATED' && msg.payload) {
+        const newReq: BuyerRequest = msg.payload;
+        if (!this.requests.some((r) => r.id === newReq.id)) {
+          this.requests.unshift(newReq);
+          this.storage.saveRequests(this.requests);
+          this.renderListings();
+          this.renderCategoryCounts();
+          this.updateTopBarStats();
+          this.updateDashboardMetrics();
+          this.showToast(`✨ Live update: New request "${newReq.title}"`, 'info');
+        }
+      } else if (msg.type === 'BID_PLACED' && msg.payload) {
+        const { listingId, bid, amountMinor } = msg.payload;
+        const item = this.listings.find((l) => l.id === listingId);
+        if (item) {
+          item.amountMinor = amountMinor;
+          item.bidsCount = (item.bidsCount || 0) + 1;
+          if (!item.bidHistory) item.bidHistory = [];
+          if (!item.bidHistory.some((b) => b.id === bid.id)) {
+            item.bidHistory.unshift(bid);
+          }
+          this.storage.saveListings(this.listings);
+          this.renderListings();
+          if (this.currentListingDetail?.id === listingId) {
+            this.openDetailModal(listingId);
+          }
+        }
+      } else if (msg.type === 'QUOTE_PLACED' && msg.payload) {
+        const { requestId, quote } = msg.payload;
+        const req = this.requests.find((r) => r.id === requestId);
+        if (req) {
+          if (!req.offers) req.offers = [];
+          if (!req.offers.some((o) => o.id === quote.id)) {
+            req.offers.unshift(quote);
+          }
+          this.storage.saveRequests(this.requests);
+          if (this.currentRequestDetail?.id === requestId) {
+            this.openRequestDetailModal(requestId);
+          }
+        }
+      }
+    });
+
+    if (typeof window !== 'undefined' && (window as any).supabase) {
+      this.syncManager.initSupabaseRealtime((window as any).supabase, (newListing) => {
+        if (!this.listings.some((l) => l.id === newListing.id)) {
+          this.listings.unshift(newListing);
+          this.storage.saveListings(this.listings);
+          this.renderListings();
+          this.renderCategoryCounts();
+          this.updateTopBarStats();
+        }
+      });
+    }
+  }
+
+  private checkUrlRoute() {
+    const route = AppRouter.parseRoute();
+    if (route.type === 'listing' && route.id) {
+      const match = this.listings.find((l) => l.id === route.id);
+      if (match) {
+        this.openDetailModal(match.id);
+      }
+    } else if (route.type === 'request' && route.id) {
+      const match = this.requests.find((r) => r.id === route.id);
+      if (match) {
+        this.openRequestDetailModal(match.id);
+      }
+    }
+  }
+
+  private initAuthUI() {
+    const userPill = document.getElementById('userProfilePill');
+    const signOutBtn = document.getElementById('authSignOutBtn');
+    const phoneForm = document.getElementById('phoneAuthForm') as HTMLFormElement | null;
+    const emailForm = document.getElementById('emailAuthForm') as HTMLFormElement | null;
+    const regForm = document.getElementById('registerAuthForm') as HTMLFormElement | null;
+
+    userPill?.addEventListener('click', () => {
+      this.dialogs['authModalOverlay']?.open();
+      this.renderTestUsersList();
+    });
+
+    // Auth Modal Tabs
+    document.querySelectorAll('#authModalTabs .modal-tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document
+          .querySelectorAll('#authModalTabs .modal-tab-btn')
+          .forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = (btn as HTMLElement).dataset.authTab;
+
+        document
+          .querySelectorAll('.auth-tab-panel')
+          .forEach((p) => ((p as HTMLElement).style.display = 'none'));
+        if (tab === 'switch') {
+          const p = document.getElementById('authPanelSwitch');
+          if (p) p.style.display = 'block';
+          this.renderTestUsersList();
+        } else if (tab === 'phone') {
+          const p = document.getElementById('authPanelPhone');
+          if (p) p.style.display = 'block';
+        } else if (tab === 'email') {
+          const p = document.getElementById('authPanelEmail');
+          if (p) p.style.display = 'block';
+        } else if (tab === 'register') {
+          const p = document.getElementById('authPanelRegister');
+          if (p) p.style.display = 'block';
+        }
+      });
+    });
+
+    phoneForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const code =
+        (document.getElementById('authPhoneCountry') as HTMLSelectElement)?.value || '+234';
+      const num = (document.getElementById('authPhoneNumber') as HTMLInputElement)?.value || '';
+      const user = this.authService.signInWithPhone(`${code}${num}`);
+      this.syncAuthUserUI();
+      this.dialogs['authModalOverlay']?.close();
+      this.showToast(`Signed in via mobile phone as ${user.name}`, 'success');
+    });
+
+    emailForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = (document.getElementById('authEmailInput') as HTMLInputElement)?.value || '';
+      const user = this.authService.signInWithEmail(email);
+      this.syncAuthUserUI();
+      this.dialogs['authModalOverlay']?.close();
+      this.showToast(`Signed in as ${user.name}`, 'success');
+    });
+
+    regForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = (document.getElementById('regFullName') as HTMLInputElement)?.value || '';
+      const email = (document.getElementById('regEmail') as HTMLInputElement)?.value || '';
+      const phone = (document.getElementById('regPhone') as HTMLInputElement)?.value || '';
+      const city =
+        (document.getElementById('regCity') as HTMLSelectElement)?.value || 'Lagos, Nigeria';
+      const user = this.authService.signUp({ name, email, phone, city, country: 'Africa' });
+      this.syncAuthUserUI();
+      this.dialogs['authModalOverlay']?.close();
+      this.showToast(`Welcome to Servilist Africa, ${user.name}!`, 'success');
+    });
+
+    signOutBtn?.addEventListener('click', () => {
+      this.authService.signOut();
+      this.syncAuthUserUI();
+      this.dialogs['authModalOverlay']?.close();
+      this.showToast('Signed out to guest test profile', 'info');
+    });
+
+    this.authService.onAuthStateChange(() => {
+      this.syncAuthUserUI();
+    });
+
+    this.syncAuthUserUI();
+  }
+
+  private renderTestUsersList() {
+    const grid = document.getElementById('testUsersGrid');
+    if (!grid) return;
+
+    const current = this.authService.getCurrentUser();
+    grid.innerHTML = TEST_USERS.map((u) => {
+      const isActive = u.id === current.id;
+      return `
+        <div class="test-user-card ${isActive ? 'active-user' : ''}" data-user-id="${u.id}">
+          <div class="test-user-avatar">${u.avatar}</div>
+          <div class="test-user-info">
+            <div class="test-user-name">${u.name} ${isActive ? '✓' : ''}</div>
+            <div class="test-user-city">📍 ${u.city} &bull; ${u.role}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    grid.querySelectorAll('.test-user-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const uid = (card as HTMLElement).dataset.userId;
+        if (uid) {
+          const user = this.authService.switchUser(uid);
+          this.syncAuthUserUI();
+          this.showToast(`Switched active profile to ${user.name} (${user.city})`, 'info');
+          this.dialogs['authModalOverlay']?.close();
+          this.renderListings();
+        }
+      });
+    });
+  }
+
+  private syncAuthUserUI() {
+    const user = this.authService.getCurrentUser();
+    const avatar = document.getElementById('navUserAvatar');
+    const name = document.getElementById('navUserName');
+    if (avatar) avatar.textContent = user.avatar;
+    if (name) name.textContent = `${user.name} (${user.rating} ★)`;
+
+    const modalAvatar = document.getElementById('authCurrentAvatar');
+    const modalName = document.getElementById('authCurrentName');
+    const modalDetails = document.getElementById('authCurrentDetails');
+    const modalRole = document.getElementById('authCurrentRole');
+    if (modalAvatar) modalAvatar.textContent = user.avatar;
+    if (modalName) modalName.textContent = user.name;
+    if (modalDetails) {
+      modalDetails.textContent = `📍 ${user.city || 'Africa Hub'} • ${user.verified ? 'Verified Merchant' : 'Community Trader'} (${user.rating} ★)`;
+    }
+    if (modalRole) modalRole.textContent = `Role: ${user.role.toUpperCase()}`;
   }
 
   public escapeHtml(str: string): string {

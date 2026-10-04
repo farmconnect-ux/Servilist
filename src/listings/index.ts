@@ -3,12 +3,7 @@ import { convertMinor } from '../money';
 import { getDistanceBetweenCitiesKm } from '../data/locations';
 
 export type SortMode =
-  | 'ending_soon'
-  | 'newest'
-  | 'price_low'
-  | 'price_high'
-  | 'most_bids'
-  | 'distance';
+  'ending_soon' | 'newest' | 'price_low' | 'price_high' | 'most_bids' | 'distance';
 
 export interface ListingFilterCriteria {
   city?: string;
@@ -26,10 +21,7 @@ export interface ListingFilterCriteria {
 /**
  * Pure filtering function for marketplace listings.
  */
-export function filterListings(
-  listings: Listing[],
-  filters: ListingFilterCriteria
-): Listing[] {
+export function filterListings(listings: Listing[], filters: ListingFilterCriteria): Listing[] {
   return listings.filter((item) => {
     // 1. City filter
     if (filters.city && filters.city !== 'All Africa') {
@@ -83,10 +75,7 @@ export function filterListings(
     }
 
     // 6. Fulfillment Checkboxes filter
-    if (
-      filters.fulfillmentCheckboxes &&
-      filters.fulfillmentCheckboxes.length > 0
-    ) {
+    if (filters.fulfillmentCheckboxes && filters.fulfillmentCheckboxes.length > 0) {
       if (!filters.fulfillmentCheckboxes.includes(item.fulfillment)) {
         return false;
       }
@@ -100,8 +89,7 @@ export function filterListings(
       const inCity = item.city.toLowerCase().includes(q);
       const inCat = item.category.toLowerCase().includes(q);
       const inSeller = item.seller.name.toLowerCase().includes(q);
-      const inTags =
-        item.tags && item.tags.some((t) => t.toLowerCase().includes(q));
+      const inTags = item.tags && item.tags.some((t) => t.toLowerCase().includes(q));
 
       if (!inTitle && !inDesc && !inCity && !inCat && !inSeller && !inTags) {
         return false;
@@ -140,10 +128,8 @@ export function sortListings(
     case 'ending_soon':
       return copy.sort((a, b) => {
         // Prioritize active auctions with end times
-        const aHasEnd =
-          a.format === 'auction' && a.endTime ? a.endTime : Infinity;
-        const bHasEnd =
-          b.format === 'auction' && b.endTime ? b.endTime : Infinity;
+        const aHasEnd = a.format === 'auction' && a.endTime ? a.endTime : Infinity;
+        const bHasEnd = b.format === 'auction' && b.endTime ? b.endTime : Infinity;
         return aHasEnd - bHasEnd;
       });
 

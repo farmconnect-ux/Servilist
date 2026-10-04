@@ -43,6 +43,7 @@ describe('Row Level Security (RLS) Policy Tests', () => {
       verified: true,
     },
     bidHistory: [],
+    bidsCount: 0,
     createdAt: Date.now(),
   };
 

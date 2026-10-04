@@ -35,6 +35,7 @@ export type FulfillmentType = 'pickup' | 'shipping' | 'both';
 export interface UserProfile {
   id: string;
   name: string;
+  displayName?: string;
   avatar: string;
   rating: number;
   reviewsCount: number;
@@ -75,6 +76,7 @@ export interface Listing {
   seller: UserProfile;
   bidHistory: Bid[];
   isSold?: boolean;
+  tags?: string[];
   createdAt: number;
 }
 

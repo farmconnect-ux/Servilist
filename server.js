@@ -171,7 +171,52 @@ function toEscrowRow(order) {
   };
 }
 
+const sseClients = new Set();
+const serverEventsLog = [];
+
 async function handleApiRequest(req, res, pathname) {
+  if (req.method === 'GET' && pathname === '/api/events') {
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      ...SECURITY_HEADERS,
+    });
+    res.write(`data: {"type":"CONNECTED","timestamp":${Date.now()}}\n\n`);
+    sseClients.add(res);
+    req.on('close', () => {
+      sseClients.delete(res);
+    });
+    return;
+  }
+
+  if (req.method === 'POST' && pathname === '/api/events') {
+    try {
+      const payload = await readJsonBody(req);
+      serverEventsLog.push(payload);
+      if (serverEventsLog.length > 100) serverEventsLog.shift();
+
+      const messageStr = `data: ${JSON.stringify(payload)}\n\n`;
+      for (const client of sseClients) {
+        try {
+          client.write(messageStr);
+        } catch {
+          sseClients.delete(client);
+        }
+      }
+      sendJson(res, 200, { success: true, clientCount: sseClients.size });
+      return;
+    } catch (err) {
+      sendJson(res, 400, { success: false, error: err.message });
+      return;
+    }
+  }
+
+  if (req.method === 'GET' && pathname === '/api/events/history') {
+    sendJson(res, 200, { success: true, events: serverEventsLog });
+    return;
+  }
+
   if (!supabase) {
     sendJson(res, 503, {
       success: false,

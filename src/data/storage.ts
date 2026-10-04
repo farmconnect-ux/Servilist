@@ -31,14 +31,14 @@ export class LocalStorageManager {
 
   public getListings(): Listing[] {
     if (typeof window === 'undefined' || !window.localStorage) {
-      return JSON.parse(JSON.stringify(SEED_LISTINGS));
+      return [];
     }
 
     try {
       const raw = localStorage.getItem(`${PREFIX}listings`);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -46,9 +46,7 @@ export class LocalStorageManager {
       // JSON parse error
     }
 
-    const seeds = JSON.parse(JSON.stringify(SEED_LISTINGS));
-    this.saveListings(seeds);
-    return seeds;
+    return [];
   }
 
   public saveListings(listings: Listing[]) {
@@ -62,14 +60,14 @@ export class LocalStorageManager {
 
   public getRequests(): BuyerRequest[] {
     if (typeof window === 'undefined' || !window.localStorage) {
-      return JSON.parse(JSON.stringify(SEED_REQUESTS));
+      return [];
     }
 
     try {
       const raw = localStorage.getItem(`${PREFIX}requests`);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        if (Array.isArray(parsed)) {
           return parsed;
         }
       }
@@ -77,9 +75,7 @@ export class LocalStorageManager {
       // JSON parse error
     }
 
-    const seeds = JSON.parse(JSON.stringify(SEED_REQUESTS));
-    this.saveRequests(seeds);
-    return seeds;
+    return [];
   }
 
   public saveRequests(requests: BuyerRequest[]) {
@@ -89,6 +85,14 @@ export class LocalStorageManager {
     } catch {
       // storage error
     }
+  }
+
+  /**
+   * Explicit developer / demo seeder: populates sample African marketplace listings & requests
+   */
+  public seedDemoData(): void {
+    this.saveListings(JSON.parse(JSON.stringify(SEED_LISTINGS)));
+    this.saveRequests(JSON.parse(JSON.stringify(SEED_REQUESTS)));
   }
 
   public getEscrowOrders(): EscrowOrder[] {

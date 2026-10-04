@@ -314,10 +314,7 @@ export function haversineDistanceKm(
 /**
  * Computes distance in kilometers between two African cities.
  */
-export function getDistanceBetweenCitiesKm(
-  city1Name: string,
-  city2Name: string
-): number | null {
+export function getDistanceBetweenCitiesKm(city1Name: string, city2Name: string): number | null {
   const c1 = findCity(city1Name);
   const c2 = findCity(city2Name);
   if (!c1 || !c2) return null;
