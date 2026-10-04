@@ -10,14 +10,14 @@ const __dirname = path.dirname(__filename);
 
 const PORT = process.env.PORT || 3000;
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SYNC_SECRET = process.env.SYNC_SECRET || '';
 
-// Server-side Supabase client (prefers service-role key for backend writes)
+// Read-only client for the connection test; the anon key is enough for that.
 const supabase =
-  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  SUPABASE_URL && (SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY)
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY)
     : null;
 
 const DIST_DIR = path.resolve(__dirname, 'dist');
@@ -149,28 +149,6 @@ function toRequestRow(request) {
   };
 }
 
-function toEscrowRow(order) {
-  if (!order || typeof order !== 'object') return null;
-  const id = sanitizeString(order.id, 64);
-  const title = sanitizeString(order.title, 200);
-  if (!id || !title) return null;
-
-  return {
-    id,
-    listing_or_request_id: sanitizeString(order.itemId, 64) || null,
-    title,
-    buyer_name: sanitizeString(order.buyerName, 100) || 'Buyer',
-    seller_name: sanitizeString(order.sellerName, 100) || 'Seller',
-    amount_usd: Number(order.amountUsd) || 0,
-    target_currency: sanitizeString(order.targetCurrency, 10) || 'NGN',
-    status: ['funded', 'inspection', 'verified', 'released', 'disputed'].includes(order.status)
-      ? order.status
-      : 'funded',
-    otp_code: sanitizeString(order.otpCode, 20),
-    safe_zone: sanitizeString(order.safeZone, 200) || 'Safe Public Exchange Hub',
-  };
-}
-
 const sseClients = new Set();
 const serverEventsLog = [];
 
@@ -238,8 +216,17 @@ async function handleApiRequest(req, res, pathname) {
   }
 
   if (req.method === 'POST' && pathname === '/api/supabase/sync') {
-    // Enforce secret header when configured
-    if (SYNC_SECRET) {
+    // Bulk sync writes with the service-role key, so it stays off unless both
+    // the key and a shared secret are configured.
+    if (!SYNC_SECRET || !SUPABASE_SERVICE_ROLE_KEY) {
+      sendJson(res, 503, {
+        success: false,
+        reason: 'sync_disabled',
+        error: 'Sync is disabled. Set SYNC_SECRET and SUPABASE_SERVICE_ROLE_KEY to enable it.',
+      });
+      return;
+    }
+    {
       const authHeader = req.headers['authorization'] || '';
       const syncHeader = req.headers['x-sync-secret'] || '';
       const bearerMatch = authHeader.startsWith('Bearer ') && authHeader.slice(7) === SYNC_SECRET;
@@ -268,8 +255,17 @@ async function handleApiRequest(req, res, pathname) {
     const collections = [
       ['listings', payload.listings, toListingRow],
       ['buyer_requests', payload.requests, toRequestRow],
-      ['escrow_orders', payload.escrow, toEscrowRow],
     ];
+
+    // Escrow orders are created and advanced only by database functions
+    // (see migration 00010), never by bulk sync.
+    if (payload.escrow !== undefined) {
+      sendJson(res, 400, {
+        success: false,
+        error: 'Escrow orders cannot be synced; use the escrow database functions.',
+      });
+      return;
+    }
 
     if (collections.some(([, rows]) => rows !== undefined && !Array.isArray(rows))) {
       sendJson(res, 400, { success: false, error: 'Sync collections must be arrays.' });

@@ -68,24 +68,24 @@ DROP POLICY IF EXISTS "Public read quotes" ON public.quotes;
 CREATE POLICY "Read quotes allowed for vendor or request owner" ON public.quotes
     FOR SELECT TO authenticated
     USING (
-        auth.uid() = vendor_id OR
+        auth.uid() = provider_id OR
         auth.uid() IN (SELECT buyer_id FROM public.buyer_requests WHERE id = request_id)
     );
 
 DROP POLICY IF EXISTS "Vendors can submit quotes" ON public.quotes;
 CREATE POLICY "Vendors can submit quotes" ON public.quotes
     FOR INSERT TO authenticated
-    WITH CHECK (auth.uid() = vendor_id);
+    WITH CHECK (auth.uid() = provider_id);
 
 DROP POLICY IF EXISTS "Vendors or request owners can update quote status" ON public.quotes;
 CREATE POLICY "Vendors or request owners can update quote status" ON public.quotes
     FOR UPDATE TO authenticated
     USING (
-        auth.uid() = vendor_id OR
+        auth.uid() = provider_id OR
         auth.uid() IN (SELECT buyer_id FROM public.buyer_requests WHERE id = request_id)
     )
     WITH CHECK (
-        auth.uid() = vendor_id OR
+        auth.uid() = provider_id OR
         auth.uid() IN (SELECT buyer_id FROM public.buyer_requests WHERE id = request_id)
     );
 
