@@ -7,6 +7,7 @@ import {
 } from './types';
 import { Listing, CurrencyCode } from '../types';
 import { formatMoney } from '../money';
+import { escapeHtml, safeImageUrl } from '../ui/html';
 
 export interface SellerDashboardCallbacks {
   onOpenPostListing: () => void;
@@ -272,17 +273,17 @@ export class SellerDashboardView {
                         <tr>
                           <td>
                             <div class="inv-item-info">
-                              <img src="${item.imageUrl}" alt="${item.title}" class="inv-thumb" />
+                              <img src="${escapeHtml(safeImageUrl(item.imageUrl))}" alt="${escapeHtml(item.title)}" class="inv-thumb" />
                               <div>
-                                <strong>${item.title}</strong>
-                                <div class="inv-sku">ID: ${item.id}</div>
+                                <strong>${escapeHtml(item.title)}</strong>
+                                <div class="inv-sku">ID: ${escapeHtml(item.id)}</div>
                               </div>
                             </div>
                           </td>
-                          <td><span class="cat-chip">${item.category}</span></td>
-                          <td><span class="fmt-chip ${item.format}">${item.format.toUpperCase()}</span></td>
+                          <td><span class="cat-chip">${escapeHtml(item.category)}</span></td>
+                          <td><span class="fmt-chip ${escapeHtml(item.format)}">${escapeHtml(item.format.toUpperCase())}</span></td>
                           <td class="font-mono price-cell">${price}</td>
-                          <td>📍 ${item.city}</td>
+                          <td>${escapeHtml(item.city)}</td>
                           <td>${item.format === 'auction' ? `🔨 ${item.bidsCount || 0} bids` : '👁️ Active'}</td>
                           <td>
                             <span class="badge-status ${item.isSold ? 'badge-sold' : 'badge-active'}">

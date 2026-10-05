@@ -80,6 +80,15 @@ export function bindFilterControls(app: ServilistApp) {
     el?.addEventListener('input', () => app.updateConverterResults());
     el?.addEventListener('change', () => app.updateConverterResults());
   });
+  document.querySelectorAll<HTMLElement>('.btn-conv-preset').forEach((preset) => {
+    preset.addEventListener('click', () => {
+      const amount = document.getElementById('calcAmountInput') as HTMLInputElement | null;
+      const from = document.getElementById('calcFromCurrency') as HTMLSelectElement | null;
+      if (amount && preset.dataset.amount) amount.value = preset.dataset.amount;
+      if (from && preset.dataset.curr) from.value = preset.dataset.curr;
+      app.updateConverterResults();
+    });
+  });
   document.getElementById('calcSwapBtn')?.addEventListener('click', () => {
     const from = document.getElementById('calcFromCurrency') as HTMLSelectElement | null;
     const to = document.getElementById('calcToCurrency') as HTMLSelectElement | null;

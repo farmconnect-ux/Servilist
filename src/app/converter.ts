@@ -1,6 +1,12 @@
 /** Currency converter modal. */
 import { CurrencyCode } from '../types';
-import { toMinorUnits, fromMinorUnits, convertMinor, formatMoney } from '../money';
+import {
+  toMinorUnits,
+  fromMinorUnits,
+  convertMinor,
+  formatMoney,
+  CURRENCY_CONFIGS,
+} from '../money';
 import type { ServilistApp } from '../main';
 
 export function openConverterModal(app: ServilistApp) {
@@ -24,6 +30,18 @@ export function updateConverterResults(_app: ServilistApp) {
   const fromMinor = toMinorUnits(amount, fromCurr);
   const convertedMinor = convertMinor(fromMinor, fromCurr, toCurr);
   display.textContent = formatMoney(convertedMinor, toCurr);
+
+  // The same amount in every supported currency
+  const matrix = document.getElementById('converterMatrixGrid');
+  if (matrix) {
+    matrix.innerHTML = (Object.keys(CURRENCY_CONFIGS) as CurrencyCode[])
+      .filter((code) => code !== fromCurr)
+      .map(
+        (code) =>
+          `<div class="matrix-cell"><span class="matrix-code">${code}</span><strong>${formatMoney(convertMinor(fromMinor, fromCurr, code), code)}</strong></div>`
+      )
+      .join('');
+  }
 
   if (breakdown) {
     const oneFromInTo = convertMinor(toMinorUnits(1, fromCurr), fromCurr, toCurr);

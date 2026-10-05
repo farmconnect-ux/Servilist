@@ -3,6 +3,8 @@ import { Listing, ListingFormat } from '../types';
 import { getCurrencyForCity } from '../data/locations';
 import { toMinorUnits, CURRENCY_CONFIGS } from '../money';
 import { createBuyerRequest } from '../requests';
+import { countryFromCity } from '../data/cloudStore';
+import type { BuyerRequest } from '../types';
 import type { ServilistApp } from '../main';
 
 /** Prices are stored in the currency of the chosen city, so the form shows that symbol. */
@@ -92,8 +94,9 @@ export function handleCreateListing(app: ServilistApp) {
     bidsCount: 0,
     endTime: format === 'auction' ? Date.now() + 1000 * 60 * 60 * durationHours : null,
     city,
-    country: 'Africa',
-    fulfillment: 'both',
+    country: countryFromCity(city),
+    fulfillment: ((document.getElementById('postFulfillment') as HTMLSelectElement | null)?.value ||
+      'both') as Listing['fulfillment'],
     imageUrl,
     description,
     seller: {
@@ -161,7 +164,16 @@ export function handleCreateRequest(app: ServilistApp) {
     currency,
     rateType,
     city,
-    country: 'Africa',
+    country: countryFromCity(city),
+    urgency: ((document.getElementById('reqUrgency') as HTMLSelectElement | null)?.value ||
+      undefined) as BuyerRequest['urgency'] | undefined,
+    conditionRequired:
+      (document.getElementById('reqCondition') as HTMLSelectElement | null)?.value || undefined,
+    fulfillment: ((document.getElementById('reqFulfillment') as HTMLSelectElement | null)?.value ||
+      'both') as BuyerRequest['fulfillment'],
+    imageUrl:
+      (document.getElementById('reqImageUrl') as HTMLInputElement | null)?.value.trim() ||
+      undefined,
     description,
     buyer: {
       id: currentUser.id,
