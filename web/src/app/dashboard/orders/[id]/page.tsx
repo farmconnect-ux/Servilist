@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createDb } from "@/lib/db/server";
 import { requireUser } from "@/server/auth/session";
 import { getOrderById } from "@/server/repositories/orders";
+import { getDeliveryByOrderId } from "@/server/repositories/deliveries";
 import { formatMoney } from "@/lib/money";
 import { Card } from "@/components/ui/card";
 import { OrderTrackingClient } from "@/components/marketplace/OrderTrackingClient";
@@ -27,6 +28,8 @@ export default async function DashboardOrderDetailPage({ params }: OrderTracking
   if (!order) {
     notFound();
   }
+
+  const delivery = await getDeliveryByOrderId(db, id);
 
   const isBuyer = order.buyerId === user.userId;
   const isSeller = order.sellerId === user.userId;
@@ -102,6 +105,48 @@ export default async function DashboardOrderDetailPage({ params }: OrderTracking
                   {order.shippingAddress.city}, {order.shippingAddress.country}
                 </p>
                 <p className="text-xs text-muted">Phone: {order.shippingAddress.phoneNumber}</p>
+              </div>
+            </Card>
+          )}
+
+          {/* Courier Delivery Tracking */}
+          {delivery && (
+            <Card className="p-6">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                    Courier Tracking ({delivery.courierProvider.replace("_", " ").toUpperCase()})
+                  </h3>
+                  {delivery.trackingCode && (
+                    <p className="font-mono text-xs font-bold text-amber-600 mt-0.5">
+                      Waybill: {delivery.trackingCode}
+                    </p>
+                  )}
+                </div>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase bg-stone-100 text-stone-800">
+                  {delivery.status.replace("_", " ")}
+                </span>
+              </div>
+
+              {/* Tracking timeline */}
+              <div className="mt-4 space-y-3">
+                {delivery.trackingEvents.map((evt, idx) => (
+                  <div key={idx} className="flex gap-3 text-xs">
+                    <div className="flex flex-col items-center">
+                      <span className="h-2 w-2 rounded-full bg-amber-600" />
+                      {idx < delivery.trackingEvents.length - 1 && (
+                        <span className="w-0.5 flex-1 bg-stone-200 my-1" />
+                      )}
+                    </div>
+                    <div className="flex-1 pb-2">
+                      <p className="font-semibold text-stone-900">{evt.description}</p>
+                      {evt.location && <p className="text-[11px] text-stone-500">{evt.location}</p>}
+                      <p className="text-[10px] text-stone-400">
+                        {new Date(evt.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
             </Card>
           )}
