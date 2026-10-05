@@ -1,8 +1,12 @@
+import Link from "next/link";
 import { createDb } from "@/lib/db/server";
 import { requireUser } from "@/server/auth/session";
 import { listListingsBySeller } from "@/server/repositories/listings";
 import { listOrdersForUser } from "@/server/repositories/orders";
 import { getProfileById } from "@/server/repositories/sellerProfiles";
+import { findMatchingRequestsForSeller } from "@/server/repositories/matching";
+import { Card } from "@/components/ui/card";
+import { formatMoney } from "@/lib/money";
 import { SellerDashboardClient } from "@/components/marketplace/SellerDashboardClient";
 
 export const metadata = {
@@ -13,10 +17,11 @@ export default async function SellerDashboardPage() {
   const user = await requireUser("/dashboard/seller");
   const db = await createDb();
 
-  const [profile, listings, orders] = await Promise.all([
+  const [profile, listings, orders, matchingRequests] = await Promise.all([
     getProfileById(db, user.userId),
     listListingsBySeller(db, user.userId),
     listOrdersForUser(db, user.userId, "seller"),
+    findMatchingRequestsForSeller(db, user.userId, 4),
   ]);
 
   return (
@@ -27,6 +32,59 @@ export default async function SellerDashboardPage() {
           Pan-African storefront analytics, catalog management, order fulfillment, and verified KYC credentials.
         </p>
       </div>
+
+      {/* Recommended Buyer Demands Matching Inventory */}
+      {matchingRequests.length > 0 && (
+        <Card className="p-6 border-amber-200 bg-amber-50/20">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+                Matching Demand Signals
+              </span>
+              <h3 className="text-sm font-bold text-stone-900 mt-0.5">
+                Open Buyer Requests Matching Your Inventory
+              </h3>
+              <p className="text-xs text-stone-500">
+                Buyers in your product categories are actively looking to purchase. Quote directly to win orders.
+              </p>
+            </div>
+            <Link href="/requests" className="text-xs font-semibold text-amber-700 hover:underline shrink-0">
+              Browse All Requests →
+            </Link>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {matchingRequests.map((req) => (
+              <div
+                key={req.requestId}
+                className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                      {req.matchScore}% Match
+                    </span>
+                    <span className="text-stone-400 capitalize">{req.city}</span>
+                  </div>
+                  <p className="mt-2 text-xs font-bold text-stone-900 line-clamp-2">{req.title}</p>
+                  <div className="mt-2 text-[11px] text-stone-500">
+                    Budget:{" "}
+                    <span className="font-bold text-stone-900">
+                      {req.budgetMinor ? formatMoney(req.budgetMinor, req.currency) : "Negotiable"}
+                    </span>
+                  </div>
+                </div>
+                <Link
+                  href={`/requests/${req.requestId}`}
+                  className="mt-3 block text-center rounded-lg bg-stone-900 py-1.5 text-xs font-semibold text-white hover:bg-stone-800 transition"
+                >
+                  Submit Quote →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <SellerDashboardClient
         sellerId={user.userId}

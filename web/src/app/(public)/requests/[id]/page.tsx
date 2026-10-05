@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createDb } from "@/lib/db/server";
 import { getSessionUser } from "@/server/auth/session";
 import { getBuyerRequestById, getQuotesForRequest } from "@/server/repositories/requests";
+import { findMatchingListingsForRequest } from "@/server/repositories/matching";
 import { formatMoney } from "@/lib/money";
 import { Card } from "@/components/ui/card";
 import { RequestDetailClient } from "@/components/marketplace/RequestDetailClient";
@@ -29,10 +30,11 @@ export async function generateMetadata({ params }: RequestPageProps) {
 export default async function RequestDetailPage({ params }: RequestPageProps) {
   const { id } = await params;
   const db = await createDb();
-  const [request, quotes, sessionUser] = await Promise.all([
+  const [request, quotes, sessionUser, matches] = await Promise.all([
     getBuyerRequestById(db, id),
     getQuotesForRequest(db, id),
     getSessionUser(),
+    findMatchingListingsForRequest(db, id, 3),
   ]);
 
   if (!request) {
@@ -107,6 +109,55 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
             isOwner={isOwner}
             requestStatus={request.status}
           />
+
+          {/* Intelligent Supply Matches from Sellers */}
+          {matches.length > 0 && (
+            <Card className="p-6 border-amber-200 bg-amber-50/20">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+                    Intelligent Matching Engine
+                  </span>
+                  <h3 className="text-sm font-bold text-stone-900 mt-0.5">
+                    Existing Seller Listings That Match Your Request
+                  </h3>
+                </div>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+                  {matches.length} Matched
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {matches.map((item) => (
+                  <Link
+                    key={item.listingId}
+                    href={`/products/${item.listingId}`}
+                    className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm hover:shadow transition flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                          {item.matchScore}% Match
+                        </span>
+                        <span className="text-stone-400 capitalize">{item.city}</span>
+                      </div>
+                      <p className="mt-2 text-xs font-bold text-stone-900 line-clamp-2">
+                        {item.title}
+                      </p>
+                    </div>
+                    <div className="mt-3 flex items-center justify-between border-t pt-2">
+                      <span className="text-xs font-bold text-stone-900">
+                        {formatMoney(item.amountMinor, item.currency)}
+                      </span>
+                      <span className="text-[10px] font-semibold text-amber-700 hover:underline">
+                        View Item →
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar (1 col) */}
