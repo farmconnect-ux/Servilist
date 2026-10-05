@@ -1,235 +1,150 @@
 import "server-only";
 import type { Db } from "@/lib/db/server";
-import { type PublicProfile } from "./marketplace";
+import type { OfferStatus } from "../validators/offer";
 
-const PUBLIC_PROFILE = "id, username, display_name, rating, reviews_count, is_verified, avatar_url, city, country";
+/**
+ * Offers are written only by the database functions make_offer() and
+ * respond_to_offer(); members have read access to their own offers and
+ * nothing else. See supabase/migrations/00014.
+ */
+
+const OFFER_COLUMNS = `
+  id, listing_id, buyer_id, seller_id, proposer_id, parent_offer_id,
+  amount_minor, currency, message, status, expires_at, created_at, updated_at,
+  buyer:profiles!buyer_id(id, username, display_name),
+  seller:profiles!seller_id(id, username, display_name),
+  listing:listings!listing_id(id, title, slug, amount_minor, currency)
+`;
+
+interface Party {
+  id: string;
+  username: string;
+  displayName: string;
+}
 
 export interface OfferRecord {
   id: string;
-  listingId?: string | null;
-  requestId?: string | null;
+  listingId: string;
   buyerId: string;
   sellerId: string;
   proposerId: string;
-  parentOfferId?: string | null;
+  parentOfferId: string | null;
   amountMinor: number;
   currency: string;
-  message?: string | null;
-  status: "pending" | "accepted" | "rejected" | "countered" | "expired" | "cancelled";
-  expiresAt?: string | null;
+  message: string | null;
+  /** "expired" is derived: a pending offer past its expiry time. */
+  status: OfferStatus | "expired";
+  expiresAt: string;
   createdAt: string;
-  updatedAt: string;
-  buyer?: PublicProfile;
-  seller?: PublicProfile;
-  listing?: {
-    id: string;
-    title: string;
-    slug?: string;
-    priceMinor: number;
-    currency: string;
-  } | null;
-  request?: {
-    id: string;
-    title: string;
-    budgetMinor: number;
-    currency: string;
-  } | null;
+  buyer: Party | null;
+  seller: Party | null;
+  listing: { id: string; title: string; slug: string | null; priceMinor: number } | null;
 }
 
-function mapOfferRow(row: any): OfferRecord {
-  const buyer = Array.isArray(row.buyer) ? row.buyer[0] : row.buyer;
-  const seller = Array.isArray(row.seller) ? row.seller[0] : row.seller;
-  const listing = Array.isArray(row.listing) ? row.listing[0] : row.listing;
-  const request = Array.isArray(row.request) ? row.request[0] : row.request;
+type Row = Record<string, unknown>;
 
+function one(value: unknown): Row | null {
+  const row = Array.isArray(value) ? value[0] : value;
+  return row && typeof row === "object" ? (row as Row) : null;
+}
+
+function party(value: unknown): Party | null {
+  const row = one(value);
+  if (!row) return null;
   return {
-    id: row.id,
-    listingId: row.listing_id,
-    requestId: row.request_id,
-    buyerId: row.buyer_id,
-    sellerId: row.seller_id,
-    proposerId: row.proposer_id,
-    parentOfferId: row.parent_offer_id,
-    amountMinor: Number(row.amount_minor),
-    currency: row.currency,
-    message: row.message,
-    status: row.status,
-    expiresAt: row.expires_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    buyer: buyer ? {
-      id: buyer.id,
-      username: buyer.username,
-      displayName: buyer.display_name,
-      rating: Number(buyer.rating || 5.0),
-      reviewsCount: Number(buyer.reviews_count || 0),
-      verified: Boolean(buyer.is_verified),
-    } : undefined,
-    seller: seller ? {
-      id: seller.id,
-      username: seller.username,
-      displayName: seller.display_name,
-      rating: Number(seller.rating || 5.0),
-      reviewsCount: Number(seller.reviews_count || 0),
-      verified: Boolean(seller.is_verified),
-    } : undefined,
-    listing: listing ? {
-      id: listing.id,
-      title: listing.title,
-      slug: listing.slug,
-      priceMinor: Number(listing.price_minor || 0),
-      currency: listing.currency || "NGN",
-    } : null,
-    request: request ? {
-      id: request.id,
-      title: request.title,
-      budgetMinor: Number(request.budget_amount_minor || 0),
-      currency: request.currency || "NGN",
-    } : null,
+    id: String(row.id),
+    username: String(row.username ?? ""),
+    displayName: String(row.display_name ?? "Member"),
   };
 }
 
-export async function createOffer(
+function mapOffer(row: Row): OfferRecord {
+  const listing = one(row.listing);
+  const expiresAt = String(row.expires_at);
+  const stored = row.status as OfferStatus;
+  return {
+    id: String(row.id),
+    listingId: String(row.listing_id),
+    buyerId: String(row.buyer_id),
+    sellerId: String(row.seller_id),
+    proposerId: String(row.proposer_id),
+    parentOfferId: row.parent_offer_id ? String(row.parent_offer_id) : null,
+    amountMinor: Number(row.amount_minor),
+    currency: String(row.currency),
+    message: row.message ? String(row.message) : null,
+    status: stored === "pending" && new Date(expiresAt) <= new Date() ? "expired" : stored,
+    expiresAt,
+    createdAt: String(row.created_at),
+    buyer: party(row.buyer),
+    seller: party(row.seller),
+    listing: listing
+      ? {
+          id: String(listing.id),
+          title: String(listing.title),
+          slug: listing.slug ? String(listing.slug) : null,
+          priceMinor: Number(listing.amount_minor ?? 0),
+        }
+      : null,
+  };
+}
+
+export async function makeOffer(
+  db: Db,
+  params: { listingId: string; amountMinor: number; message?: string },
+): Promise<string> {
+  const { data, error } = await db.rpc("make_offer", {
+    p_listing_id: params.listingId,
+    p_amount_minor: params.amountMinor,
+    p_message: params.message ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return String(data);
+}
+
+export async function respondToOffer(
   db: Db,
   params: {
-    listingId?: string;
-    requestId?: string;
-    buyerId: string;
-    sellerId: string;
-    proposerId: string;
-    amountMinor: number;
-    currency: string;
+    offerId: string;
+    action: "accept" | "reject" | "counter" | "cancel";
+    counterAmountMinor?: number;
     message?: string;
-    parentOfferId?: string;
-    expiresInHours?: number;
   },
-): Promise<OfferRecord> {
-  const expiresAt = params.expiresInHours
-    ? new Date(Date.now() + params.expiresInHours * 3600 * 1000).toISOString()
-    : new Date(Date.now() + 48 * 3600 * 1000).toISOString(); // 48h default
-
-  const { data, error } = await db
-    .from("offers")
-    .insert({
-      listing_id: params.listingId || null,
-      request_id: params.requestId || null,
-      buyer_id: params.buyerId,
-      seller_id: params.sellerId,
-      proposer_id: params.proposerId,
-      amount_minor: params.amountMinor,
-      currency: params.currency,
-      message: params.message || null,
-      parent_offer_id: params.parentOfferId || null,
-      status: "pending",
-      expires_at: expiresAt,
-    })
-    .select(`
-      *,
-      buyer:profiles!buyer_id(${PUBLIC_PROFILE}),
-      seller:profiles!seller_id(${PUBLIC_PROFILE})
-    `)
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create offer: ${error.message}`);
-  }
-
-  // If this was a counter-offer, update the parent offer status to 'countered'
-  if (params.parentOfferId) {
-    await db
-      .from("offers")
-      .update({ status: "countered", updated_at: new Date().toISOString() })
-      .eq("id", params.parentOfferId);
-  }
-
-  return mapOfferRow(data);
+): Promise<string> {
+  const { data, error } = await db.rpc("respond_to_offer", {
+    p_offer_id: params.offerId,
+    p_action: params.action,
+    p_counter_amount_minor: params.counterAmountMinor ?? null,
+    p_message: params.message ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return String(data);
 }
 
+/** Row-level security returns an offer only to its buyer, its seller or a moderator. */
 export async function getOfferById(db: Db, id: string): Promise<OfferRecord | null> {
-  const { data, error } = await db
-    .from("offers")
-    .select(`
-      *,
-      buyer:profiles!buyer_id(${PUBLIC_PROFILE}),
-      seller:profiles!seller_id(${PUBLIC_PROFILE}),
-      listing:listings!listing_id(id, title, slug, price_minor, currency),
-      request:buyer_requests!request_id(id, title, budget_amount_minor, currency)
-    `)
-    .eq("id", id)
-    .maybeSingle();
-
+  const { data, error } = await db.from("offers").select(OFFER_COLUMNS).eq("id", id).maybeSingle();
   if (error || !data) return null;
-  return mapOfferRow(data);
-}
-
-export async function listOffersForListing(db: Db, listingId: string): Promise<OfferRecord[]> {
-  const { data, error } = await db
-    .from("offers")
-    .select(`
-      *,
-      buyer:profiles!buyer_id(${PUBLIC_PROFILE}),
-      seller:profiles!seller_id(${PUBLIC_PROFILE})
-    `)
-    .eq("listing_id", listingId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw new Error(`Could not list offers: ${error.message}`);
-  return (data || []).map(mapOfferRow);
-}
-
-export async function listOffersForRequest(db: Db, requestId: string): Promise<OfferRecord[]> {
-  const { data, error } = await db
-    .from("offers")
-    .select(`
-      *,
-      buyer:profiles!buyer_id(${PUBLIC_PROFILE}),
-      seller:profiles!seller_id(${PUBLIC_PROFILE})
-    `)
-    .eq("request_id", requestId)
-    .order("created_at", { ascending: false });
-
-  if (error) throw new Error(`Could not list offers: ${error.message}`);
-  return (data || []).map(mapOfferRow);
+  return mapOffer(data as Row);
 }
 
 export async function listOffersForUser(
   db: Db,
   userId: string,
-  role: "buyer" | "seller" | "all" = "all",
+  filter: { role?: "buyer" | "seller" | "all"; listingId?: string } = {},
 ): Promise<OfferRecord[]> {
   let query = db
     .from("offers")
-    .select(`
-      *,
-      buyer:profiles!buyer_id(${PUBLIC_PROFILE}),
-      seller:profiles!seller_id(${PUBLIC_PROFILE}),
-      listing:listings!listing_id(id, title, slug, price_minor, currency),
-      request:buyer_requests!request_id(id, title, budget_amount_minor, currency)
-    `)
-    .order("created_at", { ascending: false });
+    .select(OFFER_COLUMNS)
+    .order("created_at", { ascending: false })
+    .limit(100);
 
-  if (role === "buyer") {
-    query = query.eq("buyer_id", userId);
-  } else if (role === "seller") {
-    query = query.eq("seller_id", userId);
-  } else {
-    query = query.or(`buyer_id.eq.${userId},seller_id.eq.${userId}`);
-  }
+  if (filter.role === "buyer") query = query.eq("buyer_id", userId);
+  else if (filter.role === "seller") query = query.eq("seller_id", userId);
+  else query = query.or(`buyer_id.eq.${userId},seller_id.eq.${userId}`);
+
+  if (filter.listingId) query = query.eq("listing_id", filter.listingId);
 
   const { data, error } = await query;
-  if (error) throw new Error(`Could not load user offers: ${error.message}`);
-  return (data || []).map(mapOfferRow);
-}
-
-export async function updateOfferStatus(
-  db: Db,
-  id: string,
-  status: "accepted" | "rejected" | "countered" | "cancelled" | "expired",
-): Promise<void> {
-  const { error } = await db
-    .from("offers")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", id);
-
-  if (error) throw new Error(`Failed to update offer status: ${error.message}`);
+  if (error) throw new Error(`Could not load offers: ${error.message}`);
+  return ((data ?? []) as Row[]).map(mapOffer);
 }

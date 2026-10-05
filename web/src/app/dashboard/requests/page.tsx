@@ -72,7 +72,7 @@ export default async function DashboardRequestsPage() {
                         className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                           req.status === "open"
                             ? "bg-emerald-100 text-emerald-800"
-                            : req.status === "accepted"
+                            : req.status === "matched"
                             ? "bg-blue-100 text-blue-800"
                             : "bg-gray-100 text-gray-800"
                         }`}

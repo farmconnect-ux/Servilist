@@ -1,22 +1,21 @@
 import "server-only";
 import { createDb } from "@/lib/db/server";
-import { canParticipate } from "@/server/policies/access";
-import type { SessionUser } from "@/server/auth/session";
 import { toMinorUnits } from "@/lib/money";
-import {
-  CreateOfferSchema,
-  RespondOfferSchema,
-  type CreateOfferInput,
-  type RespondOfferInput,
-} from "../validators/offer";
-import {
-  createOffer,
-  getOfferById,
-  updateOfferStatus,
-} from "../repositories/offers";
+import type { SessionUser } from "@/server/auth/session";
+import { canParticipate } from "@/server/policies/access";
+import { getOfferById, makeOffer, respondToOffer } from "../repositories/offers";
 import { getListingById } from "../repositories/listings";
-import { getBuyerRequestById } from "../repositories/requests";
+import { CreateOfferSchema, RespondOfferSchema } from "../validators/offer";
 import { fail, ok, type Result } from "./result";
+
+/**
+ * The checks here give a clear message early. The database functions repeat
+ * every one of them and are what actually enforces the rules.
+ */
+
+function reason(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
 
 export async function createOfferAction(
   user: SessionUser,
@@ -28,66 +27,23 @@ export async function createOfferAction(
 
   const parsed = CreateOfferSchema.safeParse(rawInput);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid offer data");
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid offer");
   }
-
-  const { listingId, requestId, amountMajor, currency, message, parentOfferId } = parsed.data;
+  const { listingId, amountMajor, message } = parsed.data;
 
   try {
     const db = await createDb();
-    let buyerId: string;
-    let sellerId: string;
+    const listing = await getListingById(db, listingId);
+    if (!listing) return fail("NOT_FOUND", "Listing not found");
 
-    if (listingId) {
-      const listing = await getListingById(db, listingId);
-      if (!listing) return fail("NOT_FOUND", "Listing not found");
-      if (listing.sellerId === user.userId) {
-        return fail("INVALID_ACTION", "You cannot make an offer on your own listing");
-      }
-      if (listing.status !== "active") {
-        return fail("INVALID_STATUS", "Listing is not currently active");
-      }
-      buyerId = user.userId;
-      sellerId = listing.sellerId;
-    } else if (requestId) {
-      const request = await getBuyerRequestById(db, requestId);
-      if (!request) return fail("NOT_FOUND", "Buyer request not found");
-      if (request.buyerId === user.userId) {
-        return fail("INVALID_ACTION", "You cannot make an offer on your own request");
-      }
-      if (request.status !== "open" && request.status !== "receiving_offers") {
-        return fail("INVALID_STATUS", "Buyer request is not currently accepting offers");
-      }
-      buyerId = request.buyerId;
-      sellerId = user.userId;
-    } else {
-      return fail("VALIDATION_ERROR", "Offer must specify listing or request");
-    }
-
-    const amountMinor = toMinorUnits(amountMajor, currency);
-
-    const created = await createOffer(db, {
+    const id = await makeOffer(db, {
       listingId,
-      requestId,
-      buyerId,
-      sellerId,
-      proposerId: user.userId,
-      amountMinor,
-      currency,
+      amountMinor: toMinorUnits(amountMajor, listing.currency),
       message,
-      parentOfferId,
     });
-
-    await db.rpc("write_audit_log", {
-      p_action: "offer.created",
-      p_entity_type: "offer",
-      p_entity_id: created.id,
-      p_metadata: { listingId, requestId, amountMinor, currency },
-    });
-
-    return ok({ id: created.id });
-  } catch (err: any) {
-    return fail("DATABASE_ERROR", err.message || "Failed to submit offer");
+    return ok({ id });
+  } catch (err) {
+    return fail("OFFER_REFUSED", reason(err, "The offer could not be submitted."));
   }
 }
 
@@ -95,93 +51,38 @@ export async function respondOfferAction(
   user: SessionUser,
   offerId: string,
   rawInput: unknown,
-): Promise<Result<{ status: string; counterOfferId?: string }>> {
-  const parsed = RespondOfferSchema.safeParse(rawInput);
-  if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid response parameters");
+): Promise<Result<{ status: string; offerId: string }>> {
+  if (!canParticipate(user)) {
+    return fail("FORBIDDEN", "Your account is not permitted to respond to offers.");
   }
 
+  const parsed = RespondOfferSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid response");
+  }
   const { action, counterAmountMajor, counterMessage } = parsed.data;
 
   try {
     const db = await createDb();
+    // Row-level security hides offers the member is not a party to
     const existing = await getOfferById(db, offerId);
     if (!existing) return fail("NOT_FOUND", "Offer not found");
 
-    if (existing.status !== "pending") {
-      return fail("INVALID_STATUS", `This offer is already ${existing.status}`);
-    }
+    const resultId = await respondToOffer(db, {
+      offerId,
+      action,
+      counterAmountMinor:
+        action === "counter" && counterAmountMajor !== undefined
+          ? toMinorUnits(counterAmountMajor, existing.currency)
+          : undefined,
+      message: action === "counter" ? counterMessage : undefined,
+    });
 
-    // Cancel action: only the proposer can cancel their own offer
-    if (action === "cancel") {
-      if (existing.proposerId !== user.userId) {
-        return fail("FORBIDDEN", "Only the person who made the offer can cancel it");
-      }
-      await updateOfferStatus(db, offerId, "cancelled");
-      await db.rpc("write_audit_log", {
-        p_action: "offer.cancelled",
-        p_entity_type: "offer",
-        p_entity_id: offerId,
-      });
-      return ok({ status: "cancelled" });
-    }
-
-    // Accept, reject, counter: only the counterparty can perform these
-    if (existing.proposerId === user.userId) {
-      return fail("FORBIDDEN", "You cannot accept, reject, or counter your own offer");
-    }
-
-    if (action === "accept") {
-      await updateOfferStatus(db, offerId, "accepted");
-      await db.rpc("write_audit_log", {
-        p_action: "offer.accepted",
-        p_entity_type: "offer",
-        p_entity_id: offerId,
-        p_metadata: { amountMinor: existing.amountMinor, currency: existing.currency },
-      });
-      return ok({ status: "accepted" });
-    }
-
-    if (action === "reject") {
-      await updateOfferStatus(db, offerId, "rejected");
-      await db.rpc("write_audit_log", {
-        p_action: "offer.rejected",
-        p_entity_type: "offer",
-        p_entity_id: offerId,
-      });
-      return ok({ status: "rejected" });
-    }
-
-    if (action === "counter") {
-      if (!counterAmountMajor || counterAmountMajor <= 0) {
-        return fail("VALIDATION_ERROR", "Counter offer amount must be greater than zero");
-      }
-
-      const counterMinor = toMinorUnits(counterAmountMajor, existing.currency);
-      const counterOffer = await createOffer(db, {
-        listingId: existing.listingId || undefined,
-        requestId: existing.requestId || undefined,
-        buyerId: existing.buyerId,
-        sellerId: existing.sellerId,
-        proposerId: user.userId,
-        amountMinor: counterMinor,
-        currency: existing.currency,
-        message: counterMessage,
-        parentOfferId: existing.id,
-      });
-
-      await db.rpc("write_audit_log", {
-        p_action: "offer.countered",
-        p_entity_type: "offer",
-        p_entity_id: existing.id,
-        p_metadata: { counterOfferId: counterOffer.id, amountMinor: counterMinor },
-      });
-
-      return ok({ status: "countered", counterOfferId: counterOffer.id });
-    }
-
-    return fail("INVALID_ACTION", "Unrecognized action");
-  } catch (err: any) {
-    return fail("DATABASE_ERROR", err.message || "Failed to respond to offer");
+    const status = { accept: "accepted", reject: "rejected", counter: "countered", cancel: "cancelled" }[
+      action
+    ];
+    return ok({ status, offerId: resultId });
+  } catch (err) {
+    return fail("OFFER_REFUSED", reason(err, "The offer could not be updated."));
   }
 }

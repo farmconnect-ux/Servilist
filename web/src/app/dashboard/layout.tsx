@@ -12,6 +12,7 @@ const NAV = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/orders", label: "Orders & Escrow" },
   { href: "/dashboard/requests", label: "Requests & Quotes" },
+  { href: "/dashboard/offers", label: "Offers" },
   { href: "/dashboard/seller", label: "Seller Hub" },
   { href: "/dashboard/messages", label: "Messages" },
   { href: "/sell", label: "Sell an item" },

@@ -32,6 +32,14 @@ const PREFIXES = [
   "/api/v1/categories",
   "/api/v1/listings",
   "/api/v1/users",
+  // Sprint 3: buyer requests and quotes, offers on listings, messages
+  "/requests",
+  "/dashboard/requests",
+  "/dashboard/offers",
+  "/dashboard/messages",
+  "/api/v1/requests",
+  "/api/v1/offers",
+  "/api/v1/conversations",
 ];
 
 export function isReleased(pathname: string): boolean {

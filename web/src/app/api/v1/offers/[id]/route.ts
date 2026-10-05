@@ -27,13 +27,6 @@ export async function GET(
       );
     }
 
-    if (offer.buyerId !== user.userId && offer.sellerId !== user.userId && !user.roles.includes("admin")) {
-      return NextResponse.json(
-        { success: false, error: { code: "FORBIDDEN", message: "Not authorized to view this offer" } },
-        { status: 403 },
-      );
-    }
-
     return NextResponse.json({ success: true, data: offer });
   } catch (err: any) {
     return NextResponse.json(

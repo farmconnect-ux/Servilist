@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isUuid } from "@/lib/ids";
 import { createDb } from "@/lib/db/server";
 import { getSessionUser } from "@/server/auth/session";
-import { listOffersForUser, listOffersForListing, listOffersForRequest } from "@/server/repositories/offers";
+import { listOffersForUser } from "@/server/repositories/offers";
 import { createOfferAction } from "@/server/services/offers";
 
 export async function GET(request: NextRequest) {
@@ -16,22 +17,14 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("listingId");
-    const requestId = searchParams.get("requestId");
-    const role = (searchParams.get("role") || "all") as "buyer" | "seller" | "all";
+    const roleParam = searchParams.get("role");
+    const role = roleParam === "buyer" || roleParam === "seller" ? roleParam : "all";
 
     const db = await createDb();
-
-    if (listingId) {
-      const offers = await listOffersForListing(db, listingId);
-      return NextResponse.json({ success: true, data: offers });
-    }
-
-    if (requestId) {
-      const offers = await listOffersForRequest(db, requestId);
-      return NextResponse.json({ success: true, data: offers });
-    }
-
-    const offers = await listOffersForUser(db, user.userId, role);
+    const offers = await listOffersForUser(db, user.userId, {
+      role,
+      listingId: listingId && isUuid(listingId) ? listingId : undefined,
+    });
     return NextResponse.json({ success: true, data: offers });
   } catch (err: any) {
     return NextResponse.json(

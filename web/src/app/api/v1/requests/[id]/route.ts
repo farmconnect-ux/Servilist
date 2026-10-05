@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isUuid } from "@/lib/ids";
 import { createDb } from "@/lib/db/server";
 import { getBuyerRequestById } from "@/server/repositories/requests";
 
@@ -8,6 +9,12 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    if (!isUuid(id)) {
+      return NextResponse.json(
+        { success: false, error: { code: "NOT_FOUND", message: "Request not found" } },
+        { status: 404 },
+      );
+    }
     const db = await createDb();
     const item = await getBuyerRequestById(db, id);
 

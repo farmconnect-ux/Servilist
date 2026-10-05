@@ -24,8 +24,9 @@ export default async function DashboardPage() {
       </div>
 
       <Alert>
-        You can list items for sale here now. Buyer requests, offers and orders open in this
-        version as each is verified; until then they remain on the current site.
+        You can list items, post requests, send quotes, make offers and message other members
+        here. Orders and payments open once they are verified; until then they remain on the
+        current site.
       </Alert>
     </>
   );

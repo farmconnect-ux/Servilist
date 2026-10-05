@@ -82,7 +82,7 @@ describe("Sprint 3: Request, Offer & Message Validators", () => {
       expect(res.success).toBe(true);
     });
 
-    it("rejects offer with neither listingId nor requestId", () => {
+    it("rejects an offer that names no listing", () => {
       const invalid = {
         amountMajor: 35000,
         currency: "NGN",

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createDb } from "@/lib/db/server";
+import { isUuid } from "@/lib/ids";
 import { getSessionUser } from "@/server/auth/session";
 import { getConversationMessages } from "@/server/repositories/messaging";
 
@@ -20,6 +21,14 @@ export async function GET(
     const searchParams = request.nextUrl.searchParams;
     const listingId = searchParams.get("listingId") || undefined;
     const requestId = searchParams.get("requestId") || undefined;
+
+    // These values are placed in a database filter, so they must be plain ids
+    if (!isUuid(otherUserId) || (listingId && !isUuid(listingId)) || (requestId && !isUuid(requestId))) {
+      return NextResponse.json(
+        { success: false, error: { code: "VALIDATION_ERROR", message: "Invalid conversation" } },
+        { status: 400 },
+      );
+    }
 
     const db = await createDb();
     const messages = await getConversationMessages(db, {

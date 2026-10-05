@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createDb } from "@/lib/db/server";
+import { requireUser } from "@/server/auth/session";
 import { listCategories } from "@/server/repositories/categories";
 import { RequestWizard } from "@/components/marketplace/RequestWizard";
 
@@ -9,6 +10,7 @@ export const metadata = {
 };
 
 export default async function NewRequestPage() {
+  await requireUser("/requests/new");
   const db = await createDb();
   const categories = await listCategories(db);
 

@@ -132,7 +132,7 @@ export async function listBuyerRequests(
       buyer:profiles!buyer_id(${PUBLIC_PROFILE}),
       quotes(id)
     `, { count: "exact" })
-    .in("status", ["open", "receiving_offers"]);
+    .eq("status", "open");
 
   if (params.q) {
     query = query.or(`title.ilike.${likePattern(params.q)},description.ilike.${likePattern(params.q)}`);
@@ -193,8 +193,10 @@ export async function submitQuote(
   db: Db,
   providerId: string,
   input: CreateQuoteInput,
+  currency: string,
 ): Promise<{ id: string }> {
-  const amountMinor = toMinorUnits(input.amountMajor, input.currency);
+  // A quote is always in the request's currency
+  const amountMinor = toMinorUnits(input.amountMajor, currency);
 
   const { data, error } = await db
     .from("quotes")
@@ -202,7 +204,7 @@ export async function submitQuote(
       request_id: input.requestId,
       provider_id: providerId,
       amount_minor: amountMinor,
-      currency: input.currency,
+      currency,
       timeline: input.timeline,
       message: input.message,
       status: "pending",
@@ -213,13 +215,6 @@ export async function submitQuote(
   if (error) {
     throw new Error(`Failed to submit quote: ${error.message}`);
   }
-
-  // Update request status to receiving_offers if was open
-  await db
-    .from("buyer_requests")
-    .update({ status: "receiving_offers" })
-    .eq("id", input.requestId)
-    .eq("status", "open");
 
   return { id: data.id };
 }

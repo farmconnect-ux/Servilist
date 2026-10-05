@@ -1,6 +1,6 @@
 import "server-only";
 import { createDb } from "@/lib/db/server";
-import { canParticipate, canManage } from "@/server/policies/access";
+import { canParticipate } from "@/server/policies/access";
 import type { SessionUser } from "@/server/auth/session";
 import {
   CreateRequestSchema,
@@ -67,11 +67,11 @@ export async function submitQuoteAction(
       return fail("INVALID_ACTION", "You cannot submit a quote to your own request.");
     }
 
-    if (request.status !== "open" && request.status !== "receiving_offers") {
+    if (request.status !== "open") {
       return fail("INVALID_STATUS", "This request is no longer accepting quotes.");
     }
 
-    const created = await submitQuote(db, user.userId, parsed.data);
+    const created = await submitQuote(db, user.userId, parsed.data, request.currency);
 
     await db.rpc("write_audit_log", {
       p_action: "quote.submitted",
@@ -98,32 +98,14 @@ export async function acceptQuoteAction(
       return fail("NOT_FOUND", "Request not found.");
     }
 
-    if (!canManage(user, { ownerId: request.buyerId, moderatePermission: "requests.moderate" })) {
+    if (request.buyerId !== user.userId) {
       return fail("FORBIDDEN", "Only the buyer who posted the request can accept a quote.");
     }
 
-    // Accept the quote and set others to rejected
-    const { error: quoteErr } = await db
-      .from("quotes")
-      .update({ status: "accepted" })
-      .eq("id", quoteId)
-      .eq("request_id", requestId);
-
+    // The database function checks the buyer, closes the other quotes and
+    // marks the request matched, all in one transaction.
+    const { error: quoteErr } = await db.rpc("accept_quote", { p_quote_id: quoteId });
     if (quoteErr) throw new Error(quoteErr.message);
-
-    // Reject other quotes
-    await db
-      .from("quotes")
-      .update({ status: "rejected" })
-      .eq("request_id", requestId)
-      .neq("id", quoteId)
-      .eq("status", "pending");
-
-    // Update request status to accepted
-    await db
-      .from("buyer_requests")
-      .update({ status: "accepted" })
-      .eq("id", requestId);
 
     await db.rpc("write_audit_log", {
       p_action: "quote.accepted",

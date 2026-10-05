@@ -5,6 +5,9 @@ import { getListingBySlug } from "@/server/repositories/listings";
 import { formatMoney } from "@/lib/money";
 import { Badge } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
+import { ListingActions } from "@/components/marketplace/ListingActions";
+import { getSessionUser } from "@/server/auth/session";
+import { canParticipate } from "@/server/policies/access";
 
 export default async function ProductDetailPage({
   params,
@@ -13,7 +16,7 @@ export default async function ProductDetailPage({
 }) {
   const { slug } = await params;
   const db = await createDb();
-  const listing = await getListingBySlug(db, slug);
+  const [listing, viewer] = await Promise.all([getListingBySlug(db, slug), getSessionUser()]);
 
   if (!listing) {
     notFound();
@@ -125,11 +128,27 @@ export default async function ProductDetailPage({
 
             <p className="text-xs text-muted">📍 Available in {listing.city}, {listing.country}</p>
 
-            {/* Buying, offers and messages open here once their sprint is verified */}
-            <p className="rounded-[10px] bg-brand-soft px-3 py-2.5 text-sm text-ink">
-              Buying, offers and messages are opening in this version soon. Until then, contact
-              the seller on the current Servilist site.
-            </p>
+            {/* Offers and messages are open; checkout opens with orders and payments */}
+            {!viewer ? (
+              <ButtonLink href={`/login?next=${encodeURIComponent(`/products/${slug}`)}`}>
+                {listing.negotiable ? "Sign in to make an offer or message the seller" : "Sign in to message the seller"}
+              </ButtonLink>
+            ) : viewer.userId === listing.sellerId ? (
+              <p className="rounded-[10px] bg-brand-soft px-3 py-2.5 text-sm text-ink">
+                This is your listing. Offers from buyers appear under Offers in your dashboard.
+              </p>
+            ) : listing.status !== "active" ? (
+              <p className="rounded-[10px] bg-page px-3 py-2.5 text-sm text-muted">
+                This listing is no longer available.
+              </p>
+            ) : canParticipate(viewer) ? (
+              <ListingActions
+                listingId={listing.id}
+                sellerId={listing.sellerId}
+                currency={listing.currency}
+                negotiable={listing.negotiable}
+              />
+            ) : null}
 
             {/* Escrow Guarantee Callout */}
             <div className="rounded-control bg-page p-3.5 text-xs text-muted">
