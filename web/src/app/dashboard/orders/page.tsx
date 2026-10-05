@@ -1,0 +1,144 @@
+import Link from "next/link";
+import { createDb } from "@/lib/db/server";
+import { requireUser } from "@/server/auth/session";
+import { listOrdersForUser } from "@/server/repositories/orders";
+import { formatMoney } from "@/lib/money";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+export const metadata = {
+  title: "Orders & Escrow · Servilist Dashboard",
+};
+
+interface OrdersPageProps {
+  searchParams: Promise<{
+    tab?: string;
+  }>;
+}
+
+export default async function DashboardOrdersPage({ searchParams }: OrdersPageProps) {
+  const { tab } = await searchParams;
+  const currentTab = tab === "sales" ? "seller" : "buyer";
+
+  const user = await requireUser("/dashboard/orders");
+  const db = await createDb();
+  const orders = await listOrdersForUser(db, user.userId, currentTab);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+        <div>
+          <h2 className="text-xl font-bold text-ink">Orders & Escrow Protection</h2>
+          <p className="text-xs text-muted">
+            Track deliveries, verify handover OTPs, and monitor releases from escrow.
+          </p>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b text-sm font-semibold">
+        <Link
+          href="/dashboard/orders?tab=purchases"
+          className={`border-b-2 px-4 py-2 transition ${
+            currentTab === "buyer"
+              ? "border-brand text-brand"
+              : "border-transparent text-muted hover:text-ink"
+          }`}
+        >
+          My Purchases (Buyer)
+        </Link>
+        <Link
+          href="/dashboard/orders?tab=sales"
+          className={`border-b-2 px-4 py-2 transition ${
+            currentTab === "seller"
+              ? "border-brand text-brand"
+              : "border-transparent text-muted hover:text-ink"
+          }`}
+        >
+          My Sales (Seller)
+        </Link>
+      </div>
+
+      {orders.length === 0 ? (
+        <Card className="p-8 text-center">
+          <p className="font-semibold text-ink">
+            No {currentTab === "buyer" ? "purchases" : "sales"} found.
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {currentTab === "buyer"
+              ? "Browse verified listings or post requests to start purchasing safely."
+              : "List an item for sale or quote on buyer requests to receive orders."}
+          </p>
+          <Link href={currentTab === "buyer" ? "/search" : "/sell"} className="mt-4 inline-block">
+            <Button className="min-h-9 px-3 text-xs">
+              {currentTab === "buyer" ? "Explore Marketplace" : "Start Selling"}
+            </Button>
+          </Link>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {orders.map((o) => {
+            const item = o.items[0];
+            const partner = currentTab === "buyer" ? o.seller : o.buyer;
+
+            return (
+              <Card key={o.id} className="p-5">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs font-bold text-muted">
+                        {o.orderNumber}
+                      </span>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                          o.status === "completed"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : o.status === "in_escrow"
+                            ? "bg-blue-100 text-blue-800"
+                            : o.status === "disputed"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-amber-100 text-amber-800"
+                        }`}
+                      >
+                        {o.status.replace("_", " ").toUpperCase()}
+                      </span>
+                    </div>
+
+                    <h3 className="font-bold text-ink">
+                      <Link href={`/dashboard/orders/${o.id}`} className="hover:text-brand">
+                        {item?.title || "Marketplace Item"}
+                      </Link>
+                    </h3>
+
+                    <p className="text-xs text-muted">
+                      {currentTab === "buyer" ? "Seller: " : "Buyer: "}
+                      <span className="font-medium text-ink">{partner?.displayName || "User"}</span> ·{" "}
+                      {new Date(o.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-ink">
+                        {formatMoney(o.totalMinor, o.currency)}
+                      </p>
+                      <p className="text-[10px] text-muted capitalize">
+                        {o.fulfillmentType}
+                      </p>
+                    </div>
+
+                    <Link href={`/dashboard/orders/${o.id}`}>
+                      <Button variant="outline" className="min-h-9 px-3 text-xs">
+                        Track & Details →
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
