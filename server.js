@@ -150,7 +150,33 @@ function toRequestRow(request) {
 }
 
 const sseClients = new Set();
-const serverEventsLog = [];
+
+// Demo-mode relay between browsers. It is not an authenticated channel: the live
+// site uses Supabase Realtime instead, and Vercel does not run this server.
+const SYNC_EVENT_TYPES = new Set([
+  'LISTING_CREATED',
+  'LISTING_UPDATED',
+  'REQUEST_CREATED',
+  'REQUEST_UPDATED',
+  'BID_PLACED',
+  'QUOTE_PLACED',
+  'USER_SWITCHED',
+]);
+const MAX_EVENT_BYTES = 16 * 1024;
+const EVENTS_PER_WINDOW = 30;
+const EVENT_WINDOW_MS = 10_000;
+const eventCounters = new Map();
+
+function allowEvent(clientKey) {
+  const now = Date.now();
+  const entry = eventCounters.get(clientKey);
+  if (!entry || now - entry.start > EVENT_WINDOW_MS) {
+    eventCounters.set(clientKey, { start: now, count: 1 });
+    return true;
+  }
+  entry.count += 1;
+  return entry.count <= EVENTS_PER_WINDOW;
+}
 
 async function handleApiRequest(req, res, pathname) {
   if (req.method === 'GET' && pathname === '/api/events') {
@@ -170,9 +196,16 @@ async function handleApiRequest(req, res, pathname) {
 
   if (req.method === 'POST' && pathname === '/api/events') {
     try {
+      if (!allowEvent(req.socket.remoteAddress || 'unknown')) {
+        sendJson(res, 429, { success: false, error: 'Too many events.' });
+        return;
+      }
       const payload = await readJsonBody(req);
-      serverEventsLog.push(payload);
-      if (serverEventsLog.length > 100) serverEventsLog.shift();
+      const size = JSON.stringify(payload).length;
+      if (!payload || !SYNC_EVENT_TYPES.has(payload.type) || size > MAX_EVENT_BYTES) {
+        sendJson(res, 400, { success: false, error: 'Unknown or oversized event.' });
+        return;
+      }
 
       const messageStr = `data: ${JSON.stringify(payload)}\n\n`;
       for (const client of sseClients) {
@@ -188,11 +221,6 @@ async function handleApiRequest(req, res, pathname) {
       sendJson(res, 400, { success: false, error: err.message });
       return;
     }
-  }
-
-  if (req.method === 'GET' && pathname === '/api/events/history') {
-    sendJson(res, 200, { success: true, events: serverEventsLog });
-    return;
   }
 
   if (!supabase) {

@@ -1,8 +1,9 @@
 import { formatMoney } from '../money';
-import type { BuyerRequest, EscrowOrder, Listing } from '../types';
+import { Conversation, buildConversations, renderConversationList } from './chat';
+import type { BuyerRequest, EscrowOrder, Listing, Message } from '../types';
 
 export type ActivityTab =
-  'watchlist' | 'my_listings' | 'my_bids' | 'my_requests' | 'my_quotes' | 'orders';
+  'watchlist' | 'my_listings' | 'my_bids' | 'my_requests' | 'my_quotes' | 'orders' | 'messages';
 
 export const ACTIVITY_TABS: { id: ActivityTab; label: string }[] = [
   { id: 'orders', label: 'Orders' },
@@ -10,6 +11,7 @@ export const ACTIVITY_TABS: { id: ActivityTab; label: string }[] = [
   { id: 'my_bids', label: 'My bids' },
   { id: 'my_requests', label: 'My requests' },
   { id: 'my_quotes', label: 'My quotes' },
+  { id: 'messages', label: 'Messages' },
   { id: 'watchlist', label: 'Saved' },
 ];
 
@@ -19,6 +21,7 @@ export interface ActivityData {
   requests: BuyerRequest[];
   escrowOrders: EscrowOrder[];
   watchlistIds: Set<string>;
+  messages: Message[];
 }
 
 export interface ActivityHandlers {
@@ -26,6 +29,7 @@ export interface ActivityHandlers {
   onOpenRequest(id: string): void;
   onConfirmHandover(orderId: string, code: string): void;
   onSelectTab(tab: ActivityTab): void;
+  onOpenConversation(conversation: Conversation): void;
 }
 
 export interface ActivityView {
@@ -35,6 +39,7 @@ export interface ActivityView {
   myRequests: BuyerRequest[];
   myQuotes: { request: BuyerRequest; amountMinor: number; status: string }[];
   orders: EscrowOrder[];
+  conversations: Conversation[];
 }
 
 /** Everything the signed-in member owns or takes part in, derived from the loaded data. */
@@ -62,6 +67,7 @@ export function buildActivityView(data: ActivityData): ActivityView {
     myRequests: requests.filter((r) => r.buyer.id === userId),
     myQuotes,
     orders: escrowOrders.filter((o) => o.buyerId === userId || o.sellerId === userId),
+    conversations: buildConversations(data.messages, userId, listings, requests),
   };
 }
 
@@ -73,6 +79,7 @@ export function activityCounts(view: ActivityView): Record<ActivityTab, number> 
     my_requests: view.myRequests.length,
     my_quotes: view.myQuotes.length,
     orders: view.orders.length,
+    messages: view.conversations.length,
   };
 }
 
@@ -92,6 +99,7 @@ const EMPTY: Record<ActivityTab, string> = {
   my_requests: 'You have not posted a buyer request yet.',
   my_quotes: 'You have not sent any quotes yet.',
   orders: 'No orders yet. Purchases and sales appear here.',
+  messages: 'No messages yet.',
 };
 
 function listingRow(listing: Listing, meta: string, badge = ''): string {
@@ -162,6 +170,7 @@ function orderRow(order: EscrowOrder, userId: string): string {
 }
 
 export function renderActivityBody(tab: ActivityTab, view: ActivityView, userId: string): string {
+  if (tab === 'messages') return renderConversationList(view.conversations);
   let rows: string[] = [];
   switch (tab) {
     case 'watchlist':
@@ -240,6 +249,10 @@ export function renderActivityDrawer(
   const open = (el: HTMLElement) => {
     if (el.dataset.listingId) handlers.onOpenListing(el.dataset.listingId);
     else if (el.dataset.requestId) handlers.onOpenRequest(el.dataset.requestId);
+    else if (el.dataset.conversation) {
+      const conversation = view.conversations.find((c) => c.key === el.dataset.conversation);
+      if (conversation) handlers.onOpenConversation(conversation);
+    }
   };
   body.querySelectorAll<HTMLElement>('.drawer-item-card').forEach((card) => {
     card.addEventListener('click', () => open(card));

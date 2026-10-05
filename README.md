@@ -95,7 +95,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ### Quality Assurance & Testing
 
 ```bash
-# Run all tests (unit tests + smoke tests):
+# Run the unit tests:
 npm test
 
 # Run Vitest unit tests only:

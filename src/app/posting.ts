@@ -1,11 +1,27 @@
 /** Post-a-listing and post-a-request forms. */
 import { Listing, ListingFormat } from '../types';
 import { getCurrencyForCity } from '../data/locations';
-import { toMinorUnits } from '../money';
+import { toMinorUnits, CURRENCY_CONFIGS } from '../money';
 import { createBuyerRequest } from '../requests';
 import type { ServilistApp } from '../main';
 
+/** Prices are stored in the currency of the chosen city, so the form shows that symbol. */
+export function syncPostCurrencySymbols() {
+  const symbolFor = (selectId: string) => {
+    const city = (document.getElementById(selectId) as HTMLSelectElement | null)?.value;
+    return CURRENCY_CONFIGS[getCurrencyForCity(city || 'Lagos, Nigeria')]?.symbol.trim() || '';
+  };
+  const set = (id: string, text: string) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  };
+  set('postStartPriceSym', symbolFor('postCity'));
+  set('postReservePriceSym', symbolFor('postCity'));
+  set('reqBudgetSym', symbolFor('reqCity'));
+}
+
 export function openPostModal(app: ServilistApp, mode: 'sell' | 'request' = 'sell') {
+  syncPostCurrencySymbols();
   app.switchPostTab(mode);
   app.dialogs['postModalOverlay']?.open();
 }

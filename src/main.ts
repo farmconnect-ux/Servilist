@@ -1,7 +1,7 @@
 import { Listing, BuyerRequest, EscrowOrder, CurrencyCode, ListingFormat } from './types';
 import { AFRICAN_LOCATIONS, getCurrencyForCity } from './data/locations';
 import { LocalStorageManager } from './data/storage';
-import { formatMoney, CURRENCY_CONFIGS } from './money';
+import { formatMoney } from './money';
 import { filterListings, sortListings, SortMode, ListingFilterCriteria } from './listings';
 
 import { AccessibleDialog } from './ui/dialog';
@@ -30,6 +30,11 @@ import * as authUI from './app/authUI';
 import * as detailView from './app/detailView';
 import * as cards from './app/cards';
 import * as trading from './app/trading';
+import * as messaging from './app/messaging';
+import { bindFilterControls, resetFilterControls, syncPricePrefix } from './app/filters';
+import { escapeHtml } from './ui/html';
+import type { ChatTarget } from './ui/chat';
+import type { Message } from './types';
 import * as posting from './app/posting';
 import * as syncListener from './app/syncListener';
 import * as converter from './app/converter';
@@ -46,11 +51,13 @@ export class ServilistApp {
   public listings: Listing[] = [];
   public requests: BuyerRequest[] = [];
   public escrowOrders: EscrowOrder[] = [];
+  public messages: Message[] = [];
+  public chatTarget: ChatTarget | null = null;
   public activeCurrency: CurrencyCode = 'NGN';
-  public sortMode: SortMode = 'ending_soon';
+  public sortMode: SortMode = 'newest';
   public marketMode: 'all' | 'requests' | 'supply' = 'all';
   public activeCategory: string = 'all';
-  public currentCity: string = 'Lagos, Nigeria';
+  public currentCity: string = 'All Africa';
   public currentListingDetail: Listing | null = null;
   public currentRequestDetail: BuyerRequest | null = null;
   public activeDashboardTab: string = 'overview';
@@ -59,7 +66,7 @@ export class ServilistApp {
   public myBidIds: Map<string, number> = new Map(); // listingId -> highestBidMinor
 
   public filters: ListingFilterCriteria = {
-    city: 'Lagos, Nigeria',
+    city: 'All Africa',
     category: 'all',
     formatPill: 'all',
     formatCheckboxes: ['auction', 'buy_now', 'service', 'free_barter'],
@@ -83,6 +90,44 @@ export class ServilistApp {
     }
   }
 
+  public contactOwner() {
+    messaging.contactOwner(this);
+  }
+
+  public openChat(target: ChatTarget) {
+    messaging.openChat(this, target);
+  }
+
+  public renderChat() {
+    messaging.renderChat(this);
+  }
+
+  public sendChat(body: string) {
+    messaging.sendChat(this, body);
+  }
+
+  public settleAuction(listingId: string) {
+    trading.settleAuction(this, listingId);
+  }
+
+  public withdrawListing(listingId: string) {
+    trading.withdrawListing(this, listingId);
+  }
+
+  public cancelRequest(requestId: string) {
+    trading.cancelRequest(this, requestId);
+  }
+
+  /** Shown when a member arrives from a password-reset email. */
+  public showPasswordRecovery() {
+    this.openAuthModal();
+    document
+      .querySelectorAll<HTMLElement>('.auth-tab-panel')
+      .forEach((p) => (p.style.display = 'none'));
+    const panel = document.getElementById('authPanelRecovery');
+    if (panel) panel.style.display = 'block';
+  }
+
   public openAuthModal() {
     this.dialogs['authModalOverlay']?.open();
   }
@@ -95,7 +140,21 @@ export class ServilistApp {
     return this.dialogs[id]?.isOpen() ?? false;
   }
 
+  /** Puts the city and sort controls in step with the app's starting state. */
+  public applyDefaultControls() {
+    const city = document.getElementById('citySelector') as HTMLSelectElement | null;
+    if (city) {
+      if (![...city.options].some((o) => o.value === this.currentCity)) {
+        city.add(new Option('All Africa', this.currentCity), 0);
+      }
+      city.value = this.currentCity;
+    }
+    const sort = document.getElementById('sortSelector') as HTMLSelectElement | null;
+    if (sort) sort.value = this.sortMode;
+  }
+
   public refreshMarketplaceUI() {
+    if (this.isModalOpen('chatModalOverlay')) this.renderChat();
     this.renderListings();
     this.renderCategoryCounts();
     this.updateTopBarStats();
@@ -113,6 +172,7 @@ export class ServilistApp {
 
     this.loadWatchlist();
     this.populateLocationSelects();
+    this.applyDefaultControls();
     this.initDashboardManager();
     this.initDialogs();
     this.initBottomNav();
@@ -214,7 +274,7 @@ export class ServilistApp {
       { id: 'detailModalOverlay', closeBtn: '#closeDetailModalBtn' },
       { id: 'postModalOverlay', closeBtn: '#closePostModalBtn' },
       { id: 'drawerModalOverlay', closeBtn: '#closeDrawerBtn' },
-      { id: 'chatModalOverlay', closeBtn: '#closeChatBtn' },
+      { id: 'chatModalOverlay', closeBtn: '#closeChatModalBtn' },
       { id: 'converterModalOverlay', closeBtn: '#closeConverterModalBtn' },
       { id: 'buyerDashboardModalOverlay', closeBtn: '#closeBuyerDashboardModalBtn' },
       { id: 'sellerDashboardModalOverlay', closeBtn: '#closeSellerDashboardModalBtn' },
@@ -229,27 +289,26 @@ export class ServilistApp {
         setupMobileSheetEnhancements(el);
         this.dialogs[cfg.id] = new AccessibleDialog(el, {
           closeBtnSelector: cfg.closeBtn,
+          // Runs for every way of closing, including Escape
+          onClose:
+            cfg.id === 'detailModalOverlay'
+              ? () => {
+                  AppRouter.clearDetailUrl();
+                  this.currentListingDetail = null;
+                  this.currentRequestDetail = null;
+                }
+              : undefined,
         });
 
         // Close button click
         el.querySelector(cfg.closeBtn)?.addEventListener('click', () => {
           this.dialogs[cfg.id].close();
-          if (cfg.id === 'detailModalOverlay') {
-            AppRouter.clearDetailUrl();
-            this.currentListingDetail = null;
-            this.currentRequestDetail = null;
-          }
         });
 
         // Backdrop click
         el.addEventListener('click', (e) => {
           if (e.target === el) {
             this.dialogs[cfg.id].close();
-            if (cfg.id === 'detailModalOverlay') {
-              AppRouter.clearDetailUrl();
-              this.currentListingDetail = null;
-              this.currentRequestDetail = null;
-            }
           }
         });
       }
@@ -412,6 +471,54 @@ export class ServilistApp {
       this.openConverterModal();
     });
 
+    // Messages
+    document
+      .getElementById('btnContactSeller')
+      ?.addEventListener('click', () => this.contactOwner());
+    const chatInput = document.getElementById('chatInput') as HTMLInputElement | null;
+    document.getElementById('chatForm')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!chatInput) return;
+      this.sendChat(chatInput.value);
+      chatInput.value = '';
+    });
+    document.querySelectorAll<HTMLElement>('.btn-chat-chip').forEach((chip) => {
+      chip.addEventListener('click', () => {
+        if (chatInput) chatInput.value = chip.dataset.template || '';
+        chatInput?.focus();
+      });
+    });
+
+    // Password recovery (live accounts only)
+    document.getElementById('authForgotPasswordBtn')?.addEventListener('click', () => {
+      const email = (document.getElementById('authEmailInput') as HTMLInputElement)?.value.trim();
+      if (this.cloud) void this.cloud.requestPasswordReset(email);
+      else this.showToast('Password reset is available on the live site', 'info');
+    });
+    document.getElementById('recoveryAuthForm')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('recoveryPasswordInput') as HTMLInputElement | null;
+      if (this.cloud && input) void this.cloud.updatePassword(input.value);
+      if (input) input.value = '';
+    });
+
+    // Footer shortcuts
+    document.querySelectorAll<HTMLElement>('[data-footer-format]').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.setFormatPill(link.dataset.footerFormat || 'all');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+    const footerAction = (id: string, run: () => void) =>
+      document.getElementById(id)?.addEventListener('click', (e) => {
+        e.preventDefault();
+        run();
+      });
+    footerAction('footerBidsLink', () => this.openDrawer('my_bids'));
+    footerAction('footerRequestsLink', () => this.openDrawer('my_requests'));
+    footerAction('footerConverterLink', () => this.openConverterModal());
+
     // Member activity drawer
     document
       .getElementById('viewWatchlistBtn')
@@ -508,6 +615,13 @@ export class ServilistApp {
         }
       });
     });
+
+    ['postCity', 'reqCity'].forEach((id) =>
+      document
+        .getElementById(id)
+        ?.addEventListener('change', () => posting.syncPostCurrencySymbols())
+    );
+    bindFilterControls(this);
 
     // Distance Radius Filter
     const radiusSelect = document.getElementById('radiusFilterSelect') as HTMLSelectElement | null;
@@ -638,14 +752,22 @@ export class ServilistApp {
       buyerBody &&
       document.getElementById('buyerDashboardModalOverlay')?.style.display !== 'none'
     ) {
-      this.dashboardManager.renderBuyerDashboard(buyerBody, this.escrowOrders, this.activeCurrency);
+      this.dashboardManager.renderBuyerDashboard(
+        buyerBody,
+        dashboards.buyerOrders(this),
+        this.activeCurrency
+      );
     }
     const sellerBody = document.getElementById('sellerDashboardBody');
     if (
       sellerBody &&
       document.getElementById('sellerDashboardModalOverlay')?.style.display !== 'none'
     ) {
-      this.dashboardManager.renderSellerDashboard(sellerBody, this.listings, this.activeCurrency);
+      this.dashboardManager.renderSellerDashboard(
+        sellerBody,
+        dashboards.sellerListings(this),
+        this.activeCurrency
+      );
     }
     const adminBody = document.getElementById('adminDashboardBody');
     if (
@@ -661,13 +783,8 @@ export class ServilistApp {
     if (sel && sel.value !== this.activeCurrency) {
       sel.value = this.activeCurrency;
     }
-    const sym = CURRENCY_CONFIGS[this.activeCurrency]?.symbol.trim() || '₦';
-    const startSym = document.getElementById('postStartPriceSym');
-    const resSym = document.getElementById('postReservePriceSym');
-    const reqSym = document.getElementById('reqBudgetSym');
-    if (startSym) startSym.textContent = sym;
-    if (resSym) resSym.textContent = sym;
-    if (reqSym) reqSym.textContent = sym;
+    posting.syncPostCurrencySymbols();
+    syncPricePrefix(this);
   }
 
   public setCategory(cat: string) {
@@ -683,8 +800,9 @@ export class ServilistApp {
   }
 
   public resetFilters() {
+    this.currentCity = 'All Africa';
     this.filters = {
-      city: 'Lagos, Nigeria',
+      city: 'All Africa',
       category: 'all',
       formatPill: 'all',
       formatCheckboxes: ['auction', 'buy_now', 'service', 'free_barter'],
@@ -692,9 +810,11 @@ export class ServilistApp {
       minPriceMinor: null,
       maxPriceMinor: null,
       searchQuery: '',
+      maxRadiusKm: null,
     };
+    resetFilterControls();
     const cSel = document.getElementById('citySelector') as HTMLSelectElement | null;
-    if (cSel) cSel.value = 'Lagos, Nigeria';
+    if (cSel) cSel.value = 'All Africa';
     const sInp = document.getElementById('searchInput') as HTMLInputElement | null;
     if (sInp) sInp.value = '';
     const clr = document.getElementById('clearSearchBtn');
@@ -743,7 +863,9 @@ export class ServilistApp {
       return;
     }
 
-    const filtered = filterListings(this.listings, this.filters);
+    // Withdrawn and closed listings stay out of the feed; their owners find them in activity
+    const browsable = this.listings.filter((l) => l.status !== 'cancelled' && l.status !== 'ended');
+    const filtered = filterListings(browsable, this.filters);
     const sorted = sortListings(filtered, this.sortMode);
 
     if (countText) countText.textContent = `Showing ${sorted.length} items`;
@@ -917,6 +1039,7 @@ export class ServilistApp {
       requests: this.requests,
       escrowOrders: this.escrowOrders,
       watchlistIds: this.watchlistIds,
+      messages: this.messages,
     };
   }
 
@@ -936,6 +1059,10 @@ export class ServilistApp {
       onSelectTab: (tab) => {
         this.activeDrawerTab = tab;
         this.renderDrawer();
+      },
+      onOpenConversation: (conversation) => {
+        this.closeModal('drawerModalOverlay');
+        this.openChat(conversation);
       },
     });
   }
@@ -1092,12 +1219,7 @@ export class ServilistApp {
   }
 
   public escapeHtml(str: string): string {
-    if (!str) return '';
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return escapeHtml(str);
   }
 }
 

@@ -1,13 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AuthService } from '../auth/authService';
 import { CloudStore, GUEST_USER } from '../data/cloudStore';
-import type { BuyerRequest, EscrowOrder, Listing } from '../types';
+import { DEFAULT_EXCHANGE_RATES } from '../money';
+import type { ChatTarget } from '../ui/chat';
+import type { BuyerRequest, EscrowOrder, Listing, Message } from '../types';
 
 /** The parts of the app the cloud layer reads and refreshes. */
 export interface CloudHost {
   listings: Listing[];
   requests: BuyerRequest[];
   escrowOrders: EscrowOrder[];
+  messages: Message[];
   authService: AuthService;
   currentListingDetail: Listing | null;
   currentRequestDetail: BuyerRequest | null;
@@ -17,11 +20,12 @@ export interface CloudHost {
   openRequestDetailModal(requestId: string): void;
   openBuyerDashboard(): void;
   openAuthModal(): void;
+  showPasswordRecovery(): void;
   closeModal(id: string): void;
   isModalOpen(id: string): boolean;
 }
 
-const LIVE_TABLES = ['listings', 'bids', 'buyer_requests', 'quotes'];
+const LIVE_TABLES = ['listings', 'bids', 'buyer_requests', 'quotes', 'messages'];
 
 /**
  * Runs the marketplace against Supabase: real accounts, shared data and
@@ -45,13 +49,15 @@ export class CloudController {
     const { data } = await this.client.auth.getSession();
     await this.applySession(data.session?.user ?? null);
 
-    this.client.auth.onAuthStateChange((_event, session) => {
+    this.client.auth.onAuthStateChange((event, session) => {
       // Supabase asks that no awaited calls run inside this callback
       setTimeout(() => {
+        if (event === 'PASSWORD_RECOVERY') this.host.showPasswordRecovery();
         void this.applySession(session?.user ?? null).then(() => this.reload());
       }, 0);
     });
 
+    void this.loadRates();
     await this.reload();
     this.subscribeToLiveChanges();
   }
@@ -95,14 +101,16 @@ export class CloudController {
 
   async reload(): Promise<void> {
     try {
-      const [listings, requests, escrowOrders] = await Promise.all([
+      const [listings, requests, escrowOrders, messages] = await Promise.all([
         this.store.fetchListings(),
         this.store.fetchRequests(),
         this.userId ? this.store.fetchEscrowOrders() : Promise.resolve([]),
+        this.userId ? this.store.fetchMessages() : Promise.resolve([]),
       ]);
       this.host.listings = listings;
       this.host.requests = requests;
       this.host.escrowOrders = escrowOrders;
+      this.host.messages = messages;
       this.host.refreshMarketplaceUI();
 
       // Keep an open detail view in step with the fresh data
@@ -296,5 +304,92 @@ export class CloudController {
     } catch (err) {
       this.host.showToast(this.message(err), 'warning');
     }
+  }
+
+  /** Stored display rates replace the built-in defaults; prices themselves are never converted. */
+  private async loadRates(): Promise<void> {
+    try {
+      Object.assign(DEFAULT_EXCHANGE_RATES, await this.store.fetchExchangeRates());
+      this.host.refreshMarketplaceUI();
+    } catch {
+      // The built-in rates stay in use
+    }
+  }
+
+  // -- Messages, auction close, withdrawals ---------------------------------
+
+  async sendMessage(target: ChatTarget, body: string): Promise<void> {
+    const uid = this.requireUser('send a message');
+    if (!uid) return;
+    try {
+      await this.store.sendMessage(uid, {
+        listingId: target.listingId,
+        requestId: target.requestId,
+        recipientId: target.otherId,
+        body,
+      });
+      await this.reload();
+    } catch (err) {
+      this.host.showToast(this.message(err), 'warning');
+    }
+  }
+
+  async settleAuction(listing: Listing): Promise<void> {
+    if (!this.requireUser('close this auction')) return;
+    try {
+      const status = await this.store.settleAuction(listing.id, `${listing.city} Safe Meetup Zone`);
+      await this.reload();
+      if (status === 'sold') {
+        this.host.showToast('Auction closed. An order is open for the winning bidder', 'success');
+        this.showOrders();
+      } else {
+        this.host.closeModal('detailModalOverlay');
+        this.host.showToast('Auction closed without a sale', 'info');
+      }
+    } catch (err) {
+      this.host.showToast(this.message(err), 'warning');
+    }
+  }
+
+  async withdrawListing(listing: Listing): Promise<void> {
+    if (!this.requireUser('withdraw a listing')) return;
+    this.host.closeModal('detailModalOverlay');
+    await this.run(() => this.store.withdrawListing(listing.id), 'Listing withdrawn');
+  }
+
+  async cancelRequest(request: BuyerRequest): Promise<void> {
+    if (!this.requireUser('cancel a request')) return;
+    this.host.closeModal('detailModalOverlay');
+    await this.run(() => this.store.cancelRequest(request.id), 'Request cancelled');
+  }
+
+  // -- Password recovery ----------------------------------------------------
+
+  async requestPasswordReset(email: string): Promise<void> {
+    if (!email) {
+      this.host.showToast('Enter your email address first', 'warning');
+      return;
+    }
+    const { error } = await this.client.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    });
+    this.host.showToast(
+      error ? error.message : 'If that email has an account, a reset link is on its way',
+      error ? 'warning' : 'success'
+    );
+  }
+
+  async updatePassword(password: string): Promise<void> {
+    if (password.length < 8) {
+      this.host.showToast('Choose a password of at least 8 characters', 'warning');
+      return;
+    }
+    const { error } = await this.client.auth.updateUser({ password });
+    if (error) {
+      this.host.showToast(error.message, 'warning');
+      return;
+    }
+    this.host.closeModal('authModalOverlay');
+    this.host.showToast('Password updated', 'success');
   }
 }

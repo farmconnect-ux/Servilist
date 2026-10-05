@@ -2,8 +2,10 @@
 import { Listing } from '../types';
 import { formatMoney } from '../money';
 import { validateBid } from '../auctions';
+import { listingActions } from '../domain/marketRules';
 import { createQuote } from '../requests';
 import { createEscrowOrder, transitionEscrow } from '../escrow';
+import * as dashboards from './dashboards';
 import type { ServilistApp } from '../main';
 
 export function placeBid(app: ServilistApp, listingId: string, amountMinor: number) {
@@ -104,6 +106,7 @@ export function acceptQuote(app: ServilistApp, requestId: string, quoteId: strin
     buyerName: currentUser.name,
     buyerId: currentUser.id,
     sellerName: offer.providerName,
+    sellerId: offer.providerId,
     amountMinor: offer.amountMinor,
     currency: offer.currency,
     targetCurrency: app.activeCurrency,
@@ -176,10 +179,62 @@ export function verifyAndReleaseEscrow(app: ServilistApp, orderId: string, otpIn
       app.updateActivityBadges();
       const buyerBody = document.getElementById('buyerDashboardBody');
       if (buyerBody) {
-        app.dashboardManager.renderBuyerDashboard(buyerBody, app.escrowOrders, app.activeCurrency);
+        app.dashboardManager.renderBuyerDashboard(
+          buyerBody,
+          dashboards.buyerOrders(app),
+          app.activeCurrency
+        );
       }
     }
   } else {
     app.showToast(res.error || 'Incorrect OTP code', 'warning');
   }
+}
+
+/** Closes an auction whose time has run out: a sale to the top bidder, or no sale. */
+export function settleAuction(app: ServilistApp, listingId: string) {
+  const item = app.listings.find((l) => l.id === listingId);
+  if (!item) return;
+  if (app.cloud) {
+    void app.cloud.settleAuction(item);
+    return;
+  }
+
+  const sale = listingActions(item, app.authService.getCurrentUser().id).settlement === 'sale';
+  item.status = sale ? 'sold' : 'ended';
+  item.isSold = sale;
+  app.storage.saveListings(app.listings);
+  app.refreshMarketplaceUI();
+  app.openDetailModal(item.id);
+  app.showToast(sale ? 'Auction closed with a sale' : 'Auction closed without a sale', 'info');
+}
+
+export function withdrawListing(app: ServilistApp, listingId: string) {
+  const item = app.listings.find((l) => l.id === listingId);
+  if (!item) return;
+  if (app.cloud) {
+    void app.cloud.withdrawListing(item);
+    return;
+  }
+
+  item.status = 'cancelled';
+  app.storage.saveListings(app.listings);
+  app.closeModal('detailModalOverlay');
+  app.refreshMarketplaceUI();
+  app.showToast('Listing withdrawn', 'info');
+}
+
+export function cancelRequest(app: ServilistApp, requestId: string) {
+  const req = app.requests.find((r) => r.id === requestId);
+  if (!req) return;
+  if (app.cloud) {
+    void app.cloud.cancelRequest(req);
+    return;
+  }
+
+  req.status = 'cancelled';
+  app.storage.saveRequests(app.requests);
+  app.closeModal('detailModalOverlay');
+  app.refreshMarketplaceUI();
+  app.showToast('Request cancelled', 'info');
 }

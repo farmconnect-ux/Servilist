@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+/** Switches the demo identity; members cannot bid on or quote for their own posts. */
+async function switchUser(page, userId) {
+  await page.locator('#userProfilePill').click();
+  await page.locator(`.test-user-card[data-user-id="${userId}"]`).click();
+  await expect(page.locator('#authModalOverlay')).toBeHidden();
+}
+
 test.describe('Servilist Marketplace Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to homepage
@@ -71,8 +78,9 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await expect(auctionCard).toBeVisible();
 
     // -------------------------------------------------------------
-    // Step 2: Bid on the Auction Listing
+    // Step 2: Bid on the Auction Listing (as another member)
     // -------------------------------------------------------------
+    await switchUser(page, 'usr-nairobi-amina');
     await auctionCard.click();
 
     const detailModal = page.locator('#detailModalOverlay');
@@ -140,8 +148,9 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     await expect(requestCard).toBeVisible();
 
     // -------------------------------------------------------------
-    // Step 4: Quote on the Buyer Request
+    // Step 4: Quote on the Buyer Request (as a seller, not the buyer who posted it)
     // -------------------------------------------------------------
+    await switchUser(page, 'usr-lagos-kofi');
     await requestCard.click();
     await expect(detailModal).toBeVisible();
     await expect(page.locator('#detailTitle')).toHaveText(requestTitle);
@@ -167,6 +176,13 @@ test.describe('Servilist Marketplace Smoke Tests', () => {
     // -------------------------------------------------------------
     // Step 5: Accept the Quote into Escrow
     // -------------------------------------------------------------
+    // Only the buyer who posted the request can accept
+    await expect(quoteItem.locator('.btn-detail-accept-quote')).toHaveCount(0);
+    await page.locator('#closeDetailModalBtn').click();
+    await switchUser(page, 'usr-nairobi-amina');
+    await requestCard.click();
+    await expect(quoteItem).toBeVisible();
+
     const acceptOfferBtn = quoteItem.locator('.btn-detail-accept-quote');
     await expect(acceptOfferBtn).toBeVisible();
     await acceptOfferBtn.click();

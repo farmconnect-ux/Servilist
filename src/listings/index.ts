@@ -13,6 +13,8 @@ export interface ListingFilterCriteria {
   fulfillmentCheckboxes?: string[];
   minPriceMinor?: number | null;
   maxPriceMinor?: number | null;
+  /** Currency the price bounds were typed in; listings are converted to it. */
+  priceCurrency?: CurrencyCode;
   searchQuery?: string;
   maxRadiusKm?: number | null;
   userCity?: string;
@@ -97,14 +99,18 @@ export function filterListings(listings: Listing[], filters: ListingFilterCriter
     }
 
     // 8. Price range filter (normalized to minor units)
+    const comparablePrice = filters.priceCurrency
+      ? convertMinor(item.amountMinor, item.currency, filters.priceCurrency)
+      : item.amountMinor;
+
     if (filters.minPriceMinor !== null && filters.minPriceMinor !== undefined) {
-      if (item.amountMinor < filters.minPriceMinor) {
+      if (comparablePrice < filters.minPriceMinor) {
         return false;
       }
     }
 
     if (filters.maxPriceMinor !== null && filters.maxPriceMinor !== undefined) {
-      if (item.amountMinor > filters.maxPriceMinor) {
+      if (comparablePrice > filters.maxPriceMinor) {
         return false;
       }
     }

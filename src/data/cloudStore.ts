@@ -1,6 +1,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AuthUser } from '../auth/authService';
-import type { Bid, BuyerRequest, EscrowOrder, Listing, Quote, UserProfile } from '../types';
+import { safeImageUrl } from '../ui/html';
+import type {
+  Bid,
+  BuyerRequest,
+  CurrencyCode,
+  EscrowOrder,
+  Listing,
+  Message,
+  Quote,
+  UserProfile,
+} from '../types';
 
 // Only the columns other members are allowed to read (see migration 00010).
 const PROFILE_COLUMNS =
@@ -12,6 +22,9 @@ const REQUEST_SELECT = `*, buyer:profiles!buyer_id(${PROFILE_COLUMNS}), quotes(i
 
 const ESCROW_SELECT =
   '*, otp:escrow_otps(otp_code), buyer:profiles!buyer_id(display_name), seller:profiles!seller_id(display_name)';
+
+const MESSAGE_SELECT =
+  'id, listing_id, request_id, sender_id, recipient_id, body, created_at, sender:profiles!sender_id(display_name), recipient:profiles!recipient_id(display_name)';
 
 export const GUEST_USER: AuthUser = {
   id: 'guest',
@@ -91,7 +104,7 @@ export function mapListing(row: any): Listing {
     country: row.country,
     neighborhood: row.neighborhood || undefined,
     fulfillment: row.fulfillment,
-    imageUrl: row.image_url,
+    imageUrl: safeImageUrl(row.image_url),
     description: row.description,
     seller: mapProfile(first(row.seller)),
     bidHistory,
@@ -137,7 +150,7 @@ export function mapRequest(row: any): BuyerRequest {
     country: row.country,
     neighborhood: row.neighborhood || undefined,
     fulfillment: row.fulfillment,
-    imageUrl: row.image_url || undefined,
+    imageUrl: row.image_url ? safeImageUrl(row.image_url) : undefined,
     description: row.description,
     buyer: mapProfile(first(row.buyer)),
     offers,
@@ -167,6 +180,20 @@ export function mapEscrowOrder(row: any): EscrowOrder {
     otpCode: first<any>(row.otp)?.otp_code || '',
     fundedAt: Date.parse(row.funded_at),
     releasedAt: row.released_at ? Date.parse(row.released_at) : undefined,
+  };
+}
+
+export function mapMessage(row: any): Message {
+  return {
+    id: row.id,
+    listingId: row.listing_id || undefined,
+    requestId: row.request_id || undefined,
+    senderId: row.sender_id,
+    recipientId: row.recipient_id,
+    senderName: first<any>(row.sender)?.display_name || 'Member',
+    recipientName: first<any>(row.recipient)?.display_name || 'Member',
+    body: row.body,
+    createdAt: Date.parse(row.created_at),
   };
 }
 
@@ -312,5 +339,64 @@ export class CloudStore {
       await this.client.rpc('confirm_escrow_handover', { p_order_id: orderId, p_otp: otp })
     );
     return order?.status === 'released';
+  }
+
+  async fetchMessages(): Promise<Message[]> {
+    const rows = unwrap<any[]>(
+      await this.client
+        .from('messages')
+        .select(MESSAGE_SELECT)
+        .order('created_at', { ascending: true })
+        .limit(500)
+    );
+    return rows.map(mapMessage);
+  }
+
+  async sendMessage(
+    senderId: string,
+    message: { listingId?: string; requestId?: string; recipientId: string; body: string }
+  ): Promise<void> {
+    unwrap(
+      await this.client.from('messages').insert({
+        sender_id: senderId,
+        recipient_id: message.recipientId,
+        listing_id: message.listingId ?? null,
+        request_id: message.requestId ?? null,
+        body: message.body,
+      })
+    );
+  }
+
+  async settleAuction(listingId: string, safeZone: string): Promise<string> {
+    const listing = unwrap<any>(
+      await this.client.rpc('settle_auction', { p_listing_id: listingId, p_safe_zone: safeZone })
+    );
+    return listing?.status;
+  }
+
+  async withdrawListing(listingId: string): Promise<void> {
+    unwrap(await this.client.from('listings').update({ status: 'cancelled' }).eq('id', listingId));
+  }
+
+  async cancelRequest(requestId: string): Promise<void> {
+    unwrap(
+      await this.client.from('buyer_requests').update({ status: 'cancelled' }).eq('id', requestId)
+    );
+  }
+
+  /** Display rates: units of each currency per 1 USD. */
+  async fetchExchangeRates(): Promise<Partial<Record<CurrencyCode, number>>> {
+    const rows = unwrap<any[]>(
+      await this.client
+        .from('exchange_rates')
+        .select('target_currency, rate')
+        .eq('base_currency', 'USD')
+    );
+    const rates: Partial<Record<CurrencyCode, number>> = {};
+    rows.forEach((r) => {
+      const rate = Number(r.rate);
+      if (rate > 0) rates[r.target_currency as CurrencyCode] = rate;
+    });
+    return rates;
   }
 }

@@ -30,12 +30,11 @@ export function initSyncListener(app: ServilistApp) {
       const { listingId, bid, amountMinor } = msg.payload;
       const item = app.listings.find((l) => l.id === listingId);
       if (item) {
-        item.amountMinor = amountMinor;
-        item.bidsCount = (item.bidsCount || 0) + 1;
         if (!item.bidHistory) item.bidHistory = [];
-        if (!item.bidHistory.some((b) => b.id === bid.id)) {
-          item.bidHistory.unshift(bid);
-        }
+        if (item.bidHistory.some((b) => b.id === bid.id)) return;
+        item.bidHistory.unshift(bid);
+        item.bidsCount = (item.bidsCount || 0) + 1;
+        item.amountMinor = Math.max(item.amountMinor, amountMinor);
         app.storage.saveListings(app.listings);
         app.renderListings();
         if (app.currentListingDetail?.id === listingId) {

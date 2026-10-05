@@ -157,3 +157,15 @@ export interface CityLocation {
   lat: number;
   lng: number;
 }
+
+export interface Message {
+  id: string;
+  listingId?: string;
+  requestId?: string;
+  senderId: string;
+  recipientId: string;
+  senderName: string;
+  recipientName: string;
+  body: string;
+  createdAt: number;
+}

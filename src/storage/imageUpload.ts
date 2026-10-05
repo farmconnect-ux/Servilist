@@ -99,6 +99,7 @@ export async function processAndUploadImage(
 
   // If Supabase Storage is configured, attempt upload to 'listing-images' bucket
   if (supabaseClient && supabaseClient.storage) {
+    let uploadError = '';
     try {
       const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const filePath = `${folder}/${Date.now()}_${sanitizedName}`;
@@ -110,6 +111,7 @@ export async function processAndUploadImage(
           upsert: false,
         });
 
+      if (error) uploadError = error.message;
       if (!error && data?.path) {
         const { data: publicUrlData } = supabaseClient.storage
           .from('listing-images')
@@ -124,9 +126,12 @@ export async function processAndUploadImage(
           };
         }
       }
-    } catch {
-      // Fallback to local data URL if remote upload is unavailable or unauthenticated
+    } catch (err) {
+      uploadError = err instanceof Error ? err.message : 'storage unavailable';
     }
+    throw new Error(
+      `Photo upload failed (${uploadError || 'not allowed'}). Sign in and try again.`
+    );
   }
 
   // Fallback / offline mode returns high-quality thumbnail as image URL

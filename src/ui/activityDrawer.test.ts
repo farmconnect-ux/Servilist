@@ -109,6 +109,7 @@ describe('member activity', () => {
       order('o3', 'a', 'b', ''),
     ],
     watchlistIds: new Set(['l3']),
+    messages: [],
   };
   const view = buildActivityView(data);
 
@@ -120,6 +121,7 @@ describe('member activity', () => {
       my_requests: 1,
       my_quotes: 1,
       orders: 2,
+      messages: 0,
     });
   });
 

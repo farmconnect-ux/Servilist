@@ -1,3 +1,4 @@
+import { escapeHtml } from '../ui/html';
 import {
   BuyerShipment,
   PurchaseReceipt,
@@ -165,7 +166,7 @@ export class BuyerDashboardView {
       <div class="escrow-order-card ${isReleased ? 'order-completed' : 'order-locked'}">
         <div class="escrow-card-top">
           <div class="escrow-meta-left">
-            <span class="escrow-code">${order.orderCode}</span>
+            <span class="escrow-code">${escapeHtml(order.orderCode)}</span>
             <span class="escrow-date">Funded ${new Date(order.fundedAt).toLocaleDateString()}</span>
           </div>
           <div class="escrow-status-pill ${isReleased ? 'status-released' : 'status-held'}">
@@ -174,13 +175,13 @@ export class BuyerDashboardView {
         </div>
 
         <div class="escrow-card-body">
-          <h4 class="escrow-item-title">${order.title}</h4>
+          <h4 class="escrow-item-title">${escapeHtml(order.title)}</h4>
           <div class="escrow-parties-row">
-            <span><strong>Seller:</strong> ${order.sellerName}</span>
+            <span><strong>Seller:</strong> ${escapeHtml(order.sellerName)}</span>
             <span>&bull;</span>
-            <span><strong>Buyer:</strong> ${order.buyerName}</span>
+            <span><strong>Buyer:</strong> ${escapeHtml(order.buyerName)}</span>
             <span>&bull;</span>
-            <span><strong>Safe Zone:</strong> 📍 ${order.safeZone}</span>
+            <span><strong>Safe Zone:</strong> 📍 ${escapeHtml(order.safeZone)}</span>
           </div>
           <div class="escrow-amount-display">${formattedAmount}</div>
         </div>
@@ -189,17 +190,17 @@ export class BuyerDashboardView {
           ${
             isReleased
               ? `<div class="otp-released-notice">
-                  <span>✅ Handover Confirmed: Escrow funds of ${formattedAmount} have been successfully released to ${order.sellerName}.</span>
+                  <span>✅ Handover Confirmed: Escrow funds of ${formattedAmount} have been successfully released to ${escapeHtml(order.sellerName)}.</span>
                 </div>`
               : `<div class="otp-input-flow">
                   <div class="otp-info">
                     <span class="otp-label">Secret Handover OTP (Buyer Key):</span>
-                    <strong class="otp-display-badge">${order.otpCode}</strong>
+                    <strong class="otp-display-badge">${escapeHtml(order.otpCode)}</strong>
                     <span class="otp-sub">Provide this 6-digit code to the courier or seller upon physical handover inspection.</span>
                   </div>
                   <div class="otp-action-row">
-                    <input type="text" class="otp-input-field" placeholder="Enter OTP code" data-order-id="${order.id}" />
-                    <button type="button" class="btn-release-escrow" data-order-id="${order.id}">
+                    <input type="text" class="otp-input-field" placeholder="Enter OTP code" data-order-id="${escapeHtml(order.id)}" />
+                    <button type="button" class="btn-release-escrow" data-order-id="${escapeHtml(order.id)}">
                       Confirm Handover & Release Escrow
                     </button>
                   </div>

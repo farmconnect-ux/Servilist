@@ -38,6 +38,8 @@ export class AccessibleDialog {
   }
 
   public open() {
+    // Re-opening an open dialog must not stack key handlers or lose the element to return focus to
+    if (this.isOpen()) return;
     this.previousActiveElement = document.activeElement as HTMLElement | null;
     this.overlay.style.display = 'flex';
     document.body.style.overflow = 'hidden';

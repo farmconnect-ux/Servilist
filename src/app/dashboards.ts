@@ -1,8 +1,18 @@
 /** Buyer, seller and admin hubs (demo mode) and their metrics. */
 import { convertMinor, formatMoney } from '../money';
 import { BuyerSubTab, SellerSubTab, AdminSubTab } from '../dashboards/types';
-import { PolicyEvaluator } from '../auth/policies';
 import type { ServilistApp } from '../main';
+
+/** Orders the current member is buying; only the buyer may see the handover code. */
+export function buyerOrders(app: ServilistApp) {
+  const userId = app.authService.getCurrentUser().id;
+  return app.escrowOrders.filter((order) => order.buyerId === userId);
+}
+
+export function sellerListings(app: ServilistApp) {
+  const userId = app.authService.getCurrentUser().id;
+  return app.listings.filter((listing) => listing.seller.id === userId);
+}
 
 export function openBuyerDashboard(app: ServilistApp, subTab: BuyerSubTab = 'orders') {
   // The hubs run on sample figures; live members get their real activity instead
@@ -13,11 +23,7 @@ export function openBuyerDashboard(app: ServilistApp, subTab: BuyerSubTab = 'ord
   const body = document.getElementById('buyerDashboardBody');
   if (body) {
     app.dashboardManager.setBuyerSubTab(subTab);
-    const currentUser = app.authService.getCurrentUser();
-    const visibleOrders = app.escrowOrders.filter((order) =>
-      PolicyEvaluator.canReadEscrowOrder(currentUser, order)
-    );
-    app.dashboardManager.renderBuyerDashboard(body, visibleOrders, app.activeCurrency);
+    app.dashboardManager.renderBuyerDashboard(body, buyerOrders(app), app.activeCurrency);
   }
   app.dialogs['buyerDashboardModalOverlay']?.open();
 }
@@ -30,7 +36,7 @@ export function openSellerDashboard(app: ServilistApp, subTab: SellerSubTab = 'a
   const body = document.getElementById('sellerDashboardBody');
   if (body) {
     app.dashboardManager.setSellerSubTab(subTab);
-    app.dashboardManager.renderSellerDashboard(body, app.listings, app.activeCurrency);
+    app.dashboardManager.renderSellerDashboard(body, sellerListings(app), app.activeCurrency);
   }
   app.dialogs['sellerDashboardModalOverlay']?.open();
 }
@@ -68,7 +74,7 @@ export function switchDashboardTab(app: ServilistApp, tab: string) {
 export function renderEscrowOrders(app: ServilistApp) {
   const body = document.getElementById('buyerDashboardBody');
   if (body) {
-    app.dashboardManager.renderBuyerDashboard(body, app.escrowOrders, app.activeCurrency);
+    app.dashboardManager.renderBuyerDashboard(body, buyerOrders(app), app.activeCurrency);
   }
 }
 

@@ -93,8 +93,12 @@ export function convertMinor(
     return amountMinor;
   }
 
-  const fromRate = rates[fromCurrency] || 1;
-  const toRate = rates[toCurrency] || 1;
+  const rateFor = (currency: CurrencyCode) => {
+    const rate = rates[currency];
+    return Number.isFinite(rate) && rate > 0 ? rate : DEFAULT_EXCHANGE_RATES[currency] || 1;
+  };
+  const fromRate = rateFor(fromCurrency);
+  const toRate = rateFor(toCurrency);
 
   const majorAmount = fromMinorUnits(amountMinor, fromCurrency);
   const amountUsd = majorAmount / fromRate;
