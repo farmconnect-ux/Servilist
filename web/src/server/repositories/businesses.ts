@@ -1,189 +1,118 @@
 import "server-only";
 import type { Db } from "@/lib/db/server";
-import type {
-  CreateBusinessProfileInput,
-  UpdateBusinessProfileInput,
-} from "../validators/business";
+import type { BusinessProfileInput } from "../validators/business";
+
+/**
+ * Business pages. Members can read them; the only way to write one is the
+ * database function save_business_profile(), which acts for the signed-in
+ * member (supabase/migrations/00019). A business cannot mark itself verified:
+ * the badge comes from the owner's profile, which only staff can change.
+ */
 
 export interface BusinessProfileRecord {
   id: string;
   ownerId: string;
   businessName: string;
   slug: string;
-  registrationNumber?: string | null;
-  tagline?: string | null;
-  description?: string | null;
-  logoUrl?: string | null;
-  bannerUrl?: string | null;
-  supportEmail?: string | null;
-  supportPhone?: string | null;
-  websiteUrl?: string | null;
-  verifiedTier: "unverified" | "tier_1_identity" | "tier_2_business_cac" | "tier_3_enterprise";
-  returnPolicy?: string | null;
-  operatingHours?: Record<string, string>;
+  registrationNumber: string | null;
+  tagline: string | null;
+  description: string | null;
+  logoUrl: string | null;
+  bannerUrl: string | null;
+  supportEmail: string | null;
+  supportPhone: string | null;
+  websiteUrl: string | null;
+  returnPolicy: string | null;
+  openingHours: string | null;
   isActive: boolean;
   createdAt: string;
-  owner?: {
-    username: string;
+  owner: {
+    username: string | null;
     displayName: string;
     rating: number;
     reviewsCount: number;
     verified: boolean;
-  };
+  } | null;
 }
 
-function generateSlug(name: string): string {
-  const base = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-  const randomSuffix = Math.random().toString(36).substring(2, 6);
-  return `${base || "biz"}-${randomSuffix}`;
+type Row = Record<string, unknown>;
+
+const COLUMNS = `id, owner_id, business_name, slug, registration_number, tagline, description, logo_url,
+  banner_url, support_email, support_phone, website_url, return_policy, opening_hours, is_active, created_at,
+  owner:profiles!owner_id(username, display_name, rating, reviews_count, is_verified)`;
+
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
-function mapBusinessRow(row: any): BusinessProfileRecord {
+function safeUrl(value: unknown): string | null {
+  const url = typeof value === "string" ? value.trim() : "";
+  return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : null;
+}
+
+function mapBusinessRow(row: Row): BusinessProfileRecord {
+  const owner = (Array.isArray(row.owner) ? row.owner[0] : row.owner) as Row | null | undefined;
   return {
-    id: row.id,
-    ownerId: row.owner_id,
-    businessName: row.business_name,
-    slug: row.slug,
-    registrationNumber: row.registration_number,
-    tagline: row.tagline,
-    description: row.description,
-    logoUrl: row.logo_url,
-    bannerUrl: row.banner_url,
-    supportEmail: row.support_email,
-    supportPhone: row.support_phone,
-    websiteUrl: row.website_url,
-    verifiedTier: row.verified_tier || "unverified",
-    returnPolicy: row.return_policy,
-    operatingHours: row.operating_hours || {},
+    id: String(row.id),
+    ownerId: String(row.owner_id),
+    businessName: String(row.business_name),
+    slug: String(row.slug),
+    registrationNumber: text(row.registration_number),
+    tagline: text(row.tagline),
+    description: text(row.description),
+    logoUrl: safeUrl(row.logo_url),
+    bannerUrl: safeUrl(row.banner_url),
+    supportEmail: text(row.support_email),
+    supportPhone: text(row.support_phone),
+    websiteUrl: safeUrl(row.website_url),
+    returnPolicy: text(row.return_policy),
+    openingHours: text(row.opening_hours),
     isActive: Boolean(row.is_active),
-    createdAt: row.created_at,
-    owner: row.owner
+    createdAt: String(row.created_at),
+    owner: owner
       ? {
-          username: row.owner.username,
-          displayName: row.owner.display_name,
-          rating: Number(row.owner.rating || 0),
-          reviewsCount: Number(row.owner.reviews_count || 0),
-          verified: Boolean(row.owner.is_verified),
+          username: text(owner.username),
+          displayName: String(owner.display_name ?? "Seller"),
+          rating: Number(owner.rating ?? 0),
+          reviewsCount: Number(owner.reviews_count ?? 0),
+          verified: Boolean(owner.is_verified),
         }
-      : undefined,
+      : null,
   };
 }
 
-export async function createBusinessProfile(
-  db: Db,
-  ownerId: string,
-  input: CreateBusinessProfileInput,
-): Promise<BusinessProfileRecord> {
-  const slug = generateSlug(input.businessName);
-
-  const { data, error } = await db
-    .from("business_profiles")
-    .insert({
-      owner_id: ownerId,
-      business_name: input.businessName,
-      slug,
-      registration_number: input.registrationNumber || null,
-      tagline: input.tagline || null,
-      description: input.description || null,
-      logo_url: input.logoUrl || null,
-      banner_url: input.bannerUrl || null,
-      support_email: input.supportEmail || null,
-      support_phone: input.supportPhone || null,
-      website_url: input.websiteUrl || null,
-      return_policy: input.returnPolicy || null,
-      operating_hours: input.operatingHours || {},
-      verified_tier: input.registrationNumber ? "tier_2_business_cac" : "tier_1_identity",
-    })
-    .select(
-      `
-      *,
-      owner:profiles!owner_id(username, display_name, rating, reviews_count, is_verified)
-    `,
-    )
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to create business profile: ${error.message}`);
-  }
-
-  return mapBusinessRow(data);
-}
-
-export async function getBusinessBySlug(
-  db: Db,
-  slug: string,
-): Promise<BusinessProfileRecord | null> {
-  const { data, error } = await db
-    .from("business_profiles")
-    .select(
-      `
-      *,
-      owner:profiles!owner_id(username, display_name, rating, reviews_count, is_verified)
-    `,
-    )
-    .eq("slug", slug)
-    .maybeSingle();
-
+/** Row-level security returns a suspended page only to its owner and to staff. */
+export async function getBusinessBySlug(db: Db, slug: string): Promise<BusinessProfileRecord | null> {
+  const { data, error } = await db.from("business_profiles").select(COLUMNS).eq("slug", slug).maybeSingle();
   if (error || !data) return null;
-  return mapBusinessRow(data);
+  return mapBusinessRow(data as Row);
 }
 
-export async function getBusinessByOwnerId(
-  db: Db,
-  ownerId: string,
-): Promise<BusinessProfileRecord | null> {
+export async function getBusinessByOwnerId(db: Db, ownerId: string): Promise<BusinessProfileRecord | null> {
   const { data, error } = await db
     .from("business_profiles")
-    .select(
-      `
-      *,
-      owner:profiles!owner_id(username, display_name, rating, reviews_count, is_verified)
-    `,
-    )
+    .select(COLUMNS)
     .eq("owner_id", ownerId)
     .maybeSingle();
-
   if (error || !data) return null;
-  return mapBusinessRow(data);
+  return mapBusinessRow(data as Row);
 }
 
-export async function updateBusinessProfile(
-  db: Db,
-  ownerId: string,
-  input: UpdateBusinessProfileInput,
-): Promise<BusinessProfileRecord> {
-  const updateData: any = { updated_at: new Date().toISOString() };
-  if (input.businessName !== undefined) updateData.business_name = input.businessName;
-  if (input.registrationNumber !== undefined) updateData.registration_number = input.registrationNumber;
-  if (input.tagline !== undefined) updateData.tagline = input.tagline;
-  if (input.description !== undefined) updateData.description = input.description;
-  if (input.logoUrl !== undefined) updateData.logo_url = input.logoUrl;
-  if (input.bannerUrl !== undefined) updateData.banner_url = input.bannerUrl;
-  if (input.supportEmail !== undefined) updateData.support_email = input.supportEmail;
-  if (input.supportPhone !== undefined) updateData.support_phone = input.supportPhone;
-  if (input.websiteUrl !== undefined) updateData.website_url = input.websiteUrl;
-  if (input.returnPolicy !== undefined) updateData.return_policy = input.returnPolicy;
-  if (input.operatingHours !== undefined) updateData.operating_hours = input.operatingHours;
-
-  const { data, error } = await db
-    .from("business_profiles")
-    .update(updateData)
-    .eq("owner_id", ownerId)
-    .select(
-      `
-      *,
-      owner:profiles!owner_id(username, display_name, rating, reviews_count, is_verified)
-    `,
-    )
-    .single();
-
-  if (error) {
-    throw new Error(`Failed to update business profile: ${error.message}`);
-  }
-
-  return mapBusinessRow(data);
+/** Create the signed-in member's business page, or update the one they have. */
+export async function saveBusinessProfile(db: Db, input: BusinessProfileInput): Promise<{ slug: string }> {
+  const { data, error } = await db.rpc("save_business_profile", {
+    p_business_name: input.businessName,
+    p_tagline: input.tagline ?? null,
+    p_description: input.description ?? null,
+    p_logo_url: input.logoUrl ?? null,
+    p_banner_url: input.bannerUrl ?? null,
+    p_support_email: input.supportEmail ?? null,
+    p_support_phone: input.supportPhone ?? null,
+    p_website_url: input.websiteUrl ?? null,
+    p_return_policy: input.returnPolicy ?? null,
+    p_opening_hours: input.openingHours ?? null,
+    p_registration_number: input.registrationNumber ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return { slug: String((data as Row | null)?.slug ?? "") };
 }

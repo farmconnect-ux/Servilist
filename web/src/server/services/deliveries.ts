@@ -1,70 +1,64 @@
 import "server-only";
 import { createDb } from "@/lib/db/server";
+import { isUuid } from "@/lib/ids";
+import type { SessionUser } from "@/server/auth/session";
+import { canParticipate } from "@/server/policies/access";
 import {
-  DispatchDeliverySchema,
-  AddTrackingEventSchema,
-  type DispatchDeliveryInput,
-  type AddTrackingEventInput,
-} from "../validators/business";
-import {
-  createOrUpdateDelivery,
+  addDeliveryUpdate,
   getDeliveryByOrderId,
-  addTrackingEvent,
+  recordDispatch,
   type DeliveryRecord,
 } from "../repositories/deliveries";
-import { getOrderById } from "../repositories/orders";
+import { DeliveryUpdateSchema, DispatchSchema } from "../validators/business";
+import { fail, ok, type Result } from "./result";
 
-export async function dispatchOrderDeliveryAction(
-  sellerId: string,
-  orderId: string,
-  rawInput: DispatchDeliveryInput,
-): Promise<DeliveryRecord> {
-  const input = DispatchDeliverySchema.parse(rawInput);
-  const db = await createDb();
+/**
+ * Delivery workflows. The database checks that the caller is the order's
+ * seller, that the buyer chose delivery, and that steps only move forward.
+ */
 
-  const order = await getOrderById(db, orderId);
-  if (!order) {
-    throw new Error("Order not found");
-  }
-  if (order.sellerId !== sellerId) {
-    throw new Error("Only the order seller can dispatch delivery");
-  }
-
-  return createOrUpdateDelivery(db, orderId, input);
+function reason(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
 }
 
-export async function getOrderDeliveryAction(
-  userId: string,
-  orderId: string,
-): Promise<DeliveryRecord | null> {
-  const db = await createDb();
-
-  const order = await getOrderById(db, orderId);
-  if (!order) {
-    throw new Error("Order not found");
-  }
-  if (order.buyerId !== userId && order.sellerId !== userId) {
-    throw new Error("You do not have permission to view delivery for this order");
-  }
-
-  return getDeliveryByOrderId(db, orderId);
+/** Row-level security returns a delivery only to the order's buyer, its seller or staff. */
+export async function getOrderDeliveryAction(orderId: string): Promise<Result<DeliveryRecord | null>> {
+  if (!isUuid(orderId)) return fail("NOT_FOUND", "Order not found");
+  return ok(await getDeliveryByOrderId(await createDb(), orderId));
 }
 
-export async function updateDeliveryTrackingAction(
-  sellerId: string,
+export async function dispatchOrderAction(
+  user: SessionUser,
   orderId: string,
-  rawInput: AddTrackingEventInput,
-): Promise<DeliveryRecord> {
-  const input = AddTrackingEventSchema.parse(rawInput);
-  const db = await createDb();
-
-  const order = await getOrderById(db, orderId);
-  if (!order) {
-    throw new Error("Order not found");
+  rawInput: unknown,
+): Promise<Result<{ dispatched: true }>> {
+  if (!canParticipate(user)) return fail("FORBIDDEN", "Your account is restricted.");
+  if (!isUuid(orderId)) return fail("NOT_FOUND", "Order not found");
+  const parsed = DispatchSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Check the delivery details");
   }
-  if (order.sellerId !== sellerId) {
-    throw new Error("Only the order seller can update tracking status");
+  try {
+    await recordDispatch(await createDb(), orderId, parsed.data);
+    return ok({ dispatched: true });
+  } catch (err) {
+    return fail("DELIVERY_REFUSED", reason(err, "The order could not be dispatched."));
   }
+}
 
-  return addTrackingEvent(db, orderId, input);
+export async function updateDeliveryAction(
+  user: SessionUser,
+  orderId: string,
+  rawInput: unknown,
+): Promise<Result<{ updated: true }>> {
+  if (!canParticipate(user)) return fail("FORBIDDEN", "Your account is restricted.");
+  if (!isUuid(orderId)) return fail("NOT_FOUND", "Order not found");
+  const parsed = DeliveryUpdateSchema.safeParse(rawInput);
+  if (!parsed.success) return fail("VALIDATION_ERROR", "Choose the next delivery step");
+  try {
+    await addDeliveryUpdate(await createDb(), orderId, parsed.data);
+    return ok({ updated: true });
+  } catch (err) {
+    return fail("DELIVERY_REFUSED", reason(err, "The delivery could not be updated."));
+  }
 }

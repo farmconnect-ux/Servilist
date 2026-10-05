@@ -5,7 +5,7 @@ import { CreateListingSchema } from "../server/validators/listing";
 import { CreateRequestSchema, CreateQuoteSchema } from "../server/validators/request";
 import { CreateOfferSchema, RespondOfferSchema } from "../server/validators/offer";
 import { CreateOrderSchema } from "../server/validators/order";
-import { DispatchDeliverySchema, AddTrackingEventSchema } from "../server/validators/business";
+import { DispatchSchema, DeliveryUpdateSchema } from "../server/validators/business";
 import { CreateReviewSchema } from "../server/validators/moderation";
 import { CreateAuctionSchema, PlaceBidSchema } from "../server/validators/auction";
 
@@ -137,21 +137,20 @@ describe("E2E Marketplace Multi-Party Workflow", () => {
     expect(wrongHash).not.toBe(hash);
   });
 
-  it("Step 7: Courier delivery dispatch & tracking event progression", () => {
+  it("Step 7: Seller dispatches the order and reports delivery progress", () => {
     const dispatchInput = {
-      courierProvider: "gig_logistics" as const,
+      carrierName: "GIG Logistics",
       trackingCode: "GIG-LG-98214",
       estimatedDeliveryAt: new Date(Date.now() + 86400000).toISOString(),
     };
-    const parsedDispatch = DispatchDeliverySchema.safeParse(dispatchInput);
+    const parsedDispatch = DispatchSchema.safeParse(dispatchInput);
     expect(parsedDispatch.success).toBe(true);
 
     const trackingEvent = {
       status: "in_transit" as const,
-      location: "Victoria Island Sorting Center",
-      description: "Package onboard with delivery courier",
+      note: "Package onboard with delivery courier",
     };
-    const parsedEvent = AddTrackingEventSchema.safeParse(trackingEvent);
+    const parsedEvent = DeliveryUpdateSchema.safeParse(trackingEvent);
     expect(parsedEvent.success).toBe(true);
   });
 

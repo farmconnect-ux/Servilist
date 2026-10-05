@@ -1,29 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getSessionUser } from "@/server/auth/session";
-import { updateDeliveryTrackingAction } from "@/server/services/deliveries";
+import { updateDeliveryAction } from "@/server/services/deliveries";
 
-export async function POST(
-  req: NextRequest,
-  props: { params: Promise<{ id: string }> },
-) {
-  try {
-    const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: { code: "UNAUTHORIZED", message: "Login required" } },
-        { status: 401 },
-      );
-    }
-
-    const { id } = await props.params;
-    const body = await req.json();
-
-    const delivery = await updateDeliveryTrackingAction(user.userId, id, body);
-    return NextResponse.json({ success: true, data: delivery });
-  } catch (error: any) {
+/** The seller reports the next delivery step. Steps only move forward. */
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getSessionUser();
+  if (!user) {
     return NextResponse.json(
-      { success: false, error: { code: "TRACKING_UPDATE_FAILED", message: error.message } },
-      { status: 400 },
+      { success: false, error: { code: "AUTH_REQUIRED", message: "Sign in required" } },
+      { status: 401 },
     );
   }
+  const body = await request.json().catch(() => null);
+  const result = await updateDeliveryAction(user, (await params).id, body);
+  if (!result.ok) {
+    return NextResponse.json(
+      { success: false, error: { code: result.code, message: result.error } },
+      { status: result.code === "FORBIDDEN" ? 403 : result.code === "NOT_FOUND" ? 404 : 400 },
+    );
+  }
+  return NextResponse.json({ success: true, data: result.data });
 }

@@ -1,50 +1,56 @@
-import { describe, it, expect } from "vitest";
-import {
-  CreateBusinessProfileSchema,
-  DispatchDeliverySchema,
-  AddTrackingEventSchema,
-} from "./business";
+import { describe, expect, it } from "vitest";
+import { BusinessProfileSchema, DeliveryUpdateSchema, DispatchSchema } from "./business";
 
-describe("Business & Delivery Validators", () => {
-  describe("CreateBusinessProfileSchema", () => {
-    it("validates valid business registration details", () => {
-      const parsed = CreateBusinessProfileSchema.safeParse({
-        businessName: "Lekki Solar Tech Ltd",
-        registrationNumber: "RC-1299841",
-        tagline: "Leading commercial solar installations across Nigeria",
-        supportEmail: "support@lekkisolar.ng",
-        websiteUrl: "https://lekkisolar.ng",
-      });
-      expect(parsed.success).toBe(true);
+describe("business page validator", () => {
+  it("accepts a name alone and drops empty optional fields", () => {
+    const parsed = BusinessProfileSchema.safeParse({
+      businessName: "  Ade Stores  ",
+      tagline: "",
+      websiteUrl: "",
+      supportEmail: "",
     });
-
-    it("rejects invalid email or empty business name", () => {
-      const parsed = CreateBusinessProfileSchema.safeParse({
-        businessName: "",
-        supportEmail: "not-an-email",
-      });
-      expect(parsed.success).toBe(false);
-    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.businessName).toBe("Ade Stores");
+      expect(parsed.data.tagline).toBeUndefined();
+      expect(parsed.data.websiteUrl).toBeUndefined();
+      expect(parsed.data.supportEmail).toBeUndefined();
+    }
   });
 
-  describe("DispatchDeliverySchema", () => {
-    it("validates courier dispatch details", () => {
-      const parsed = DispatchDeliverySchema.safeParse({
-        courierProvider: "gig_logistics",
-        trackingCode: "GIG-LAG-92841",
-      });
-      expect(parsed.success).toBe(true);
-    });
+  it("rejects a missing name, a bad email and a bad phone number", () => {
+    expect(BusinessProfileSchema.safeParse({ businessName: "" }).success).toBe(false);
+    expect(BusinessProfileSchema.safeParse({ businessName: "Ade", supportEmail: "nope" }).success).toBe(false);
+    expect(BusinessProfileSchema.safeParse({ businessName: "Ade", supportPhone: "call me" }).success).toBe(false);
   });
 
-  describe("AddTrackingEventSchema", () => {
-    it("validates delivery tracking progress events", () => {
-      const parsed = AddTrackingEventSchema.safeParse({
-        status: "in_transit",
-        location: "Ikeja Dispatch Hub",
-        description: "Package sorted and assigned to delivery driver",
-      });
-      expect(parsed.success).toBe(true);
-    });
+  it("only accepts https web addresses", () => {
+    for (const websiteUrl of ["http://example.com", "javascript:alert(1)", "example.com"]) {
+      expect(BusinessProfileSchema.safeParse({ businessName: "Ade", websiteUrl }).success, websiteUrl).toBe(false);
+    }
+    expect(
+      BusinessProfileSchema.safeParse({ businessName: "Ade", websiteUrl: "https://example.com" }).success,
+    ).toBe(true);
+  });
+
+  it("has no way to set a verified status", () => {
+    const parsed = BusinessProfileSchema.safeParse({ businessName: "Ade", verifiedTier: "tier_3_enterprise" });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data).not.toHaveProperty("verifiedTier");
+  });
+});
+
+describe("delivery validators", () => {
+  it("needs a carrier to dispatch", () => {
+    expect(DispatchSchema.safeParse({ carrierName: "" }).success).toBe(false);
+    expect(DispatchSchema.safeParse({ carrierName: "Rider: Tunde", trackingCode: "WB-1" }).success).toBe(true);
+  });
+
+  it("accepts only the steps after dispatch", () => {
+    expect(DeliveryUpdateSchema.safeParse({ status: "in_transit" }).success).toBe(true);
+    expect(DeliveryUpdateSchema.safeParse({ status: "delivered" }).success).toBe(true);
+    for (const status of ["dispatched", "completed", "returned", ""]) {
+      expect(DeliveryUpdateSchema.safeParse({ status }).success, status).toBe(false);
+    }
   });
 });

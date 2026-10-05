@@ -10,6 +10,7 @@ import { isReleased } from "@/lib/release";
 import { getDeliveryByOrderId } from "@/server/repositories/deliveries";
 import { formatMoney } from "@/lib/money";
 import { Card } from "@/components/ui/card";
+import { DeliveryClient } from "@/components/marketplace/DeliveryClient";
 import { OrderTrackingClient } from "@/components/marketplace/OrderTrackingClient";
 import { ReviewForm } from "@/components/marketplace/TrustActions";
 import { hasReviewedOrder } from "@/server/repositories/moderation";
@@ -64,10 +65,9 @@ export default async function DashboardOrderDetailPage({
     notFound();
   }
 
-  // Courier tracking belongs to Sprint 8 and stays switched off until it is verified
-  const delivery = isReleased(`/api/v1/orders/${id}/delivery`)
-    ? await getDeliveryByOrderId(db, id)
-    : null;
+  // Only orders the buyer asked to have delivered carry delivery details
+  const deliveryOpen = order.fulfillmentType === "delivery" && isReleased(`/api/v1/orders/${id}/delivery`);
+  const delivery = deliveryOpen ? await getDeliveryByOrderId(db, id) : null;
   const handoverCode = await getHandoverCode(db, id);
 
   const isBuyer = order.buyerId === user.userId;
@@ -131,6 +131,15 @@ export default async function DashboardOrderDetailPage({
             disputesOpen={isReleased(`/api/v1/orders/${id}/dispute`)}
           />
 
+          {deliveryOpen && !["cancelled", "refunded"].includes(order.status) ? (
+            <DeliveryClient
+              orderId={order.id}
+              delivery={delivery}
+              isSeller={isSeller}
+              orderStatus={order.status}
+            />
+          ) : null}
+
           {canReview && (
             <Card className="p-6">
               <ReviewForm
@@ -177,47 +186,6 @@ export default async function DashboardOrderDetailPage({
             </Card>
           )}
 
-          {/* Courier Delivery Tracking */}
-          {delivery && (
-            <Card className="p-6">
-              <div className="flex items-center justify-between border-b pb-3">
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-                    Courier Tracking ({delivery.courierProvider.replace("_", " ").toUpperCase()})
-                  </h3>
-                  {delivery.trackingCode && (
-                    <p className="font-mono text-xs font-bold text-accent-600 mt-0.5">
-                      Waybill: {delivery.trackingCode}
-                    </p>
-                  )}
-                </div>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase bg-surface-muted text-ink">
-                  {delivery.status.replace("_", " ")}
-                </span>
-              </div>
-
-              {/* Tracking timeline */}
-              <div className="mt-4 space-y-3">
-                {delivery.trackingEvents.map((evt, idx) => (
-                  <div key={idx} className="flex gap-3 text-xs">
-                    <div className="flex flex-col items-center">
-                      <span className="h-2 w-2 rounded-full bg-accent-600" />
-                      {idx < delivery.trackingEvents.length - 1 && (
-                        <span className="w-0.5 flex-1 bg-line my-1" />
-                      )}
-                    </div>
-                    <div className="flex-1 pb-2">
-                      <p className="font-semibold text-ink">{evt.description}</p>
-                      {evt.location && <p className="text-[11px] text-muted">{evt.location}</p>}
-                      <p className="text-[10px] text-disabled">
-                        {new Date(evt.timestamp).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
         </div>
 
         {/* Financial Summary & Participants Sidebar (1 col) */}

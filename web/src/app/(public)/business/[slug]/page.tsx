@@ -1,209 +1,232 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { formatMoney } from "@/lib/money";
-import { getBusinessStorefrontAction } from "@/server/services/businesses";
+import { Clock, Globe, Mail, Phone } from "lucide-react";
+import { ListingCard, Rating } from "@/components/marketplace/cards";
+import { ButtonLink } from "@/components/ui/button";
+import { Badge, Card, EmptyState, VerifiedBadge } from "@/components/ui/card";
+import { createDb } from "@/lib/db/server";
+import { getSessionUser } from "@/server/auth/session";
+import { getBusinessBySlug } from "@/server/repositories/businesses";
+import { listListingsBySeller } from "@/server/repositories/listings";
 
-export const dynamic = "force-dynamic";
+/**
+ * Business page (docs/UI_UX_SPEC.md sections 46 and 77): who the business is,
+ * how to reach it, its policies and what it sells. The verified badge is the
+ * owner's, set by Servilist staff; a business cannot give it to itself.
+ */
 
-export default async function BusinessStorefrontPage(props: {
+function safeImage(value: unknown): string | null {
+  const url = typeof value === "string" ? value.trim() : "";
+  return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : null;
+}
+
+async function load(slug: string) {
+  if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
+  const db = await createDb();
+  const business = await getBusinessBySlug(db, slug);
+  return business ? { db, business } : null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
   params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await props.params;
-  const storefront = await getBusinessStorefrontAction(slug);
-
-  if (!storefront) {
-    notFound();
-  }
-
-  const { business, listings } = storefront;
-
-  const tierLabels: Record<string, { label: string; color: string }> = {
-    unverified: { label: "Standard Merchant", color: "bg-surface-muted text-ink-soft" },
-    tier_1_identity: { label: "Identity Verified", color: "bg-info-soft text-info" },
-    tier_2_business_cac: { label: "CAC Verified Business", color: "bg-primary-100 text-primary-800" },
-    tier_3_enterprise: { label: "Enterprise Verified", color: "bg-info-soft text-info" },
+}): Promise<Metadata> {
+  const found = await load((await params).slug);
+  if (!found) return { title: "Business not found" };
+  const { business } = found;
+  return {
+    title: business.businessName,
+    description:
+      (business.tagline ?? business.description ?? "").slice(0, 160) ||
+      `${business.businessName} on Servilist.`,
+    alternates: { canonical: `/business/${business.slug}` },
   };
+}
 
-  const tier = tierLabels[business.verifiedTier] || tierLabels.unverified;
+export default async function BusinessPage({ params }: { params: Promise<{ slug: string }> }) {
+  const found = await load((await params).slug);
+  if (!found) notFound();
+  const { db, business } = found;
+
+  const [viewer, allListings] = await Promise.all([
+    getSessionUser(),
+    listListingsBySeller(db, business.ownerId),
+  ]);
+  const listings = allListings.filter((listing) => listing.status === "active").slice(0, 24);
+  const isOwner = viewer?.userId === business.ownerId;
+  const owner = business.owner;
+
+  const contacts = [
+    business.supportPhone
+      ? { icon: Phone, label: "Phone", value: business.supportPhone, href: `tel:${business.supportPhone.replace(/[^+\d]/g, "")}` }
+      : null,
+    business.supportEmail
+      ? { icon: Mail, label: "Email", value: business.supportEmail, href: `mailto:${business.supportEmail}` }
+      : null,
+    business.websiteUrl
+      ? { icon: Globe, label: "Website", value: business.websiteUrl.replace(/^https:\/\//, ""), href: business.websiteUrl }
+      : null,
+  ].filter((item) => item !== null);
 
   return (
-    <div className="min-h-screen bg-surface-muted pb-16">
-      {/* Banner */}
-      <div className="relative h-48 w-full bg-ink md:h-64 overflow-hidden">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 md:px-5 lg:px-6">
+      {!business.isActive ? (
+        <p role="status" className="rounded-input bg-danger-soft p-3 text-sm font-medium text-danger">
+          This business page has been suspended and is hidden from buyers.
+        </p>
+      ) : null}
+
+      <Card className="overflow-hidden">
         {business.bannerUrl ? (
-          <img
-            src={business.bannerUrl}
-            alt={business.businessName}
-            className="h-full w-full object-cover opacity-80"
-          />
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={business.bannerUrl} alt="" className="h-32 w-full object-cover md:h-48" />
         ) : (
-          <div className="h-full w-full bg-gradient-to-r from-ink via-ink to-accent-600 opacity-90" />
+          <div className="h-20 w-full bg-primary-50 md:h-28" aria-hidden="true" />
         )}
-      </div>
-
-      {/* Profile Header Container */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="relative -mt-20 rounded-2xl border border-line bg-surface p-6 shadow-sm md:p-8">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-              {/* Logo */}
-              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl border-2 border-surface bg-ink text-3xl font-bold text-white shadow-md overflow-hidden">
-                {business.logoUrl ? (
-                  <img
-                    src={business.logoUrl}
-                    alt={business.businessName}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  business.businessName.charAt(0)
-                )}
-              </div>
-
-              {/* Details */}
-              <div>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <h1 className="text-2xl font-bold tracking-tight text-ink">
-                    {business.businessName}
-                  </h1>
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${tier.color}`}
-                  >
-                    ✓ {tier.label}
-                  </span>
-                </div>
-
-                {business.tagline && (
-                  <p className="mt-1 text-sm text-ink-soft font-medium">
-                    {business.tagline}
-                  </p>
-                )}
-
-                {business.registrationNumber && (
-                  <p className="mt-1 text-xs text-muted font-mono">
-                    CAC Reg: {business.registrationNumber}
-                  </p>
-                )}
-
-                <div className="mt-3 flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs text-muted">
-                  {business.supportEmail && (
-                    <a
-                      href={`mailto:${business.supportEmail}`}
-                      className="hover:text-ink flex items-center gap-1"
-                    >
-                      {business.supportEmail}
-                    </a>
-                  )}
-                  {business.supportPhone && (
-                    <a
-                      href={`tel:${business.supportPhone}`}
-                      className="hover:text-ink flex items-center gap-1"
-                    >
-                      {business.supportPhone}
-                    </a>
-                  )}
-                  {business.websiteUrl && (
-                    <a
-                      href={business.websiteUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-accent-600 hover:underline flex items-center gap-1 font-medium"
-                    >
-                      Visit Website                     </a>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Seller Reputation summary */}
-            {business.owner && (
-              <div className="rounded-xl bg-surface-muted p-4 text-center sm:text-right shrink-0">
-                <div className="text-xs text-muted font-medium">Seller Rating</div>
-                <div className="text-xl font-bold text-ink">
-                  ★ {business.owner.rating ? business.owner.rating.toFixed(1) : "5.0"}
-                </div>
-                <div className="text-[11px] text-muted">
-                  {business.owner.reviewsCount} verified reviews
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Description & Policies */}
-          {(business.description || business.returnPolicy) && (
-            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-line pt-6 text-xs text-ink-soft">
-              {business.description && (
-                <div>
-                  <h3 className="font-semibold text-ink mb-1">About Us</h3>
-                  <p className="leading-relaxed">{business.description}</p>
-                </div>
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+          <div className="flex items-start gap-4">
+            <span className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-card border border-line bg-surface text-xl font-semibold text-primary-800">
+              {business.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={business.logoUrl} alt="" className="size-full object-cover" />
+              ) : (
+                business.businessName.slice(0, 2).toUpperCase()
               )}
-              {business.returnPolicy && (
-                <div>
-                  <h3 className="font-semibold text-ink mb-1">Return & Refund Policy</h3>
-                  <p className="leading-relaxed">{business.returnPolicy}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Storefront Catalog Section */}
-        <div className="mt-12">
-          <div className="flex items-center justify-between border-b border-line pb-4">
-            <h2 className="text-xl font-bold text-ink">
-              Storefront Catalog ({listings.length})
-            </h2>
-            <span className="text-xs text-muted font-medium">
-              Verified Merchant Products
             </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-[28px] leading-tight font-bold text-ink">{business.businessName}</h1>
+                {owner?.verified ? <VerifiedBadge /> : null}
+                <Badge tone="neutral">Business</Badge>
+              </div>
+              {business.tagline ? <p className="mt-1 text-base text-ink-soft">{business.tagline}</p> : null}
+              <div className="mt-2">
+                {owner && owner.reviewsCount > 0 ? (
+                  <Rating value={owner.rating} count={owner.reviewsCount} />
+                ) : (
+                  <p className="text-xs text-muted">No reviews yet</p>
+                )}
+              </div>
+            </div>
           </div>
-
-          {listings.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-line-strong p-12 text-center">
-              <p className="text-sm text-muted">
-                No active listings published in this storefront yet.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {listings.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/products/${item.slug}`}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition hover:shadow-md"
-                >
-                  <div className="aspect-square w-full bg-surface-muted overflow-hidden">
-                    <img
-                      src={
-                        item.image_url ||
-                        "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
-                      }
-                      alt={item.title}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex flex-1 flex-col p-4">
-                    <span className="text-[10px] font-semibold text-disabled uppercase tracking-wide">
-                      {item.category}
-                    </span>
-                    <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-ink group-hover:text-accent-600">
-                      {item.title}
-                    </h3>
-                    <div className="mt-4 flex items-center justify-between border-t border-line pt-3">
-                      <span className="text-base font-bold text-ink">
-                        {formatMoney(item.amount_minor, item.currency)}
-                      </span>
-                      <span className="text-[10px] font-medium text-muted capitalize">
-                        {item.condition?.replace("_", " ")}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-col gap-2 sm:items-end">
+            {isOwner ? (
+              <ButtonLink href="/dashboard/business" variant="secondary">
+                Edit business page
+              </ButtonLink>
+            ) : null}
+            {owner?.username ? (
+              <ButtonLink href={`/seller/${owner.username}`} variant="secondary">
+                Seller profile and reviews
+              </ButtonLink>
+            ) : null}
+          </div>
         </div>
+      </Card>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <div className="flex flex-col gap-8">
+          {business.description ? (
+            <section aria-labelledby="about-title" className="flex flex-col gap-3">
+              <h2 id="about-title" className="text-xl font-semibold text-ink md:text-2xl">
+                About
+              </h2>
+              <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink-soft md:text-base">
+                {business.description}
+              </p>
+            </section>
+          ) : null}
+          {business.returnPolicy ? (
+            <section aria-labelledby="returns-title" className="flex flex-col gap-3">
+              <h2 id="returns-title" className="text-xl font-semibold text-ink md:text-2xl">
+                Return policy
+              </h2>
+              <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink-soft md:text-base">
+                {business.returnPolicy}
+              </p>
+            </section>
+          ) : null}
+        </div>
+
+        <Card className="flex h-fit flex-col gap-3 p-4">
+          <h2 className="text-sm font-semibold text-muted">Contact and details</h2>
+          {contacts.length > 0 ? (
+            <ul className="flex flex-col">
+              {contacts.map((item) => (
+                <li key={item.label}>
+                  <a
+                    href={item.href}
+                    rel={item.label === "Website" ? "noopener noreferrer nofollow" : undefined}
+                    target={item.label === "Website" ? "_blank" : undefined}
+                    className="flex min-h-11 items-center gap-3 text-sm text-ink hover:text-primary-700"
+                  >
+                    <item.icon className="size-4 shrink-0 text-muted" aria-hidden="true" />
+                    <span className="sr-only">{item.label}: </span>
+                    <span className="break-all">{item.value}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">Contact this business through a listing&apos;s message button.</p>
+          )}
+          {business.openingHours ? (
+            <p className="flex items-start gap-3 text-sm text-ink-soft">
+              <Clock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+              <span>{business.openingHours}</span>
+            </p>
+          ) : null}
+          {business.registrationNumber ? (
+            <p className="border-t border-line pt-3 text-sm text-ink-soft">
+              Registration number: <span className="font-medium text-ink">{business.registrationNumber}</span>
+              <span className="block text-xs text-muted">Given by the business. Not checked by Servilist.</span>
+            </p>
+          ) : null}
+          <p className="text-xs text-muted">
+            On Servilist since{" "}
+            {new Date(business.createdAt).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
+          </p>
+        </Card>
       </div>
-    </div>
+
+      <section aria-labelledby="listings-title" className="flex flex-col gap-4">
+        <h2 id="listings-title" className="text-xl font-semibold text-ink md:text-2xl">
+          Listings
+        </h2>
+        {listings.length > 0 ? (
+          <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {listings.map((item) => (
+              <li key={item.id}>
+                <ListingCard
+                  listing={{
+                    id: item.id,
+                    slug: item.slug,
+                    title: item.title,
+                    category: item.category,
+                    format: item.format === "auction" ? "auction" : "buy_now",
+                    currency: item.currency,
+                    amountMinor: item.amountMinor,
+                    bidsCount: item.bidsCount,
+                    auctionEndsAt: null,
+                    city: item.city,
+                    imageUrl: safeImage(item.imageUrl),
+                    createdAt: item.createdAt,
+                    seller: item.seller,
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState
+            title="No listings yet"
+            action={isOwner ? <ButtonLink href="/sell">Sell an item</ButtonLink> : undefined}
+          >
+            {isOwner ? "Your listings will appear here." : "This business has nothing listed right now."}
+          </EmptyState>
+        )}
+      </section>
+    </main>
   );
 }

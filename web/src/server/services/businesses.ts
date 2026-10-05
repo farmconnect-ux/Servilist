@@ -1,62 +1,43 @@
 import "server-only";
 import { createDb } from "@/lib/db/server";
+import type { SessionUser } from "@/server/auth/session";
+import { canParticipate } from "@/server/policies/access";
 import {
-  CreateBusinessProfileSchema,
-  UpdateBusinessProfileSchema,
-  type CreateBusinessProfileInput,
-  type UpdateBusinessProfileInput,
-} from "../validators/business";
-import {
-  createBusinessProfile,
-  getBusinessBySlug,
   getBusinessByOwnerId,
-  updateBusinessProfile,
+  getBusinessBySlug,
+  saveBusinessProfile,
   type BusinessProfileRecord,
 } from "../repositories/businesses";
-import { getListingBySlug, type FullListing } from "../repositories/listings";
+import { BusinessProfileSchema } from "../validators/business";
+import { fail, ok, type Result } from "./result";
 
-export async function createBusinessAction(
-  ownerId: string,
-  rawInput: CreateBusinessProfileInput,
-): Promise<BusinessProfileRecord> {
-  const input = CreateBusinessProfileSchema.parse(rawInput);
-  const db = await createDb();
-  return createBusinessProfile(db, ownerId, input);
+/** Business page workflows. The database decides who the owner is. */
+
+export async function getBusinessAction(slug: string): Promise<Result<BusinessProfileRecord>> {
+  if (!/^[a-z0-9-]{1,80}$/.test(slug)) return fail("NOT_FOUND", "Business not found");
+  const business = await getBusinessBySlug(await createDb(), slug);
+  return business ? ok(business) : fail("NOT_FOUND", "Business not found");
 }
 
-export async function getBusinessStorefrontAction(
-  slug: string,
-): Promise<{ business: BusinessProfileRecord; listings: any[] } | null> {
-  const db = await createDb();
-  const business = await getBusinessBySlug(db, slug);
-  if (!business) return null;
-
-  // Fetch active listings for this business
-  const { data: listings } = await db
-    .from("listings")
-    .select("id, title, slug, price_major, amount_minor, currency, image_url, condition, category, status")
-    .eq("seller_id", business.ownerId)
-    .eq("status", "active")
-    .limit(20);
-
-  return {
-    business,
-    listings: listings || [],
-  };
+export async function getMyBusinessAction(user: SessionUser): Promise<Result<BusinessProfileRecord | null>> {
+  return ok(await getBusinessByOwnerId(await createDb(), user.userId));
 }
 
-export async function getMyBusinessAction(
-  ownerId: string,
-): Promise<BusinessProfileRecord | null> {
-  const db = await createDb();
-  return getBusinessByOwnerId(db, ownerId);
-}
-
-export async function updateBusinessAction(
-  ownerId: string,
-  rawInput: UpdateBusinessProfileInput,
-): Promise<BusinessProfileRecord> {
-  const input = UpdateBusinessProfileSchema.parse(rawInput);
-  const db = await createDb();
-  return updateBusinessProfile(db, ownerId, input);
+export async function saveBusinessAction(
+  user: SessionUser,
+  rawInput: unknown,
+): Promise<Result<{ slug: string }>> {
+  if (!canParticipate(user)) return fail("FORBIDDEN", "Your account is restricted.");
+  const parsed = BusinessProfileSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Check the form and try again");
+  }
+  try {
+    return ok(await saveBusinessProfile(await createDb(), parsed.data));
+  } catch (err) {
+    return fail(
+      "BUSINESS_REFUSED",
+      err instanceof Error && err.message ? err.message : "The business page could not be saved.",
+    );
+  }
 }

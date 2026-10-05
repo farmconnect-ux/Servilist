@@ -57,6 +57,10 @@ const PREFIXES = [
   // Sprint 7: auctions and bids
   "/auctions",
   "/api/v1/auctions",
+  // Sprint 8: business pages, and deliveries reported by the seller
+  "/business",
+  "/dashboard/business",
+  "/api/v1/businesses",
   // The design system reference: staff only, checked on the page itself
   "/design-system",
 ];
@@ -65,8 +69,6 @@ const PREFIXES = [
 const CLOSED = [
   // Sprint 9: request-to-listing matching
   /^\/api\/v1\/requests\/[^/]+\/matches$/,
-  // Sprint 8: courier delivery tracking
-  /^\/api\/v1\/orders\/[^/]+\/delivery(\/.*)?$/,
 ];
 
 export function isReleased(pathname: string): boolean {
