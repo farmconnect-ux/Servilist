@@ -1,357 +1,223 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { formatMoney } from "@/lib/money";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Clock } from "lucide-react";
+import { Button, buttonClass } from "@/components/ui/button";
+import { Badge } from "@/components/ui/card";
+import { Alert, Field, Input } from "@/components/ui/form";
+import { CURRENCIES, formatMoney, isCurrency } from "@/lib/money";
 
-interface Bid {
-  id: string;
-  bidderId: string;
-  amountMinor: number;
-  createdAt: string;
-  bidder?: {
-    username: string;
-    displayName: string;
-    rating: number;
-  };
-}
+/**
+ * Auction panel (docs/UI_UX_SPEC.md section 30): current bid, minimum next
+ * bid, bid count and a countdown that updates every second. Amber marks an
+ * auction that is ending soon. The server decides whether a bid is accepted.
+ */
 
-interface AuctionBidClientProps {
-  auctionId: string;
-  currency: string;
-  startingAmountMinor: number;
-  currentAmountMinor: number;
-  minIncrementMinor: number;
-  reserveMet: boolean;
-  endsAt: string;
-  status: string;
-  isSeller: boolean;
-  currentUserId?: string | null;
-  initialBids: Bid[];
+function remaining(endsAt: string, now: number): { text: string; soon: boolean; ended: boolean } {
+  const ms = new Date(endsAt).getTime() - now;
+  if (ms <= 0) return { text: "Ended", soon: false, ended: true };
+  const total = Math.floor(ms / 1000);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const text =
+    days > 0 ? `${days}d ${pad(hours)}h ${pad(minutes)}m` : `${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+  return { text, soon: ms < 60 * 60 * 1000, ended: false };
 }
 
 export function AuctionBidClient({
-  auctionId,
+  listingId,
   currency,
-  startingAmountMinor,
-  currentAmountMinor,
-  minIncrementMinor,
-  reserveMet,
+  currentBidMinor,
+  minimumNextMinor,
+  bidsCount,
   endsAt,
-  status: initialStatus,
-  isSeller,
-  currentUserId,
-  initialBids,
-}: AuctionBidClientProps) {
-  const [currentPrice, setCurrentPrice] = useState(currentAmountMinor);
-  const [status, setStatus] = useState(initialStatus);
-  const [bids, setBids] = useState<Bid[]>(initialBids);
-  const [customBidAmount, setCustomBidAmount] = useState<number>(
-    (currentPrice + minIncrementMinor) / 100,
-  );
-  const [timeLeft, setTimeLeft] = useState<{
-    hours: number;
-    minutes: number;
-    seconds: number;
-    isEnded: boolean;
-    isUnderFiveMinutes: boolean;
-  }>({ hours: 0, minutes: 0, seconds: 0, isEnded: false, isUnderFiveMinutes: false });
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  hasReserve,
+  reserveMet,
+  viewer,
+  loginHref,
+  canClose,
+}: {
+  listingId: string;
+  currency: string;
+  currentBidMinor: number;
+  minimumNextMinor: number;
+  bidsCount: number;
+  endsAt: string;
+  hasReserve: boolean;
+  reserveMet: boolean;
+  viewer: "guest" | "owner" | "member" | "restricted";
+  loginHref: string;
+  /** The seller or the highest bidder, who may close the auction once it has ended. */
+  canClose: boolean;
+}) {
+  const router = useRouter();
+  // The countdown starts after the page loads in the browser, so server and browser output match
+  const [now, setNow] = useState<number | null>(null);
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
-  // Countdown timer
   useEffect(() => {
-    const updateCountdown = () => {
-      const now = new Date().getTime();
-      const end = new Date(endsAt).getTime();
-      const diff = end - now;
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-      if (diff <= 0) {
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0, isEnded: true, isUnderFiveMinutes: false });
-        if (status === "active") setStatus("ended");
-        return;
-      }
+  const clock = now === null ? null : remaining(endsAt, now);
+  const ended = clock?.ended ?? new Date(endsAt).getTime() <= Date.now();
+  const factor = isCurrency(currency) ? CURRENCIES[currency].minorFactor : 100;
+  const minimumMajor = minimumNextMinor / factor;
 
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      const isUnderFiveMinutes = diff <= 5 * 60 * 1000;
-
-      setTimeLeft({ hours, minutes, seconds, isEnded: false, isUnderFiveMinutes });
-    };
-
-    updateCountdown();
-    const interval = setInterval(updateCountdown, 1000);
-    return () => clearInterval(interval);
-  }, [endsAt, status]);
-
-  const minRequiredAmountMajor = (currentPrice + minIncrementMinor) / 100;
-
-  const handlePlaceBid = async (amountMajor: number) => {
-    if (!currentUserId) {
-      window.location.href = `/login?next=/auctions/${auctionId}`;
-      return;
-    }
-
-    setLoading(true);
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
+  async function send(url: string, body: unknown): Promise<{ ok: boolean; message: string; data?: { status?: string; orderId?: string | null } }> {
     try {
-      const res = await fetch(`/api/v1/auctions/${auctionId}/bids`, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amountMajor }),
+        body: JSON.stringify(body),
       });
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error?.message || "Failed to place bid");
-      }
-
-      setCurrentPrice(data.data.amountMinor);
-      setSuccessMsg(
-        `Bid of ${formatMoney(data.data.amountMinor, currency)} placed successfully!${
-          data.data.extended ? " Auction extended by 5 minutes (Anti-sniping)." : ""
-        }`,
-      );
-
-      // Refresh bids
-      const bidsRes = await fetch(`/api/v1/auctions/${auctionId}/bids`);
-      const bidsData = await bidsRes.json();
-      if (bidsData.success) {
-        setBids(bidsData.data);
-      }
-      setCustomBidAmount((data.data.amountMinor + minIncrementMinor) / 100);
-    } catch (err: any) {
-      setErrorMsg(err.message);
-    } finally {
-      setLoading(false);
+      const json = await res.json().catch(() => null);
+      if (res.ok && json?.success) return { ok: true, message: "", data: json.data };
+      return { ok: false, message: json?.error?.message || "Something went wrong. Please try again." };
+    } catch {
+      return { ok: false, message: "Could not reach Servilist. Check your connection and try again." };
     }
-  };
+  }
 
-  const handleSettle = async () => {
-    setLoading(true);
-    setErrorMsg(null);
-    try {
-      const res = await fetch(`/api/v1/auctions/${auctionId}/settle`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error?.message || "Settlement failed");
-      }
-      setStatus(data.data.status);
-      setSuccessMsg(data.data.message);
-      if (data.data.orderId) {
-        setTimeout(() => {
-          window.location.href = `/dashboard/orders/${data.data.orderId}`;
-        }, 1500);
-      }
-    } catch (err: any) {
-      setErrorMsg(err.message);
-    } finally {
-      setLoading(false);
+  async function bid(event: React.FormEvent) {
+    event.preventDefault();
+    const amountMajor = Number(amount);
+    if (!Number.isFinite(amountMajor) || amountMajor < minimumMajor) {
+      setError(`Your bid must be at least ${formatMoney(minimumNextMinor, currency)}.`);
+      return;
     }
-  };
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    const result = await send(`/api/v1/auctions/${listingId}/bids`, { amountMajor });
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.message);
+      router.refresh();
+      return;
+    }
+    setAmount("");
+    setNotice("Your bid is in. You are the highest bidder.");
+    router.refresh();
+  }
+
+  async function close() {
+    setBusy(true);
+    setError(null);
+    const result = await send(`/api/v1/auctions/${listingId}/settle`, {});
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.message);
+      return;
+    }
+    setNotice(
+      result.data?.status === "sold"
+        ? "Auction closed. The winner has 48 hours to pay for the order."
+        : "Auction closed without a sale: there were no bids, or the reserve was not met.",
+    );
+    setOrderId(result.data?.orderId ?? null);
+    if (!result.data?.orderId) router.refresh();
+  }
 
   return (
-    <div className="space-y-6 rounded-2xl border border-line bg-surface p-6 shadow-sm">
-      {/* Live Timer Banner */}
-      <div
-        className={`rounded-xl p-4 text-center transition-colors ${
-          timeLeft.isEnded
-            ? "bg-surface-muted text-ink-soft"
-            : timeLeft.isUnderFiveMinutes
-              ? "bg-accent-100 text-accent-600 border border-accent-200 animate-pulse"
-              : "bg-ink text-white"
-        }`}
-      >
-        <div className="text-xs font-semibold uppercase tracking-wide">
-          {timeLeft.isEnded ? "Auction Closed" : "Time Remaining"}
-        </div>
-        <div className="mt-1 font-mono text-3xl font-bold tracking-tight">
-          {timeLeft.isEnded
-            ? "Ended"
-            : `${String(timeLeft.hours).padStart(2, "0")}h : ${String(timeLeft.minutes).padStart(2, "0")}m : ${String(timeLeft.seconds).padStart(2, "0")}s`}
-        </div>
-        {timeLeft.isUnderFiveMinutes && !timeLeft.isEnded && (
-          <p className="mt-1 text-xs text-accent-600 font-medium">
-            Anti-sniping active: bids placed in final minutes add 5 min extension.
-          </p>
-        )}
-      </div>
-
-      {/* Pricing & Status Overview */}
-      <div className="grid grid-cols-2 gap-4 border-b border-line pb-4">
+    <div className="flex flex-col gap-4 rounded-card border border-line bg-surface p-4">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-xs text-muted font-medium">Current High Bid</div>
-          <div className="text-2xl font-bold text-ink">
-            {formatMoney(currentPrice, currency)}
-          </div>
-          <div className="text-xs text-muted mt-0.5">
-            Starts at: {formatMoney(startingAmountMinor, currency)}
-          </div>
+          <p className="text-sm text-muted">{bidsCount > 0 ? "Current bid" : "Starting bid"}</p>
+          <p className="text-[32px] leading-none font-bold text-ink">{formatMoney(currentBidMinor, currency)}</p>
         </div>
-        <div className="text-right">
-          <div className="text-xs text-muted font-medium">Reserve Status</div>
-          <div
-            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold mt-1 ${
-              reserveMet
-                ? "bg-primary-100 text-primary-800"
-                : "bg-surface-muted text-ink-soft"
-            }`}
-          >
-            {reserveMet ? "Reserve Met ✓" : "Reserve Not Met"}
-          </div>
-          <div className="text-xs text-muted mt-1">
-            Total Bids: <span className="font-semibold">{bids.length}</span>
-          </div>
-        </div>
+        <p className="text-sm text-ink-soft">{bidsCount === 1 ? "1 bid" : `${bidsCount} bids`}</p>
       </div>
 
-      {/* Messages */}
-      {errorMsg && (
-        <div className="rounded-lg bg-danger-soft p-3 text-xs text-danger border border-danger/40">
-          {errorMsg}
-        </div>
-      )}
-      {successMsg && (
-        <div className="rounded-lg bg-primary-50 p-3 text-xs text-primary-800 border border-primary-200">
-          {successMsg}
-        </div>
-      )}
-
-      {/* Bidding Controls (if active and not ended) */}
-      {status === "active" && !timeLeft.isEnded ? (
-        isSeller ? (
-          <div className="rounded-xl bg-surface-muted p-4 text-center text-xs text-ink-soft">
-            You are the seller of this auction. Sellers cannot bid on their own listings.
-          </div>
+      <div
+        className={`flex items-center gap-2 rounded-input p-3 text-sm font-semibold ${
+          clock?.soon ? "bg-accent-100 text-accent-600" : "bg-surface-muted text-ink"
+        }`}
+        role="timer"
+        aria-live="off"
+      >
+        <Clock className="size-4" aria-hidden="true" />
+        {ended ? (
+          <span>This auction has ended</span>
         ) : (
-          <div className="space-y-4">
-            <div className="text-xs text-ink-soft">
-              Min next bid:{" "}
-              <span className="font-semibold text-ink">
-                {formatMoney(currentPrice + minIncrementMinor, currency)}
-              </span>{" "}
-              (+{formatMoney(minIncrementMinor, currency)} increment)
-            </div>
-
-            {/* Quick increment buttons */}
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                variant="outline"
-                className="text-xs py-2 h-auto"
-                disabled={loading}
-                onClick={() => handlePlaceBid(minRequiredAmountMajor)}
-              >
-                Bid {formatMoney(currentPrice + minIncrementMinor, currency)}
-              </Button>
-              <Button
-                variant="outline"
-                className="text-xs py-2 h-auto"
-                disabled={loading}
-                onClick={() =>
-                  handlePlaceBid((currentPrice + minIncrementMinor * 2) / 100)
-                }
-              >
-                +{formatMoney(minIncrementMinor * 2, currency)}
-              </Button>
-              <Button
-                variant="outline"
-                className="text-xs py-2 h-auto"
-                disabled={loading}
-                onClick={() =>
-                  handlePlaceBid((currentPrice + minIncrementMinor * 5) / 100)
-                }
-              >
-                +{formatMoney(minIncrementMinor * 5, currency)}
-              </Button>
-            </div>
-
-            {/* Custom Bid Input */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <span className="absolute left-3 top-2.5 text-xs text-disabled">
-                  {currency}
-                </span>
-                <input
-                  type="number"
-                  min={minRequiredAmountMajor}
-                  value={customBidAmount}
-                  onChange={(e) => setCustomBidAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full rounded-lg border border-line py-2 pl-12 pr-3 text-sm focus:border-ink focus:outline-none"
-                  placeholder="Custom bid"
-                />
-              </div>
-              <Button
-                className="min-h-11 px-5 text-sm"
-                disabled={loading || customBidAmount < minRequiredAmountMajor}
-                onClick={() => handlePlaceBid(customBidAmount)}
-              >
-                {loading ? "Placing..." : "Place Bid"}
-              </Button>
-            </div>
-          </div>
-        )
-      ) : (
-        /* Auction Ended or Settled */
-        <div className="space-y-3">
-          <div className="rounded-xl bg-surface-muted p-4 text-center">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Auction State
-            </span>
-            <p className="mt-1 text-sm font-medium text-ink capitalize">
-              {status === "settled" ? "Settled (Order Generated)" : "Ended"}
-            </p>
-          </div>
-
-          {status !== "settled" && (isSeller || (bids.length > 0 && bids[0].bidderId === currentUserId)) && (
-            <Button
-              className="w-full min-h-11 text-sm"
-              disabled={loading}
-              onClick={handleSettle}
-            >
-              {loading ? "Settling..." : "Settle Auction & Create Order"}
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* Bid History Table */}
-      <div className="border-t border-line pt-4">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
-          Bid History ({bids.length})
-        </h4>
-        {bids.length === 0 ? (
-          <p className="text-xs text-disabled text-center py-4">No bids placed yet. Be the first to bid!</p>
-        ) : (
-          <div className="divide-y divide-line max-h-48 overflow-y-auto pr-1">
-            {bids.map((bid, idx) => (
-              <div key={bid.id} className="py-2 flex items-center justify-between text-xs">
-                <div>
-                  <span className="font-semibold text-ink">
-                    {bid.bidder?.displayName || `Bidder #${bid.bidderId.substring(0, 4)}`}
-                  </span>
-                  {idx === 0 && (
-                    <span className="ml-2 inline-flex items-center px-1.5 py-0.2 rounded bg-accent-100 text-accent-600 text-[10px] font-bold">
-                      Highest
-                    </span>
-                  )}
-                  <div className="text-[10px] text-disabled">
-                    {new Date(bid.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                </div>
-                <div className="font-bold text-ink">
-                  {formatMoney(bid.amountMinor, currency)}
-                </div>
-              </div>
-            ))}
-          </div>
+          <>
+            <span>{clock?.soon ? "Ending soon:" : "Ends in"}</span>
+            <span className="tabular-nums">{clock?.text ?? "..."}</span>
+          </>
         )}
       </div>
+
+      {hasReserve ? (
+        <Badge tone={reserveMet ? "success" : "warning"} className="self-start">
+          {reserveMet ? "Reserve met" : "Reserve not yet met"}
+        </Badge>
+      ) : null}
+
+      {error ? <Alert tone="danger">{error}</Alert> : null}
+      {notice ? <Alert tone="success">{notice}</Alert> : null}
+
+      {orderId ? (
+        <Link href={`/dashboard/orders/${orderId}`} className={buttonClass("primary", "lg")}>
+          View the order
+        </Link>
+      ) : ended ? (
+        canClose ? (
+          <Button size="lg" onClick={close} disabled={busy} aria-busy={busy}>
+            {busy ? "Closing..." : "Close auction"}
+          </Button>
+        ) : (
+          <p className="text-sm text-ink-soft">Waiting for the seller or the highest bidder to close it.</p>
+        )
+      ) : viewer === "guest" ? (
+        <Link href={loginHref} className={buttonClass("primary", "lg")}>
+          Sign in to bid
+        </Link>
+      ) : viewer === "owner" ? (
+        <p className="rounded-input bg-primary-50 p-3 text-sm text-ink">
+          This is your auction. Its end time and reserve are fixed once the first bid arrives.
+        </p>
+      ) : viewer === "restricted" ? (
+        <p className="rounded-input bg-surface-muted p-3 text-sm text-ink-soft">
+          Your account is restricted, so you cannot bid.
+        </p>
+      ) : (
+        <form onSubmit={bid} className="flex flex-col gap-3" noValidate>
+          <Field
+            id="bid-amount"
+            label={`Your bid (${currency})`}
+            hint={`Minimum next bid: ${formatMoney(minimumNextMinor, currency)}`}
+          >
+            <Input
+              id="bid-amount"
+              type="number"
+              inputMode="decimal"
+              min={minimumMajor}
+              step="any"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              required
+            />
+          </Field>
+          <Button type="submit" size="lg" disabled={busy} aria-busy={busy}>
+            {busy ? "Placing bid..." : "Place bid"}
+          </Button>
+          <p className="text-sm text-ink-soft">
+            A bid is a commitment to buy at that price. A bid in the last five minutes extends the
+            auction by five minutes.
+          </p>
+        </form>
+      )}
     </div>
   );
 }

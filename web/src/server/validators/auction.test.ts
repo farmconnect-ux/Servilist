@@ -46,11 +46,10 @@ describe("Auction Validators", () => {
   });
 
   describe("AuctionQuerySchema", () => {
-    it("applies defaults for pagination and status", () => {
+    it("applies defaults for pagination", () => {
       const parsed = AuctionQuerySchema.safeParse({});
       expect(parsed.success).toBe(true);
       if (parsed.success) {
-        expect(parsed.data.status).toBe("active");
         expect(parsed.data.page).toBe(1);
         expect(parsed.data.limit).toBe(20);
       }

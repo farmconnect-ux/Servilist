@@ -187,6 +187,7 @@ export function AuctionCard({
 }: {
   auction: {
     id: string;
+    slug?: string;
     title: string;
     imageUrl?: string | null;
     currentBidMinor: number;
@@ -196,7 +197,7 @@ export function AuctionCard({
     city: string;
   };
 }) {
-  const href = `/auctions/${auction.id}`;
+  const href = auction.slug ? `/products/${auction.slug}` : `/auctions/${auction.id}`;
   return (
     <Card className="group flex flex-col overflow-hidden transition-colors duration-200 hover:border-line-strong">
       <Link href={href} className="relative block aspect-[4/3] overflow-hidden bg-surface-muted">
@@ -224,10 +225,10 @@ export function AuctionCard({
             {auction.title}
           </h3>
         </Link>
-        <p className="text-xs text-muted">Current bid</p>
+        <p className="text-xs text-muted">{auction.bidsCount > 0 ? "Current bid" : "Starting bid"}</p>
         <PriceDisplay amountMinor={auction.currentBidMinor} currency={auction.currency} />
         <p className="flex items-center gap-1.5 text-xs text-muted">
-          <span>{auction.bidsCount} bids</span>
+          <span>{auction.bidsCount === 1 ? "1 bid" : `${auction.bidsCount} bids`}</span>
           <span>·</span>
           <LocationDisplay city={auction.city} />
         </p>

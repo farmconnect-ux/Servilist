@@ -8,6 +8,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Gavel,
   ImagePlus,
   Package,
   Star,
@@ -64,7 +65,19 @@ const CURRENCY_NAMES: Record<string, string> = {
   XOF: "West African CFA franc",
 };
 
+const DURATIONS = [
+  { hours: 24, label: "1 day" },
+  { hours: 72, label: "3 days" },
+  { hours: 120, label: "5 days" },
+  { hours: 168, label: "7 days" },
+  { hours: 240, label: "10 days" },
+  { hours: 336, label: "14 days" },
+];
+
 interface FormState {
+  kind: "product" | "auction";
+  durationHours: string;
+  reserve: string;
   categorySlug: string;
   title: string;
   description: string;
@@ -80,6 +93,9 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
+  kind: "product",
+  durationHours: "72",
+  reserve: "",
   categorySlug: "",
   title: "",
   description: "",
@@ -103,12 +119,20 @@ function problem(step: number, form: FormState): string | null {
       if (form.title.trim().length < 3) return "Give your listing a title of at least 3 characters.";
       if (form.description.trim().length < 10) return "Describe the item in at least 10 characters.";
       if (!form.condition) return "Choose the item's condition.";
-      if (!(Number(form.quantity) >= 1)) return "Quantity must be at least 1.";
+      if (form.kind === "product" && !(Number(form.quantity) >= 1)) return "Quantity must be at least 1.";
       return null;
     case 3:
       return form.photos.length > 0 ? null : "Add at least one photo.";
     case 4:
-      return Number(form.price) > 0 ? null : "Enter a price greater than zero.";
+      if (!(Number(form.price) > 0)) {
+        return form.kind === "auction"
+          ? "Enter a starting bid greater than zero."
+          : "Enter a price greater than zero.";
+      }
+      if (form.kind === "auction" && form.reserve !== "" && !(Number(form.reserve) >= Number(form.price))) {
+        return "The reserve cannot be lower than the starting bid.";
+      }
+      return null;
     case 5:
       if (!form.fulfillment) return "Choose how the buyer gets the item.";
       if (form.city.trim().length < 2) return "Enter the city the item is in.";
@@ -129,6 +153,7 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
   const fileInput = useRef<HTMLInputElement>(null);
 
   const update = (fields: Partial<FormState>) => setForm((current) => ({ ...current, ...fields }));
+  const isAuction = form.kind === "auction";
   const categoryName = categories.find((item) => item.slug === form.categorySlug)?.name ?? "";
 
   function next() {
@@ -198,17 +223,23 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          listingType: form.negotiable ? "negotiable" : "fixed_price",
+          listingType: isAuction ? "auction" : form.negotiable ? "negotiable" : "fixed_price",
+          ...(isAuction
+            ? {
+                auctionDurationHours: Number(form.durationHours),
+                ...(form.reserve !== "" ? { reservePriceMajor: Number(form.reserve) } : {}),
+              }
+            : {}),
           categorySlug: form.categorySlug,
           title: form.title.trim(),
           description: form.description.trim(),
           condition: form.condition,
-          quantity: Math.floor(Number(form.quantity)),
+          quantity: isAuction ? 1 : Math.floor(Number(form.quantity)),
           imageUrl: form.photos[0],
           galleryImages: form.photos.slice(1),
           priceMajor: Number(form.price),
           currency: form.currency,
-          negotiable: form.negotiable,
+          negotiable: isAuction ? false : form.negotiable,
           fulfillment: form.fulfillment,
           city: form.city.trim(),
           country: form.country.trim(),
@@ -231,9 +262,11 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
         <span className="flex size-12 items-center justify-center rounded-pill bg-primary-50 text-primary-700">
           <Check className="size-6" aria-hidden="true" />
         </span>
-        <h2 className="text-2xl font-bold text-ink">Listing published</h2>
+        <h2 className="text-2xl font-bold text-ink">{isAuction ? "Auction started" : "Listing published"}</h2>
         <p className="max-w-md text-sm text-ink-soft">
-          Buyers can now find it in search and in its category.
+          {isAuction
+            ? "Buyers can now bid on it. When it ends, come back to close it; the winner then has 48 hours to pay."
+            : "Buyers can now find it in search and in its category."}
         </p>
         <div className="flex w-full max-w-md flex-col gap-3 sm:flex-row">
           <Link href={`/products/${published.slug}`} className={cn(buttonClass("primary"), "flex-1")}>
@@ -309,16 +342,45 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
         {step === 0 ? (
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-semibold text-ink">What are you listing?</h2>
-            <div className="flex items-start gap-4 rounded-card border-2 border-primary-600 bg-primary-50 p-4">
-              <Package className="size-8 shrink-0 text-primary-700" aria-hidden="true" />
-              <div>
-                <p className="text-base font-semibold text-ink">Sell a product</p>
-                <p className="text-sm text-ink-soft">A physical item, new or used, at a price you set.</p>
-              </div>
-            </div>
+            {(
+              [
+                {
+                  kind: "product",
+                  icon: Package,
+                  title: "Sell a product",
+                  text: "A physical item, new or used, at a price you set.",
+                },
+                {
+                  kind: "auction",
+                  icon: Gavel,
+                  title: "Create an auction",
+                  text: "One item, sold to the highest bidder when the time runs out.",
+                },
+              ] as const
+            ).map((option) => {
+              const selected = form.kind === option.kind;
+              return (
+                <button
+                  key={option.kind}
+                  type="button"
+                  onClick={() => update({ kind: option.kind })}
+                  aria-pressed={selected}
+                  className={cn(
+                    "flex items-start gap-4 rounded-card border-2 p-4 text-left transition-colors",
+                    selected ? "border-primary-600 bg-primary-50" : "border-line hover:border-primary-600",
+                  )}
+                >
+                  <option.icon className="size-8 shrink-0 text-primary-700" aria-hidden="true" />
+                  <span>
+                    <span className="block text-base font-semibold text-ink">{option.title}</span>
+                    <span className="block text-sm text-ink-soft">{option.text}</span>
+                  </span>
+                </button>
+              );
+            })}
             <Link
               href="/services/new"
-              className="flex items-start gap-4 rounded-card border border-line p-4 transition-colors hover:border-primary-600"
+              className="flex items-start gap-4 rounded-card border-2 border-line p-4 transition-colors hover:border-primary-600"
             >
               <Wrench className="size-8 shrink-0 text-primary-700" aria-hidden="true" />
               <span>
@@ -328,7 +390,6 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
                 </span>
               </span>
             </Link>
-            <p className="text-sm text-muted">Auctions will be added here when they open.</p>
           </section>
         ) : null}
 
@@ -401,17 +462,19 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
                   ))}
                 </Select>
               </Field>
-              <Field id="sell-quantity" label="Quantity" required>
-                <Input
-                  id="sell-quantity"
-                  type="number"
-                  min="1"
-                  step="1"
-                  inputMode="numeric"
-                  value={form.quantity}
-                  onChange={(event) => update({ quantity: event.target.value })}
-                />
-              </Field>
+              {isAuction ? null : (
+                <Field id="sell-quantity" label="Quantity" required>
+                  <Input
+                    id="sell-quantity"
+                    type="number"
+                    min="1"
+                    step="1"
+                    inputMode="numeric"
+                    value={form.quantity}
+                    onChange={(event) => update({ quantity: event.target.value })}
+                  />
+                </Field>
+              )}
             </div>
           </section>
         ) : null}
@@ -504,7 +567,9 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
 
         {step === 4 ? (
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-semibold text-ink">Set your price</h2>
+            <h2 className="text-xl font-semibold text-ink">
+              {isAuction ? "Set up the auction" : "Set your price"}
+            </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="sell-currency" label="Currency" hint="Buyers see the price in this currency.">
                 <Select
@@ -519,7 +584,7 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
                   ))}
                 </Select>
               </Field>
-              <Field id="sell-price" label="Price" required>
+              <Field id="sell-price" label={isAuction ? "Starting bid" : "Price"} required>
                 <Input
                   id="sell-price"
                   type="number"
@@ -531,15 +596,54 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
                 />
               </Field>
             </div>
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-ink">
-              <input
-                type="checkbox"
-                checked={form.negotiable}
-                onChange={(event) => update({ negotiable: event.target.checked })}
-                className="size-5 accent-primary-600"
-              />
-              Negotiable: let buyers send me offers
-            </label>
+            {isAuction ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field id="sell-duration" label="Runs for" required>
+                    <Select
+                      id="sell-duration"
+                      value={form.durationHours}
+                      onChange={(event) => update({ durationHours: event.target.value })}
+                    >
+                      {DURATIONS.map((option) => (
+                        <option key={option.hours} value={String(option.hours)}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field
+                    id="sell-reserve"
+                    label="Reserve price (optional)"
+                    hint="The lowest price you will sell at. Bidders see only whether it has been met."
+                  >
+                    <Input
+                      id="sell-reserve"
+                      type="number"
+                      min="0"
+                      step="any"
+                      inputMode="decimal"
+                      value={form.reserve}
+                      onChange={(event) => update({ reserve: event.target.value })}
+                    />
+                  </Field>
+                </div>
+                <p className="text-sm text-ink-soft">
+                  Once the first bid arrives, the end time and reserve cannot be changed. A bid in the
+                  last five minutes extends the auction by five minutes.
+                </p>
+              </>
+            ) : (
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={form.negotiable}
+                  onChange={(event) => update({ negotiable: event.target.checked })}
+                  className="size-5 accent-primary-600"
+                />
+                Negotiable: let buyers send me offers
+              </label>
+            )}
           </section>
         ) : null}
 
@@ -607,11 +711,19 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
               <div className="flex min-w-0 flex-col gap-1">
                 <p className="text-xs text-muted">{categoryName}</p>
                 <h3 className="text-xl font-semibold text-ink">{form.title}</h3>
-                <p className="text-2xl font-bold text-ink">{formatMoney(priceMinor, form.currency)}</p>
+                <p className="text-2xl font-bold text-ink">
+                  {formatMoney(priceMinor, form.currency)}
+                  {isAuction ? (
+                    <span className="ml-2 text-sm font-normal text-muted">
+                      starting bid · runs{" "}
+                      {DURATIONS.find((option) => String(option.hours) === form.durationHours)?.label}
+                    </span>
+                  ) : null}
+                </p>
                 <p className="text-sm text-ink-soft">
                   {CONDITIONS.find((option) => option.value === form.condition)?.label} ·{" "}
                   {[form.city, form.country].filter(Boolean).join(", ")}
-                  {form.negotiable ? " · Open to offers" : ""}
+                  {!isAuction && form.negotiable ? " · Open to offers" : ""}
                 </p>
                 <p className="mt-2 line-clamp-4 text-sm whitespace-pre-line text-ink-soft">
                   {form.description}
@@ -641,7 +753,7 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
             </Button>
           ) : (
             <Button onClick={publish} disabled={publishing} aria-busy={publishing}>
-              {publishing ? "Publishing..." : "Publish listing"}
+              {publishing ? "Publishing..." : isAuction ? "Start auction" : "Publish listing"}
             </Button>
           )}
         </div>

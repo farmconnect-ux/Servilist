@@ -1,29 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getAuctionDetailsAction } from "@/server/services/auctions";
+import { NextResponse, type NextRequest } from "next/server";
+import { listBidsAction } from "@/server/services/auctions";
 
-export async function GET(
-  req: NextRequest,
-  props: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await props.params;
-    const details = await getAuctionDetailsAction(id);
-    if (!details) {
-      return NextResponse.json(
-        { success: false, error: { code: "NOT_FOUND", message: "Auction not found" } },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: details.auction,
-      bids: details.bids,
-    });
-  } catch (error: any) {
+/** The bids on one auction, highest first. The listing itself is at /api/v1/listings/{id}. */
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const result = await listBidsAction((await params).id);
+  if (!result.ok) {
     return NextResponse.json(
-      { success: false, error: { code: "AUCTION_FETCH_FAILED", message: error.message } },
-      { status: 500 },
+      { success: false, error: { code: result.code, message: result.error } },
+      { status: result.code === "FORBIDDEN" ? 403 : result.code === "NOT_FOUND" ? 404 : 400 },
     );
   }
+  return NextResponse.json({ success: true, data: { bids: result.data } });
 }

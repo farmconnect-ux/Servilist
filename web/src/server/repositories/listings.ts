@@ -85,6 +85,18 @@ export async function createListing(
       image_url: input.imageUrl,
       status: input.status,
       published_at: new Date().toISOString(),
+      ...(format === "auction"
+        ? {
+            negotiable: false,
+            auction_end_at: new Date(
+              Date.now() + (input.auctionDurationHours ?? 72) * 3600 * 1000,
+            ).toISOString(),
+            reserve_amount_minor:
+              input.reservePriceMajor !== undefined
+                ? toMinorUnits(input.reservePriceMajor, input.currency)
+                : null,
+          }
+        : {}),
     })
     .select("id, slug")
     .single();

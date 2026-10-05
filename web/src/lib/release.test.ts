@@ -31,6 +31,9 @@ describe("release gate", () => {
       "/api/v1/reports/abc/resolve",
       "/api/v1/orders/1/dispute",
       "/api/v1/orders/1/dispute/resolve",
+      "/auctions",
+      "/auctions/1",
+      "/api/v1/auctions/1/bids",
     ]) {
       expect(isReleased(path), path).toBe(true);
     }
@@ -38,7 +41,6 @@ describe("release gate", () => {
 
   it("keeps unverified sprints closed", () => {
     for (const path of [
-      "/auctions/1",
       "/business/acme",
       "/dashboard/seller",
       "/admin/vendors",
@@ -54,6 +56,7 @@ describe("release gate", () => {
 
   it("does not open look-alike paths", () => {
     expect(isReleased("/sellers-area")).toBe(false);
+    expect(isReleased("/auctions-archive")).toBe(false);
     expect(isReleased("/admin/users-export")).toBe(false);
     expect(isReleased("/dashboard/anything")).toBe(false);
   });

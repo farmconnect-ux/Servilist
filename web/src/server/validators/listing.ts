@@ -41,7 +41,7 @@ export const AFRICAN_CURRENCIES = [
   "USD",
 ] as const;
 
-export const CreateListingSchema = z.object({
+const ListingFields = z.object({
   title: z
     .string()
     .min(3, "Title must be at least 3 characters")
@@ -71,11 +71,34 @@ export const CreateListingSchema = z.object({
     .optional()
     .default([]),
   status: z.enum(["draft", "published", "active"]).default("active"),
+  // Auctions only: how long bidding runs, and an optional private reserve
+  auctionDurationHours: z.number().int().min(1).max(336).optional(),
+  reservePriceMajor: z.number().positive().optional(),
 });
+
+export const CreateListingSchema = ListingFields
+  .refine((data) => data.listingType !== "auction" || data.auctionDurationHours !== undefined, {
+    message: "Choose how long the auction runs",
+    path: ["auctionDurationHours"],
+  })
+  .refine((data) => data.listingType !== "auction" || data.priceMajor > 0, {
+    message: "An auction needs a starting bid",
+    path: ["priceMajor"],
+  })
+  .refine(
+    (data) => data.reservePriceMajor === undefined || data.reservePriceMajor >= data.priceMajor,
+    { message: "The reserve cannot be lower than the starting bid", path: ["reservePriceMajor"] },
+  );
 
 export type CreateListingInput = z.infer<typeof CreateListingSchema>;
 
-export const UpdateListingSchema = CreateListingSchema.partial().extend({
+// An auction's length and reserve are set once, when it is created
+export const UpdateListingSchema = ListingFields.omit({
+  auctionDurationHours: true,
+  reservePriceMajor: true,
+})
+  .partial()
+  .extend({
   status: z.enum(LISTING_STATUSES).optional(),
 });
 

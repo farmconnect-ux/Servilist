@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight, MapPin, MessageSquare, ShieldCheck, Tag } from "lucide-react";
+import { AuctionBidClient } from "@/components/marketplace/AuctionBidClient";
 import { ListingActions } from "@/components/marketplace/ListingActions";
 import { ProductGallery } from "@/components/marketplace/ProductGallery";
 import { ReportButton } from "@/components/marketplace/TrustActions";
@@ -13,6 +14,7 @@ import { formatMoney } from "@/lib/money";
 import { isReleased } from "@/lib/release";
 import { getSessionUser } from "@/server/auth/session";
 import { canParticipate } from "@/server/policies/access";
+import { getAuctionBids, getAuctionState, minimumNextBid } from "@/server/repositories/auctions";
 import { getListingBySlug, searchListings } from "@/server/repositories/listings";
 import { listReviewsForProfile } from "@/server/repositories/moderation";
 
@@ -89,6 +91,12 @@ export default async function ProductDetailPage({
     .filter((url): url is string => url !== null)
     .filter((url, position, all) => all.indexOf(url) === position);
 
+  const auctionsOpen = isReleased("/api/v1/auctions");
+  const [auction, bids] =
+    listing.format === "auction" && auctionsOpen
+      ? await Promise.all([getAuctionState(db, listing.id), getAuctionBids(db, listing.id)])
+      : [null, []];
+
   const sellerHref = listing.seller.username ? `/seller/${listing.seller.username}` : null;
   const isAuction = listing.format === "auction";
   const isOwner = viewer?.userId === listing.sellerId;
@@ -98,6 +106,8 @@ export default async function ProductDetailPage({
   const loginHref = `/login?next=${encodeURIComponent(`/products/${slug}`)}`;
   const relatedListings = related.listings.filter((item) => item.id !== listing.id).slice(0, 4);
   const price = formatMoney(listing.amountMinor, listing.currency);
+  // The bid panel replaces the price and buy actions while an auction is open
+  const bidding = isAuction && available && auction?.endsAt ? auction : null;
   // Some listings already carry the country in the city field
   const place =
     listing.country && listing.city.toLowerCase().includes(listing.country.toLowerCase())
@@ -138,10 +148,13 @@ export default async function ProductDetailPage({
           </div>
           <h1 className="text-[28px] leading-tight font-bold text-ink md:text-[32px]">{listing.title}</h1>
           <Rating value={listing.seller.rating} count={listing.seller.reviewsCount} />
-          <p className="flex flex-wrap items-baseline gap-2">
-            <span className="text-[32px] leading-none font-bold text-ink">{price}</span>
-            {listing.negotiable ? <span className="text-sm text-muted">Open to offers</span> : null}
-          </p>
+          {bidding ? null : (
+            <p className="flex flex-wrap items-baseline gap-2">
+              <span className="text-[32px] leading-none font-bold text-ink">{price}</span>
+              {listing.negotiable ? <span className="text-sm text-muted">Open to offers</span> : null}
+              {isAuction ? <span className="text-sm text-muted">Final bid</span> : null}
+            </p>
+          )}
           <ul className="flex flex-col gap-2 text-sm text-ink-soft">
             <li className="flex items-center gap-2">
               <Tag className="size-4 text-muted" aria-hidden="true" />
@@ -154,7 +167,31 @@ export default async function ProductDetailPage({
           </ul>
 
           <div id="actions" className="flex scroll-mt-40 flex-col gap-4">
-            {!viewer ? (
+            {bidding ? (
+              <>
+                <AuctionBidClient
+                  listingId={listing.id}
+                  currency={listing.currency}
+                  currentBidMinor={listing.amountMinor}
+                  minimumNextMinor={minimumNextBid(listing.amountMinor, listing.bidsCount)}
+                  bidsCount={listing.bidsCount}
+                  endsAt={bidding.endsAt as string}
+                  hasReserve={bidding.hasReserve}
+                  reserveMet={bidding.reserveMet}
+                  viewer={!viewer ? "guest" : isOwner ? "owner" : canAct ? "member" : "restricted"}
+                  loginHref={loginHref}
+                  canClose={isOwner || (Boolean(viewer) && bids[0]?.bidderId === viewer?.userId)}
+                />
+                {canAct ? (
+                  <ListingActions
+                    listingId={listing.id}
+                    sellerId={listing.sellerId}
+                    currency={listing.currency}
+                    negotiable={false}
+                  />
+                ) : null}
+              </>
+            ) : !viewer ? (
               <ButtonLink href={loginHref} size="lg">
                 Sign in to buy or contact the seller
               </ButtonLink>
@@ -251,7 +288,10 @@ export default async function ProductDetailPage({
                 value={CONDITIONS[listing.condition] ?? listing.condition.replace(/_/g, " ")}
               />
               <DetailRow label="Quantity available" value={String(listing.quantity)} />
-              <DetailRow label="Price" value={listing.negotiable ? `${price}, open to offers` : `${price}, fixed`} />
+              <DetailRow
+                label={isAuction ? (listing.bidsCount > 0 ? "Current bid" : "Starting bid") : "Price"}
+                value={isAuction ? price : listing.negotiable ? `${price}, open to offers` : `${price}, fixed`}
+              />
               <DetailRow
                 label="Listed"
                 value={new Date(listing.createdAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}
@@ -273,6 +313,41 @@ export default async function ProductDetailPage({
           </section>
         </div>
       </div>
+
+      {isAuction && auctionsOpen ? (
+        <section aria-labelledby="bids-title" className="flex flex-col gap-4">
+          <h2 id="bids-title" className="text-xl font-semibold text-ink md:text-2xl">
+            Bid history
+          </h2>
+          {bids.length > 0 ? (
+            <Card className="p-4">
+              <ol className="flex flex-col">
+                {bids.map((bid, position) => (
+                  <li
+                    key={bid.id}
+                    className="flex items-center justify-between gap-4 border-b border-line py-3 text-sm last:border-b-0"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-ink">
+                        {bid.bidderName}
+                        {position === 0 ? <Badge tone="success" className="ml-2">Highest</Badge> : null}
+                      </span>
+                      <span className="block text-xs text-muted">
+                        {new Date(bid.createdAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-semibold text-ink">
+                      {formatMoney(bid.amountMinor, bid.currency)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </Card>
+          ) : (
+            <p className="text-sm text-muted">No bids yet.</p>
+          )}
+        </section>
+      ) : null}
 
       {reviewsOpen ? (
         <section aria-labelledby="reviews-title" className="flex flex-col gap-4">
@@ -336,7 +411,11 @@ export default async function ProductDetailPage({
       {/* Phone: the main actions stay within reach (section 62), above the bottom navigation */}
       {available && !isOwner ? (
         <div className="fixed inset-x-0 bottom-16 z-30 flex gap-2 border-t border-line bg-surface p-3 md:hidden">
-          {canAct ? (
+          {bidding ? (
+            <ButtonLink href="#actions" className="flex-1">
+              {viewer ? "Place a bid" : "Sign in to bid"}
+            </ButtonLink>
+          ) : canAct ? (
             <>
               <ButtonLink href="#actions" variant="secondary" className="flex-1">
                 <MessageSquare className="size-4" aria-hidden="true" />

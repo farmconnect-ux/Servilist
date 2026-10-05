@@ -30,10 +30,8 @@ export const PlaceBidSchema = z.object({
 export type PlaceBidInput = z.infer<typeof PlaceBidSchema>;
 
 export const AuctionQuerySchema = z.object({
-  status: z.enum(AUCTION_STATUSES).optional().default("active"),
-  category: z.string().optional(),
-  city: z.string().optional(),
-  sellerId: z.string().uuid().optional(),
+  q: z.string().trim().max(80).optional(),
+  city: z.string().trim().max(50).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
 });

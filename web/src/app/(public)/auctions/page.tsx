@@ -1,146 +1,119 @@
 import Link from "next/link";
-import { formatMoney } from "@/lib/money";
-import { listAuctionsAction } from "@/server/services/auctions";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { AuctionCard } from "@/components/marketplace/cards";
+import { Button, ButtonLink, buttonClass } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/card";
+import { Input } from "@/components/ui/form";
+import { createDb } from "@/lib/db/server";
+import { listAuctions } from "@/server/repositories/auctions";
 
-export const dynamic = "force-dynamic";
+export const metadata = {
+  title: "Auctions",
+  description: "Bid on items from sellers across Africa. Auctions ending soonest are shown first.",
+};
 
-export default async function AuctionsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ status?: string; category?: string; page?: string }>;
-}) {
+/** Auction marketplace (docs/UI_UX_SPEC.md section 29). */
+
+const PAGE_SIZE = 20;
+type Params = Record<string, string | string[] | undefined>;
+
+function first(value: string | string[] | undefined, max = 80): string {
+  return ((Array.isArray(value) ? value[0] : value) ?? "").slice(0, max).trim();
+}
+
+export default async function AuctionsPage({ searchParams }: { searchParams: Promise<Params> }) {
   const params = await searchParams;
-  const status = (params.status || "active") as any;
-  const page = params.page ? parseInt(params.page) : 1;
+  const q = first(params.q);
+  const city = first(params.city, 50);
+  const page = Math.max(1, Math.min(500, Number.parseInt(first(params.page, 4), 10) || 1));
 
-  const { auctions, total } = await listAuctionsAction({
-    status,
-    category: params.category,
+  const { auctions, total } = await listAuctions(await createDb(), {
+    q: q || undefined,
+    city: city || undefined,
     page,
-    limit: 24,
+    limit: PAGE_SIZE,
   });
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  function href(target: number): string {
+    const next = new URLSearchParams();
+    if (q) next.set("q", q);
+    if (city) next.set("city", city);
+    if (target > 1) next.set("page", String(target));
+    const query = next.toString();
+    return query ? `/auctions?${query}` : "/auctions";
+  }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-line pb-6">
-        <div>
-          <span className="text-xs font-semibold uppercase tracking-wide text-accent-600">
-            Live Bidding
-          </span>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-ink">
-            Marketplace Auctions
-          </h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Bid on authentic items, verified collectibles, and high-demand products across Nigeria.
-          </p>
-        </div>
-
-        {/* Status Filter */}
-        <div className="flex gap-2">
-          <Link
-            href="/auctions?status=active"
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              status === "active"
-                ? "bg-ink text-white"
-                : "bg-surface-muted text-ink-soft hover:bg-line"
-            }`}
-          >
-            Live Auctions
-          </Link>
-          <Link
-            href="/auctions?status=ended"
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              status === "ended"
-                ? "bg-ink text-white"
-                : "bg-surface-muted text-ink-soft hover:bg-line"
-            }`}
-          >
-            Closed
-          </Link>
-          <Link
-            href="/sell?format=auction"
-            className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-600"
-          >
-            + Create Auction
-          </Link>
-        </div>
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-8 md:px-5 lg:px-6">
+      <div>
+        <h1 className="text-[28px] leading-tight font-bold text-ink md:text-[40px]">Auctions</h1>
+        <p className="mt-1 text-sm text-ink-soft md:text-base">
+          Bid on items from sellers. Auctions ending soonest come first.
+        </p>
       </div>
 
-      {/* Grid */}
-      {auctions.length === 0 ? (
-        <div className="mt-12 rounded-2xl border border-dashed border-line-strong p-12 text-center">
-          <p className="text-muted text-sm">No auctions found in this category or status.</p>
-          <Link
-            href="/sell?format=auction"
-            className="mt-4 inline-block text-xs font-semibold text-accent-600 hover:underline"
+      <form
+        action="/auctions"
+        method="get"
+        role="search"
+        className="grid gap-3 rounded-card border border-line bg-surface p-4 md:grid-cols-[1fr_220px_auto]"
+      >
+        <label htmlFor="auctions-q" className="sr-only">
+          Search auctions
+        </label>
+        <Input id="auctions-q" name="q" type="search" defaultValue={q} maxLength={80} placeholder="Search auctions" />
+        <label htmlFor="auctions-city" className="sr-only">
+          City
+        </label>
+        <Input id="auctions-city" name="city" defaultValue={city} maxLength={50} placeholder="City" />
+        <Button type="submit" variant="secondary">
+          Search
+        </Button>
+      </form>
+
+      <section aria-label="Auctions" className="flex flex-col gap-4">
+        <p className="text-sm text-ink-soft" role="status">
+          {total === 1 ? "1 auction running" : `${total} auctions running`}
+        </p>
+
+        {auctions.length > 0 ? (
+          <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
+            {auctions.map((auction) => (
+              <li key={auction.id}>
+                <AuctionCard auction={auction} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <EmptyState
+            title={q || city ? "No auctions match your search" : "No auctions running"}
+            action={<ButtonLink href="/sell">Create an auction</ButtonLink>}
           >
-            Be the first to list an auction →
-          </Link>
-        </div>
-      ) : (
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {auctions.map((auction) => {
-            const endsAtDate = new Date(auction.endsAt);
-            const isEnded = new Date() >= endsAtDate;
+            Have something buyers would compete for? List it as an auction.
+          </EmptyState>
+        )}
 
-            return (
-              <Link
-                key={auction.id}
-                href={`/auctions/${auction.id}`}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition hover:shadow-md"
-              >
-                {/* Image */}
-                <div className="aspect-square w-full overflow-hidden bg-surface-muted">
-                  <img
-                    src={
-                      auction.listing?.imageUrl ||
-                      "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
-                    }
-                    alt={auction.listing?.title || "Auction Item"}
-                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  />
-                  <div className="absolute top-3 right-3 rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
-                    {isEnded ? "Ended" : "Live"}
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="flex flex-1 flex-col p-4">
-                  <div className="text-[11px] font-medium text-muted uppercase tracking-wide">
-                    {auction.listing?.category || "General"}
-                  </div>
-                  <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-ink group-hover:text-accent-600">
-                    {auction.listing?.title || "Untitled Auction Item"}
-                  </h3>
-
-                  <div className="mt-4 flex items-end justify-between border-t border-line pt-3">
-                    <div>
-                      <span className="text-[10px] text-muted">Current Bid</span>
-                      <div className="text-base font-bold text-ink">
-                        {formatMoney(auction.currentAmountMinor, auction.currency)}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-muted">
-                        {auction.totalBids} bid{auction.totalBids !== 1 ? "s" : ""}
-                      </span>
-                      <div className="text-[11px] font-medium text-accent-600">
-                        {isEnded
-                          ? "Closed"
-                          : `Ends ${endsAtDate.toLocaleDateString([], {
-                              month: "short",
-                              day: "numeric",
-                            })}`}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+        {pages > 1 ? (
+          <nav aria-label="Pages" className="mt-4 flex items-center justify-center gap-3">
+            {page > 1 ? (
+              <Link href={href(page - 1)} className={buttonClass("secondary")}>
+                <ChevronLeft className="size-4" aria-hidden="true" />
+                Previous
               </Link>
-            );
-          })}
-        </div>
-      )}
-    </div>
+            ) : null}
+            <span className="text-sm text-ink-soft">
+              Page {page} of {pages}
+            </span>
+            {page < pages ? (
+              <Link href={href(page + 1)} className={buttonClass("secondary")}>
+                Next
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </Link>
+            ) : null}
+          </nav>
+        ) : null}
+      </section>
+    </main>
   );
 }

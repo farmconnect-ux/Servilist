@@ -1,171 +1,160 @@
--- Migration 00018: Sprint 7 - Auctions and Timed Bidding Engine
--- Master Spec Section 24 (auctions) & Section 25 (auction_bids) & Phase 7
+-- Migration 00018: Sprint 7 - auction rules
+-- Master spec sections 24, 25, 120.
+--
+-- Auctions already exist: an auction is a listing with format 'auction', bids
+-- live in public.bids, and place_bid() and settle_auction() are the only way
+-- to bid or close (migrations 00010 and 00011). Both sites use them. This
+-- migration tightens those rules instead of adding a second auction system:
+--
+--   * only active members can bid (a suspended member could before)
+--   * a bid in the last five minutes extends the auction by five minutes, so
+--     an auction cannot be won by bidding in the final second
+--   * a new auction needs an end time between ten minutes and sixty days away
+--   * once an auction has bids, its end time and reserve cannot be changed
 
-CREATE TABLE IF NOT EXISTS public.auctions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    listing_id UUID NOT NULL UNIQUE REFERENCES public.listings(id) ON DELETE CASCADE,
-    seller_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    currency VARCHAR(3) NOT NULL DEFAULT 'NGN',
-    starting_amount_minor BIGINT NOT NULL CHECK (starting_amount_minor >= 0),
-    reserve_amount_minor BIGINT CHECK (reserve_amount_minor IS NULL OR reserve_amount_minor >= starting_amount_minor),
-    current_amount_minor BIGINT NOT NULL CHECK (current_amount_minor >= starting_amount_minor),
-    min_increment_minor BIGINT NOT NULL DEFAULT 50000 CHECK (min_increment_minor > 0), -- e.g. 500 NGN default
-    starts_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ends_at TIMESTAMPTZ NOT NULL,
-    status VARCHAR(40) NOT NULL DEFAULT 'active' CHECK (status IN ('scheduled', 'active', 'ended', 'settled', 'cancelled')),
-    winner_user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
-    winning_bid_id UUID,
-    total_bids INTEGER NOT NULL DEFAULT 0 CHECK (total_bids >= 0),
-    anti_sniping_seconds INTEGER NOT NULL DEFAULT 300, -- 5 minutes extension if bid placed in last 5 min
-    settled_order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT auctions_time_valid CHECK (ends_at > starts_at)
-);
-
-CREATE INDEX IF NOT EXISTS idx_auctions_listing_id ON public.auctions(listing_id);
-CREATE INDEX IF NOT EXISTS idx_auctions_seller_id ON public.auctions(seller_id);
-CREATE INDEX IF NOT EXISTS idx_auctions_status ON public.auctions(status);
-CREATE INDEX IF NOT EXISTS idx_auctions_ends_at ON public.auctions(ends_at);
-CREATE INDEX IF NOT EXISTS idx_auctions_winner ON public.auctions(winner_user_id);
-
--- Auction Bids (immutable log of all bids placed on auctions)
-CREATE TABLE IF NOT EXISTS public.auction_bids (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    auction_id UUID NOT NULL REFERENCES public.auctions(id) ON DELETE CASCADE,
-    bidder_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    amount_minor BIGINT NOT NULL CHECK (amount_minor > 0),
-    max_proxy_amount_minor BIGINT CHECK (max_proxy_amount_minor IS NULL OR max_proxy_amount_minor >= amount_minor),
-    is_auto_bid BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS idx_auction_bids_auction_id ON public.auction_bids(auction_id, amount_minor DESC);
-CREATE INDEX IF NOT EXISTS idx_auction_bids_bidder_id ON public.auction_bids(bidder_id, created_at DESC);
-
--- Function for atomic bid placement with anti-sniping and concurrency locks
-CREATE OR REPLACE FUNCTION public.place_bid(
-    p_auction_id UUID,
-    p_bidder_id UUID,
-    p_amount_minor BIGINT,
-    p_max_proxy_minor BIGINT DEFAULT NULL
-)
-RETURNS JSONB
+CREATE OR REPLACE FUNCTION public.place_bid(p_listing_id UUID, p_amount_minor BIGINT)
+RETURNS public.bids
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path TO ''
 AS $$
 DECLARE
-    v_auction public.auctions;
-    v_min_required BIGINT;
-    v_bid_id UUID;
-    v_new_ends_at TIMESTAMPTZ;
-    v_extended BOOLEAN := false;
+    v_uid UUID := auth.uid();
+    v_listing public.listings;
+    v_min BIGINT;
+    v_bid public.bids;
 BEGIN
-    -- Acquire exclusive row lock on auction
-    SELECT * INTO v_auction FROM public.auctions WHERE id = p_auction_id FOR UPDATE;
+    IF v_uid IS NULL OR NOT public.is_active_member() THEN
+        RAISE EXCEPTION 'Sign in with an active account to place a bid';
+    END IF;
 
+    SELECT * INTO v_listing FROM public.listings WHERE id = p_listing_id FOR UPDATE;
     IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'error', 'AUCTION_NOT_FOUND', 'message', 'Auction does not exist');
+        RAISE EXCEPTION 'Listing not found';
+    END IF;
+    IF v_listing.format <> 'auction' OR v_listing.status <> 'active' THEN
+        RAISE EXCEPTION 'This listing is not an active auction';
+    END IF;
+    IF v_listing.auction_end_at IS NOT NULL AND v_listing.auction_end_at <= now() THEN
+        RAISE EXCEPTION 'This auction has ended';
+    END IF;
+    IF v_listing.seller_id = v_uid THEN
+        RAISE EXCEPTION 'You cannot bid on your own listing';
     END IF;
 
-    IF v_auction.status <> 'active' THEN
-        RETURN jsonb_build_object('success', false, 'error', 'AUCTION_NOT_ACTIVE', 'message', 'Auction is not accepting bids');
-    END IF;
-
-    IF now() < v_auction.starts_at THEN
-        RETURN jsonb_build_object('success', false, 'error', 'AUCTION_NOT_STARTED', 'message', 'Auction has not started yet');
-    END IF;
-
-    IF now() >= v_auction.ends_at THEN
-        RETURN jsonb_build_object('success', false, 'error', 'AUCTION_ENDED', 'message', 'Auction has already ended');
-    END IF;
-
-    IF v_auction.seller_id = p_bidder_id THEN
-        RETURN jsonb_build_object('success', false, 'error', 'FORBIDDEN', 'message', 'Sellers cannot bid on their own auctions');
-    END IF;
-
-    -- Calculate minimum required bid
-    IF v_auction.total_bids = 0 THEN
-        v_min_required := v_auction.starting_amount_minor;
+    IF v_listing.bids_count = 0 THEN
+        v_min := GREATEST(1, v_listing.amount_minor);
     ELSE
-        v_min_required := v_auction.current_amount_minor + v_auction.min_increment_minor;
+        v_min := v_listing.amount_minor + GREATEST(100, CEIL(v_listing.amount_minor * 0.05)::BIGINT);
+    END IF;
+    IF p_amount_minor IS NULL OR p_amount_minor < v_min THEN
+        RAISE EXCEPTION 'Bid must be at least % minor units', v_min;
     END IF;
 
-    IF p_amount_minor < v_min_required THEN
-        RETURN jsonb_build_object(
-            'success', false,
-            'error', 'BID_TOO_LOW',
-            'message', 'Bid must be at least ' || v_min_required,
-            'min_required', v_min_required
-        );
-    END IF;
+    INSERT INTO public.bids (listing_id, bidder_id, currency, amount_minor)
+    VALUES (p_listing_id, v_uid, v_listing.currency, p_amount_minor)
+    RETURNING * INTO v_bid;
 
-    -- Anti-sniping check: If bid placed within anti_sniping_seconds of ends_at, extend ends_at
-    v_new_ends_at := v_auction.ends_at;
-    IF v_auction.ends_at - now() <= make_interval(secs => v_auction.anti_sniping_seconds) THEN
-        v_new_ends_at := now() + make_interval(secs => v_auction.anti_sniping_seconds);
-        v_extended := true;
-    END IF;
-
-    -- Insert bid record
-    INSERT INTO public.auction_bids (auction_id, bidder_id, amount_minor, max_proxy_amount_minor)
-    VALUES (p_auction_id, p_bidder_id, p_amount_minor, p_max_proxy_minor)
-    RETURNING id INTO v_bid_id;
-
-    -- Update auction record
-    UPDATE public.auctions
-    SET current_amount_minor = p_amount_minor,
-        winner_user_id = p_bidder_id,
-        winning_bid_id = v_bid_id,
-        total_bids = v_auction.total_bids + 1,
-        ends_at = v_new_ends_at,
-        updated_at = now()
-    WHERE id = p_auction_id;
-
-    -- Also mirror update to listings table
     UPDATE public.listings
-    SET amount_minor = p_amount_minor,
-        bids_count = v_auction.total_bids + 1,
-        auction_end_at = v_new_ends_at
-    WHERE id = v_auction.listing_id;
+       SET amount_minor = p_amount_minor,
+           bids_count = bids_count + 1,
+           -- A late bid gives other bidders five more minutes
+           auction_end_at = CASE
+               WHEN auction_end_at IS NOT NULL AND auction_end_at - now() < INTERVAL '5 minutes'
+               THEN now() + INTERVAL '5 minutes'
+               ELSE auction_end_at END
+     WHERE id = p_listing_id;
 
-    RETURN jsonb_build_object(
-        'success', true,
-        'bid_id', v_bid_id,
-        'amount_minor', p_amount_minor,
-        'new_current_price', p_amount_minor,
-        'ends_at', v_new_ends_at,
-        'extended', v_extended
-    );
+    RETURN v_bid;
 END;
 $$;
 
--- RLS Policies
-ALTER TABLE public.auctions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.auction_bids ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON FUNCTION public.place_bid(UUID, BIGINT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.place_bid(UUID, BIGINT) TO authenticated;
 
-DROP POLICY IF EXISTS "Public view auctions" ON public.auctions;
-CREATE POLICY "Public view auctions" ON public.auctions
-    FOR SELECT TO public
-    USING (true);
+CREATE OR REPLACE FUNCTION public.listings_enforce_integrity()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path TO ''
+AS $$
+DECLARE
+    v_category public.categories;
+    v_direct BOOLEAN := current_user IN ('authenticated', 'anon');
+BEGIN
+    IF NEW.status = 'published' THEN
+        NEW.status := 'active';
+    END IF;
 
-DROP POLICY IF EXISTS "Sellers create auctions" ON public.auctions;
-CREATE POLICY "Sellers create auctions" ON public.auctions
-    FOR INSERT TO authenticated
-    WITH CHECK (auth.uid() = seller_id);
+    IF NEW.category_id IS NOT NULL THEN
+        SELECT * INTO v_category FROM public.categories WHERE id = NEW.category_id AND is_active;
+    ELSE
+        SELECT * INTO v_category FROM public.categories WHERE slug = NEW.category AND is_active;
+    END IF;
+    IF v_category.id IS NULL THEN
+        RAISE EXCEPTION 'Unknown category';
+    END IF;
+    NEW.category_id := v_category.id;
+    NEW.category := v_category.slug;
 
-DROP POLICY IF EXISTS "Sellers and admins update auctions" ON public.auctions;
-CREATE POLICY "Sellers and admins update auctions" ON public.auctions
-    FOR UPDATE TO authenticated
-    USING (auth.uid() = seller_id);
+    IF TG_OP = 'INSERT' THEN
+        IF v_direct THEN
+            NEW.bids_count := 0;
+            IF NEW.status NOT IN ('draft', 'active') THEN
+                RAISE EXCEPTION 'A new listing starts as a draft or published';
+            END IF;
+            IF NEW.format = 'auction' THEN
+                IF NEW.amount_minor <= 0 THEN
+                    RAISE EXCEPTION 'An auction needs a starting bid';
+                END IF;
+                IF NEW.auction_end_at IS NULL
+                   OR NEW.auction_end_at < now() + INTERVAL '10 minutes'
+                   OR NEW.auction_end_at > now() + INTERVAL '60 days' THEN
+                    RAISE EXCEPTION 'An auction must end between ten minutes and sixty days from now';
+                END IF;
+                IF NEW.reserve_amount_minor IS NOT NULL AND NEW.reserve_amount_minor < NEW.amount_minor THEN
+                    RAISE EXCEPTION 'The reserve cannot be lower than the starting bid';
+                END IF;
+            END IF;
+        END IF;
+        IF NEW.slug IS NULL OR btrim(NEW.slug) = '' THEN
+            NEW.slug := trim(BOTH '-' FROM lower(regexp_replace(NEW.title, '[^a-zA-Z0-9]+', '-', 'g')))
+                || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 8);
+        END IF;
+        RETURN NEW;
+    END IF;
 
-DROP POLICY IF EXISTS "Public view bids" ON public.auction_bids;
-CREATE POLICY "Public view bids" ON public.auction_bids
-    FOR SELECT TO public
-    USING (true);
+    IF v_direct THEN
+        IF NEW.seller_id <> OLD.seller_id THEN
+            RAISE EXCEPTION 'A listing cannot change owner';
+        END IF;
+        IF NEW.currency <> OLD.currency THEN
+            RAISE EXCEPTION 'The currency of a listing cannot change';
+        END IF;
+        IF OLD.bids_count > 0 AND (NEW.amount_minor <> OLD.amount_minor OR NEW.format <> OLD.format) THEN
+            RAISE EXCEPTION 'An auction with bids cannot change its price or type';
+        END IF;
+        IF OLD.bids_count > 0
+           AND (NEW.auction_end_at IS DISTINCT FROM OLD.auction_end_at
+                OR NEW.reserve_amount_minor IS DISTINCT FROM OLD.reserve_amount_minor) THEN
+            RAISE EXCEPTION 'An auction with bids cannot change its end time or reserve';
+        END IF;
+        IF NEW.format = 'auction'
+           AND (NEW.auction_end_at IS DISTINCT FROM OLD.auction_end_at OR OLD.format <> 'auction')
+           AND (NEW.auction_end_at IS NULL
+                OR NEW.auction_end_at < now() + INTERVAL '10 minutes'
+                OR NEW.auction_end_at > now() + INTERVAL '60 days') THEN
+            RAISE EXCEPTION 'An auction must end between ten minutes and sixty days from now';
+        END IF;
+        IF OLD.status IN ('sold', 'removed')
+           AND NOT public.has_permission('listings.moderate') THEN
+            RAISE EXCEPTION 'This listing can no longer be edited';
+        END IF;
+        IF NEW.status = 'removed' AND OLD.status <> 'removed'
+           AND NOT public.has_permission('listings.moderate') THEN
+            RAISE EXCEPTION 'Only a moderator can remove a listing';
+        END IF;
+    END IF;
 
-DROP POLICY IF EXISTS "Bidders place bids" ON public.auction_bids;
-CREATE POLICY "Bidders place bids" ON public.auction_bids
-    FOR INSERT TO authenticated
-    WITH CHECK (auth.uid() = bidder_id);
+    RETURN NEW;
+END;
+$$;
