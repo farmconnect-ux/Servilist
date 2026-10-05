@@ -28,10 +28,18 @@ describe("E2E Marketplace Multi-Party Workflow", () => {
       city: "Ikeja",
       country: "Nigeria",
       fulfillment: "both" as const,
+      imageUrl: "https://example.test/photos/macbook.jpg",
     };
 
     const parsedListing = CreateListingSchema.safeParse(listingInput);
     expect(parsedListing.success).toBe(true);
+
+    // A listing must carry the seller's own photo; nothing is substituted for a missing one
+    const { imageUrl: _photo, ...withoutPhoto } = listingInput;
+    expect(CreateListingSchema.safeParse(withoutPhoto).success).toBe(false);
+    expect(
+      CreateListingSchema.safeParse({ ...listingInput, imageUrl: "http://example.test/a.jpg" }).success,
+    ).toBe(false);
 
     const minorUnits = toMinorUnits(listingInput.priceMajor, "NGN");
     expect(minorUnits).toBe(350000000); // 3,500,000 NGN in kobo

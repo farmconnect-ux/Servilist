@@ -1,41 +1,31 @@
-import Link from "next/link";
+import { RequestWizard } from "@/components/marketplace/RequestWizard";
 import { createDb } from "@/lib/db/server";
 import { requireUser } from "@/server/auth/session";
 import { listCategories } from "@/server/repositories/categories";
-import { RequestWizard } from "@/components/marketplace/RequestWizard";
 
 export const metadata = {
-  title: "Post a Buyer Request · Servilist Africa",
-  description: "Can't find what you need? Post a request and receive offers from verified sellers and service providers.",
+  title: "Post a request",
+  description: "Tell sellers what you need and let them send you offers.",
 };
 
 export default async function NewRequestPage() {
   await requireUser("/requests/new");
-  const db = await createDb();
-  const categories = await listCategories(db);
+  const categories = await listCategories(await createDb());
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
+    <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8 md:px-5 lg:px-6">
       <div>
-        <nav aria-label="Breadcrumb" className="mb-2 text-xs text-muted">
-          <Link href="/" className="hover:text-brand">Home</Link> &gt;{" "}
-          <Link href="/requests" className="hover:text-brand">Buyer Requests</Link> &gt;{" "}
-          <span>New</span>
-        </nav>
-        <h1 className="text-2xl font-bold text-ink sm:text-3xl">Post a Buyer Request</h1>
-        <p className="mt-1 text-sm text-muted">
-          Tell sellers and service providers across Pan-Africa exactly what you need. Receive competitive quotes directly.
+        <h1 className="text-[28px] leading-tight font-bold text-ink md:text-[40px]">Post a request</h1>
+        <p className="mt-1 text-sm text-ink-soft md:text-base">
+          Can&apos;t find what you need? Tell sellers what you&apos;re looking for and they&apos;ll send
+          you offers.
         </p>
       </div>
-
       <RequestWizard
-        categories={categories.map((c) => ({
-          id: c.id,
-          name: c.name,
-          slug: c.slug,
-          icon: c.icon,
-        }))}
+        categories={categories
+          .filter((category) => !category.parentId)
+          .map((category) => ({ id: category.id, name: category.name, slug: category.slug }))}
       />
-    </div>
+    </main>
   );
 }

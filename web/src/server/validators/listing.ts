@@ -62,12 +62,14 @@ export const CreateListingSchema = z.object({
   country: z.string().min(2).max(100).default("Nigeria"),
   fulfillment: z.enum(FULFILLMENT_OPTIONS).default("both"),
   imageUrl: z
-    .string()
-    .url("Image must be a valid URL")
-    .default(
-      "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80",
-    ),
-  galleryImages: z.array(z.string().url()).max(8).optional().default([]),
+    .string({ error: "Add at least one photo" })
+    .url("Add at least one photo")
+    .startsWith("https://", "Photos must use a secure address"),
+  galleryImages: z
+    .array(z.string().url().startsWith("https://", "Photos must use a secure address"))
+    .max(8)
+    .optional()
+    .default([]),
   status: z.enum(["draft", "published", "active"]).default("active"),
 });
 

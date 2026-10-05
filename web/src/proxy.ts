@@ -3,7 +3,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/public-config";
 import { isReleased } from "@/lib/release";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/requests/new", "/checkout", "/design-system"];
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/admin",
+  "/requests/new",
+  "/checkout",
+  "/design-system",
+  "/sell",
+];
 
 /**
  * Keeps the session cookie fresh and sends signed-out visitors away from
