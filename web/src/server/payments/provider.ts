@@ -263,13 +263,39 @@ export class FlutterwaveProvider implements PaymentProvider {
   }
 }
 
+/** Thrown when no real payment provider is configured for the request. */
+export class PaymentsUnavailableError extends Error {
+  constructor(message = "Online payment is not available yet.") {
+    super(message);
+    this.name = "PaymentsUnavailableError";
+  }
+}
+
+/**
+ * The mock provider approves every payment, so it must never be reachable on a
+ * deployed site: it needs a non-production build AND an explicit opt-in.
+ */
+export function mockPaymentsAllowed(): boolean {
+  return process.env.NODE_ENV !== "production" && process.env.ALLOW_MOCK_PAYMENTS === "true";
+}
+
+/**
+ * Returns a provider only when it is really configured. There is no default:
+ * an unknown or unconfigured provider is an error, never a silent mock, so an
+ * order cannot be marked paid without a real, verified payment.
+ */
 export function getPaymentProvider(providerName?: string): PaymentProvider {
   switch (providerName?.toLowerCase()) {
     case "paystack":
+      if (!process.env.PAYSTACK_SECRET_KEY) throw new PaymentsUnavailableError();
       return new PaystackProvider();
     case "flutterwave":
+      if (!process.env.FLUTTERWAVE_SECRET_KEY) throw new PaymentsUnavailableError();
       return new FlutterwaveProvider();
-    default:
+    case "mock_escrow":
+      if (!mockPaymentsAllowed()) throw new PaymentsUnavailableError();
       return new MockEscrowProvider();
+    default:
+      throw new PaymentsUnavailableError();
   }
 }

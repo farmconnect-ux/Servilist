@@ -7,3 +7,6 @@ playwright-report/
 package-lock.json
 Pass.docx
 .env
+web/
+docs/MASTER_SPEC.md
+.claude/

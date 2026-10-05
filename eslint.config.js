@@ -9,6 +9,7 @@ export default [
       'test-results/**',
       'playwright-report/**',
       '.playwright/**',
+      'web/**',
     ],
   },
   ...tsPlugin.configs.recommended,

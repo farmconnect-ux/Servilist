@@ -77,6 +77,7 @@ describe("Sprint 4: Orders, Payments & Escrow Ledger", () => {
 
   describe("Payment Provider Abstraction", () => {
     it("initializes and verifies payment via mock escrow provider", async () => {
+      process.env.ALLOW_MOCK_PAYMENTS = "true";
       const provider = getPaymentProvider("mock_escrow");
       expect(provider.name).toBe("mock_escrow");
 

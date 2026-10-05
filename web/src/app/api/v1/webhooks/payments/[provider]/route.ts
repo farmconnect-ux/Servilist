@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getPaymentProvider } from "@/server/payments/provider";
+import { PaymentsUnavailableError, getPaymentProvider } from "@/server/payments/provider";
 import { handlePaymentSuccessAction } from "@/server/services/orders";
 
 export async function POST(
@@ -10,11 +10,11 @@ export async function POST(
     const { provider: providerName } = await params;
     const provider = getPaymentProvider(providerName);
     const rawBody = await request.text();
-    const signature = request.headers.get("x-paystack-signature") ||
-                      request.headers.get("verif-hash") ||
-                      "mock_signature";
+    const signature =
+      request.headers.get("x-paystack-signature") || request.headers.get("verif-hash") || "";
 
-    if (!provider.verifyWebhookSignature(rawBody, signature)) {
+    // A webhook without a signature is never trusted
+    if (!signature || !provider.verifyWebhookSignature(rawBody, signature)) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
@@ -43,6 +43,9 @@ export async function POST(
 
     return NextResponse.json({ status: "received" }, { status: 200 });
   } catch (err: any) {
+    if (err instanceof PaymentsUnavailableError) {
+      return NextResponse.json({ error: "Unknown payment provider" }, { status: 404 });
+    }
     return NextResponse.json(
       { error: err.message || "Webhook processing failed" },
       { status: 400 },
