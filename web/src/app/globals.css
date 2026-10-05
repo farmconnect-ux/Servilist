@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+/* Servilist design tokens, carried over from the DashStack-based Figma design. */
+@theme {
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand: #4880ff;
+  --color-brand-strong: #3265d6;
+  --color-brand-soft: #edf3ff;
+
+  --color-page: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-ink: #202224;
+  --color-muted: #697386;
+  --color-line: #e8ecf2;
+  --color-line-strong: #d5d5d5;
+
+  --color-success: #14836b;
+  --color-success-soft: #eaf7f2;
+  --color-warning: #a56816;
+  --color-warning-soft: #fff4df;
+  --color-danger: #d84c66;
+  --color-danger-soft: #fff0f3;
+  --color-accent: #8254bb;
+  --color-accent-soft: #f3eefa;
+
+  --radius-card: 14px;
+  --radius-control: 6px;
+
+  --shadow-card: 0 4px 18px 0 rgb(21 43 80 / 0.06);
+}
+
+@layer base {
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+  }
+
+  /* One visible focus style everywhere (WCAG 2.4.7) */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}

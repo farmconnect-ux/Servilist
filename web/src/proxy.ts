@@ -1,0 +1,56 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+
+const PROTECTED_PREFIXES = ["/dashboard", "/admin"];
+
+/**
+ * Keeps the session cookie fresh and sends signed-out visitors away from
+ * private areas early. This is a convenience only: every private page and
+ * action checks the session and permissions again on the server.
+ */
+export async function proxy(request: NextRequest) {
+  let response = NextResponse.next({ request });
+
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) return response;
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+  };
+
+  const supabase = createServerClient(url, key, {
+    cookieOptions,
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (list) => {
+        list.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({ request });
+        list.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, { ...options, ...cookieOptions }),
+        );
+      },
+    },
+  });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+  if (!user && PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+    const login = request.nextUrl.clone();
+    login.pathname = "/login";
+    login.search = `?next=${encodeURIComponent(pathname)}`;
+    return NextResponse.redirect(login);
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+};
