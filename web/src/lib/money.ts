@@ -33,3 +33,13 @@ export function formatMoney(amountMinor: number, currency: string): string {
     })
   );
 }
+
+export function toMinorUnits(amountMajor: number, currency: string): number {
+  const factor = isCurrency(currency) ? CURRENCIES[currency].minorFactor : 100;
+  return Math.round(amountMajor * factor);
+}
+
+export function fromMinorUnits(amountMinor: number, currency: string): number {
+  const factor = isCurrency(currency) ? CURRENCIES[currency].minorFactor : 100;
+  return amountMinor / factor;
+}

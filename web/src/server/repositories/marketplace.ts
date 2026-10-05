@@ -15,6 +15,7 @@ export interface PublicProfile {
 
 export interface ListingSummary {
   id: string;
+  slug?: string;
   title: string;
   category: string;
   format: "auction" | "buy_now" | "service" | "free_barter";
@@ -78,7 +79,7 @@ export async function listActiveListings(
   let request = db
     .from("listings")
     .select(
-      `id, title, category, format, currency, amount_minor, bids_count, auction_end_at, city, image_url, created_at, seller:profiles!seller_id(${PUBLIC_PROFILE})`,
+      `id, slug, title, category, format, currency, amount_minor, bids_count, auction_end_at, city, image_url, created_at, seller:profiles!seller_id(${PUBLIC_PROFILE})`,
     )
     .eq("status", "active")
     .order("created_at", { ascending: false })
@@ -92,6 +93,7 @@ export async function listActiveListings(
 
   return (data as Row[]).map((row) => ({
     id: String(row.id),
+    slug: typeof row.slug === "string" ? row.slug : String(row.id),
     title: String(row.title),
     category: String(row.category),
     format: row.format as ListingSummary["format"],

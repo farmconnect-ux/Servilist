@@ -26,3 +26,15 @@ export function fieldErrorsFrom(error: ZodError): Record<string, string> {
   }
   return errors;
 }
+
+export type Result<T> =
+  | { ok: true; data: T }
+  | { ok: false; code: string; error: string; details?: unknown };
+
+export function ok<T>(data: T): Result<T> {
+  return { ok: true, data };
+}
+
+export function fail<T = never>(code: string, error: string, details?: unknown): Result<T> {
+  return { ok: false, code, error, details };
+}
