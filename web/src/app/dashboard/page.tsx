@@ -24,9 +24,8 @@ export default async function DashboardPage() {
       </div>
 
       <Alert>
-        You can list items, post requests, send quotes, make offers and message other members
-        here. Orders and payments open once they are verified; until then they remain on the
-        current site.
+        You can list items, post requests, send quotes, make offers, message other members and
+        place orders here. Online payment switches on once a payment provider is connected.
       </Alert>
     </>
   );

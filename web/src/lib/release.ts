@@ -40,10 +40,26 @@ const PREFIXES = [
   "/api/v1/requests",
   "/api/v1/offers",
   "/api/v1/conversations",
+  // Sprint 4: orders, and payments through Paystack or Flutterwave
+  "/checkout",
+  "/dashboard/orders",
+  "/api/v1/orders",
+  "/api/v1/webhooks/payments",
+];
+
+/** Still closed, even though they sit beneath an open path. */
+const CLOSED = [
+  // Sprint 9: request-to-listing matching
+  /^\/api\/v1\/requests\/[^/]+\/matches$/,
+  // Sprint 5: disputes
+  /^\/api\/v1\/orders\/[^/]+\/dispute$/,
+  // Sprint 8: courier delivery tracking
+  /^\/api\/v1\/orders\/[^/]+\/delivery(\/.*)?$/,
 ];
 
 export function isReleased(pathname: string): boolean {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  if (CLOSED.some((pattern) => pattern.test(path))) return false;
   if (EXACT.has(path)) return true;
   return PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 }

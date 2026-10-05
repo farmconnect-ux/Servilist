@@ -16,13 +16,29 @@ interface CheckoutItemDetails {
   sellerName?: string;
 }
 
-export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
+interface ProviderOption {
+  name: string;
+  label: string;
+  description: string;
+}
+
+export function CheckoutClient({
+  item,
+  feeBps,
+  providers,
+}: {
+  item: CheckoutItemDetails;
+  /** Buyer protection fee in basis points. Shown here; charged by the server. */
+  feeBps: number;
+  /** Payment providers that are configured and can charge in this currency. */
+  providers: ProviderOption[];
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
-  const [provider, setProvider] = useState("mock_escrow");
+  const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("pickup");
+  const [provider, setProvider] = useState(providers[0]?.name ?? "");
 
   const [address, setAddress] = useState({
     recipientName: "",
@@ -32,9 +48,11 @@ export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
     country: "Nigeria",
   });
 
-  const deliveryFeeMinor = fulfillment === "delivery" ? 300000 : 0;
-  const escrowFeeMinor = Math.round(item.priceMinor * 0.02);
+  // For display only: the server works out the same figures and charges those
+  const deliveryFeeMinor = 0;
+  const escrowFeeMinor = Math.floor((item.priceMinor * feeBps) / 10000);
   const totalMinor = item.priceMinor + deliveryFeeMinor + escrowFeeMinor;
+  const canPay = providers.length > 0;
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +65,7 @@ export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          listingId: item.listingId,
-          quoteId: item.quoteId,
+          listingId: item.offerId ? undefined : item.listingId,
           offerId: item.offerId,
           fulfillmentType: fulfillment,
           shippingAddress: fulfillment === "delivery" ? address : undefined,
@@ -69,26 +86,15 @@ export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
         body: JSON.stringify({ provider }),
       });
 
-      const payJson = await payRes.json();
-      if (!payRes.ok || !payJson.success) {
-        throw new Error(payJson.error?.message || "Failed to initiate payment");
+      const payJson = await payRes.json().catch(() => null);
+      if (!payRes.ok || !payJson?.success) {
+        // The order exists; it can be paid or cancelled from its own page
+        router.push(`/dashboard/orders/${orderId}`);
+        return;
       }
 
-      // If mock escrow, automatically trigger confirmation for test mode
-      if (provider === "mock_escrow") {
-        await fetch(`/api/v1/webhooks/payments/mock_escrow`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            orderId,
-            reference: payJson.data.reference,
-          }),
-        });
-        router.push(`/dashboard/orders/${orderId}`);
-      } else {
-        // Redirect to external payment gateway (Paystack / Flutterwave)
-        window.location.href = payJson.data.checkoutUrl;
-      }
+      // Continue on the provider's own payment page (Paystack or Flutterwave)
+      window.location.href = payJson.data.checkoutUrl;
     } catch (err: any) {
       setError(err.message || "An error occurred during checkout");
       setLoading(false);
@@ -120,10 +126,10 @@ export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
             >
               <p className="font-bold text-ink">Doorstep Delivery</p>
               <p className="text-xs text-muted mt-1">
-                Delivered safely to your physical address. Handover OTP required upon arrival.
+                Sent to your address. You give the handover code when it arrives.
               </p>
               <p className="mt-2 text-xs font-semibold text-brand">
-                {formatMoney(300000, item.currency)}
+                Delivery cost is agreed with the seller
               </p>
             </button>
 
@@ -138,9 +144,9 @@ export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
             >
               <p className="font-bold text-ink">Direct Pickup / Meeting</p>
               <p className="text-xs text-muted mt-1">
-                Meet seller in a verified Safe Exchange Zone. Inspect item in person before OTP release.
+                Meet the seller in a public place and inspect the item before giving your handover code.
               </p>
-              <p className="mt-2 text-xs font-semibold text-emerald-600">FREE</p>
+              <p className="mt-2 text-xs font-semibold text-emerald-600">No delivery cost</p>
             </button>
           </div>
         </Card>
@@ -218,17 +224,21 @@ export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
 
         {/* Payment gateway */}
         <Card className="p-6">
-          <h2 className="text-lg font-bold text-ink">3. Escrow Payment Gateway</h2>
+          <h2 className="text-lg font-bold text-ink">3. Payment Provider</h2>
           <p className="mt-1 text-xs text-muted">
-            Funds will be held securely in escrow until you verify delivery and release your secret OTP.
+            Choose who processes your payment. Servilist never sees your card or wallet details.
           </p>
 
           <div className="mt-4 space-y-2">
-            {[
-              { id: "mock_escrow", name: "Servilist Test Escrow (Instant Sandbox)", desc: "Instant test-mode payment for demo and verification" },
-              { id: "paystack", name: "Paystack (Cards, Bank Transfer, USSD)", desc: "Supports NGN, GHS, KES, ZAR cards and instant bank accounts" },
-              { id: "flutterwave", name: "Flutterwave (Mobile Money & Cross-Border)", desc: "M-Pesa, MTN Mobile Money, Airtel, and Pan-African debit cards" },
-            ].map((p) => (
+            {!canPay && (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                Online payment in {item.currency} is not available yet. You can still message the
+                seller to arrange the purchase.
+              </p>
+            )}
+            {providers
+              .map((p) => ({ id: p.name, name: p.label, desc: p.description }))
+              .map((p) => (
               <label
                 key={p.id}
                 className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
@@ -279,11 +289,11 @@ export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
             <div className="flex justify-between text-muted">
               <span>Delivery Fee</span>
               <span className="font-medium text-ink">
-                {deliveryFeeMinor === 0 ? "FREE" : formatMoney(deliveryFeeMinor, item.currency)}
+                {deliveryFeeMinor === 0 ? "Not included" : formatMoney(deliveryFeeMinor, item.currency)}
               </span>
             </div>
             <div className="flex justify-between text-muted">
-              <span>Escrow Security Fee (2%)</span>
+              <span>Buyer protection fee ({feeBps / 100}%)</span>
               <span className="font-medium text-ink">
                 {formatMoney(escrowFeeMinor, item.currency)}
               </span>
@@ -297,14 +307,14 @@ export function CheckoutClient({ item }: { item: CheckoutItemDetails }) {
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || !canPay || !provider}
             className="mt-6 w-full font-bold"
           >
-            {loading ? "Securing Funds..." : "Pay into Escrow 🔒"}
+            {loading ? "Opening payment page..." : "Continue to payment"}
           </Button>
 
           <p className="mt-3 text-[11px] text-center text-muted">
-            🛡️ 100% Protected: Funds are never paid to the vendor until you inspect the delivery and provide your 6-digit OTP.
+            The order is released to the seller only when you give them your 6-digit handover code.
           </p>
         </Card>
       </div>

@@ -3,6 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { createDb } from "@/lib/db/server";
 import { getSessionUser } from "@/server/auth/session";
 import { getListingById } from "@/server/repositories/listings";
+import { getBuyerFeeBps } from "@/server/repositories/orders";
+import { availableProviders } from "@/server/payments/provider";
+import { isUuid } from "@/lib/ids";
 import { CheckoutClient } from "@/components/marketplace/CheckoutClient";
 
 export const metadata = {
@@ -40,31 +43,20 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
     sellerName?: string;
   } | null = null;
 
+  // Accepted quotes on buyer requests are settled by handover code on the request, not here
+  if (quoteId) redirect("/dashboard/requests");
+  if ((listingId && !isUuid(listingId)) || (offerId && !isUuid(offerId))) notFound();
+
   if (listingId) {
     const listing = await getListingById(db, listingId);
-    if (!listing) notFound();
+    if (!listing || listing.status !== "active") notFound();
+    if (listing.sellerId === user.userId) redirect(`/products/${listing.slug}`);
     itemDetails = {
       title: listing.title,
       priceMinor: listing.amountMinor,
       currency: listing.currency,
       listingId: listing.id,
       sellerName: listing.seller.displayName,
-    };
-  } else if (quoteId) {
-    const { data: quote } = await db
-      .from("quotes")
-      .select("*, provider:profiles!provider_id(display_name)")
-      .eq("id", quoteId)
-      .maybeSingle();
-
-    if (!quote) notFound();
-    const provider = Array.isArray(quote.provider) ? quote.provider[0] : quote.provider;
-    itemDetails = {
-      title: "Accepted Service / Good Quote",
-      priceMinor: Number(quote.amount_minor),
-      currency: quote.currency,
-      quoteId: quote.id,
-      sellerName: provider?.display_name,
     };
   } else if (offerId) {
     const { data: offer } = await db
@@ -73,7 +65,8 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
       .eq("id", offerId)
       .maybeSingle();
 
-    if (!offer) notFound();
+    // Only the buyer of an accepted offer can check it out
+    if (!offer || offer.buyer_id !== user.userId || offer.status !== "accepted") notFound();
     const seller = Array.isArray(offer.seller) ? offer.seller[0] : offer.seller;
     const listing = Array.isArray(offer.listing) ? offer.listing[0] : offer.listing;
     itemDetails = {
@@ -95,11 +88,15 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
         </nav>
         <h1 className="text-2xl font-black text-ink sm:text-3xl">Secure Escrow Checkout</h1>
         <p className="mt-1 text-sm text-muted">
-          Your payment is held safely in escrow until you inspect your item and provide the handover OTP.
+          You pay through a licensed payment provider. The seller is paid after you inspect the item and give them your handover code.
         </p>
       </div>
 
-      <CheckoutClient item={itemDetails} />
+      <CheckoutClient
+        item={itemDetails}
+        feeBps={await getBuyerFeeBps(db)}
+        providers={availableProviders(itemDetails.currency)}
+      />
     </div>
   );
 }

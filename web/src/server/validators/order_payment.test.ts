@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { CreateOrderSchema, ConfirmDeliveryOtpSchema, DisputeOrderSchema } from "./order";
-import { getPaymentProvider } from "../payments/provider";
 import { generateOtp, hashOtp } from "../../lib/crypto";
 
 describe("Sprint 4: Orders, Payments & Escrow Ledger", () => {
@@ -23,7 +22,7 @@ describe("Sprint 4: Orders, Payments & Escrow Ledger", () => {
       expect(res.success).toBe(true);
     });
 
-    it("rejects order missing listing, quote, or offer reference", () => {
+    it("rejects an order that names no listing or offer", () => {
       const invalid = {
         fulfillmentType: "pickup",
       };
@@ -75,28 +74,5 @@ describe("Sprint 4: Orders, Payments & Escrow Ledger", () => {
     });
   });
 
-  describe("Payment Provider Abstraction", () => {
-    it("initializes and verifies payment via mock escrow provider", async () => {
-      process.env.ALLOW_MOCK_PAYMENTS = "true";
-      const provider = getPaymentProvider("mock_escrow");
-      expect(provider.name).toBe("mock_escrow");
-
-      const init = await provider.initializePayment({
-        orderId: "123e4567-e89b-12d3-a456-426614174000",
-        orderNumber: "SL-TEST-001",
-        amountMinor: 5000000,
-        currency: "NGN",
-        customerEmail: "buyer@test.com",
-        customerName: "Test Buyer",
-        callbackUrl: "http://localhost:3000/callback",
-      });
-
-      expect(init.reference).toMatch(/^MOCK-/);
-      expect(init.checkoutUrl).toContain(init.reference);
-
-      const verify = await provider.verifyPayment(init.reference);
-      expect(verify.success).toBe(true);
-      expect(verify.channel).toBe("mock_test_mode");
-    });
-  });
+  // Payment providers are tested in server/payments/provider.test.ts
 });

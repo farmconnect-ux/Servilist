@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { ListingActions } from "@/components/marketplace/ListingActions";
 import { getSessionUser } from "@/server/auth/session";
+import { isReleased } from "@/lib/release";
 import { canParticipate } from "@/server/policies/access";
 
 export default async function ProductDetailPage({
@@ -142,19 +143,26 @@ export default async function ProductDetailPage({
                 This listing is no longer available.
               </p>
             ) : canParticipate(viewer) ? (
-              <ListingActions
+              <>
+                {listing.format !== "auction" && isReleased("/checkout") ? (
+                  <ButtonLink href={`/checkout?listingId=${listing.id}`}>
+                    Buy now for {formatMoney(listing.amountMinor, listing.currency)}
+                  </ButtonLink>
+                ) : null}
+                <ListingActions
                 listingId={listing.id}
                 sellerId={listing.sellerId}
                 currency={listing.currency}
                 negotiable={listing.negotiable}
-              />
+                />
+              </>
             ) : null}
 
             {/* Escrow Guarantee Callout */}
             <div className="rounded-control bg-page p-3.5 text-xs text-muted">
               <p className="font-bold text-ink">🛡️ Servilist Buyer Protection</p>
               <p className="mt-1">
-                Your payment is held safely in escrow until you inspect the item and provide your delivery OTP.
+                You pay through a licensed payment provider. The seller is paid after you inspect the item and give them your handover code.
               </p>
             </div>
           </div>

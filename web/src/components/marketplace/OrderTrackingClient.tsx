@@ -12,8 +12,16 @@ interface OrderTrackingProps {
   isBuyer: boolean;
   isSeller: boolean;
   otpCode?: string | null;
-  otpVerifiedAt?: string | null;
+  completedAt?: string | null;
+  /** When an unpaid order stops holding the item. */
+  paymentDueAt?: string;
+  /** Payment providers the buyer can use for this order. */
+  providers?: Array<{ name: string; label: string; description: string }>;
+  /** Disputes open with the moderation tools (Sprint 5). */
+  disputesOpen?: boolean;
 }
+
+const AWAITING_HANDOVER = ["in_escrow", "dispatched", "delivered"];
 
 export function OrderTrackingClient({
   orderId,
@@ -22,7 +30,10 @@ export function OrderTrackingClient({
   isBuyer,
   isSeller,
   otpCode,
-  otpVerifiedAt,
+  completedAt,
+  paymentDueAt,
+  providers = [],
+  disputesOpen = false,
 }: OrderTrackingProps) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
@@ -61,6 +72,37 @@ export function OrderTrackingClient({
     }
   };
 
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  /** Pay, cancel, or move a stage. The server decides whether each is allowed. */
+  const orderAction = async (path: "pay" | "cancel" | "stage", body: Record<string, string>) => {
+    setActionBusy(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/v1/orders/${orderId}/${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error?.message || "That could not be done. Please try again.");
+      }
+      if (path === "pay") {
+        window.location.href = json.data.checkoutUrl;
+        return;
+      }
+      setStatus(json.data.status);
+      router.refresh();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "That could not be done.");
+    }
+    setActionBusy(false);
+  };
+
+  const awaitingHandover = AWAITING_HANDOVER.includes(status);
+
   const handleDispute = async (e: React.FormEvent) => {
     e.preventDefault();
     setDisputeLoading(true);
@@ -91,8 +133,8 @@ export function OrderTrackingClient({
   };
 
   const steps = [
-    { key: "pending_payment", label: "Payment Initiated" },
-    { key: "in_escrow", label: "Held in Escrow" },
+    { key: "pending_payment", label: "Order Placed" },
+    { key: "in_escrow", label: "Paid, Held by Provider" },
     { key: "dispatched", label: "In Transit" },
     { key: "completed", label: "Handover Verified" },
   ];
@@ -101,15 +143,15 @@ export function OrderTrackingClient({
     switch (st) {
       case "pending_payment":
         return 0;
-      case "payment_confirmed":
       case "in_escrow":
-      case "processing":
         return 1;
       case "dispatched":
       case "delivered":
         return 2;
       case "completed":
         return 3;
+      case "cancelled":
+        return -1;
       default:
         return 1;
     }
@@ -122,7 +164,7 @@ export function OrderTrackingClient({
       {/* Escrow Progress Bar */}
       <Card className="p-6">
         <h3 className="text-sm font-bold text-ink uppercase tracking-wider">
-          Escrow Protection Lifecycle
+          Order Progress
         </h3>
 
         <div className="mt-6 flex items-center justify-between">
@@ -150,8 +192,63 @@ export function OrderTrackingClient({
         </div>
       </Card>
 
+      {actionError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+          {actionError}
+        </div>
+      )}
+
+      {/* Buyer: pay for or cancel an unpaid order */}
+      {isBuyer && status === "pending_payment" && (
+        <Card className="p-6">
+          <h4 className="font-bold text-ink">Complete your payment</h4>
+          <p className="mt-1 text-xs text-muted">
+            The item is held for you
+            {paymentDueAt ? ` until ${new Date(paymentDueAt).toLocaleTimeString()}` : ""}. After that
+            the order closes and you can order again.
+          </p>
+          {providers.length === 0 ? (
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              Online payment is not available yet.
+            </p>
+          ) : (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {providers.map((p) => (
+                <Button
+                  key={p.name}
+                  disabled={actionBusy}
+                  onClick={() => orderAction("pay", { provider: p.name })}
+                  className="font-bold"
+                >
+                  Pay with {p.label}
+                </Button>
+              ))}
+            </div>
+          )}
+          <div className="mt-3">
+            <Button
+              variant="outline"
+              disabled={actionBusy}
+              onClick={() => orderAction("cancel", {})}
+              className="min-h-9 px-3 text-xs"
+            >
+              Cancel this order
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {isSeller && status === "pending_payment" && (
+        <Card className="p-6">
+          <h4 className="font-bold text-ink">Waiting for the buyer to pay</h4>
+          <p className="mt-1 text-xs text-muted">
+            Do not hand over the item yet. This page changes when payment is confirmed.
+          </p>
+        </Card>
+      )}
+
       {/* Buyer's Secret Handover OTP */}
-      {isBuyer && status !== "completed" && status !== "cancelled" && (
+      {isBuyer && awaitingHandover && (
         <Card className="border-amber-200 bg-amber-50/60 p-6">
           <div className="flex items-start gap-4">
             <span className="text-3xl">🔑</span>
@@ -170,7 +267,7 @@ export function OrderTrackingClient({
               </div>
 
               <p className="mt-3 text-[11px] text-amber-700">
-                ⚠️ Handing over this code releases funds from escrow to the seller permanently.
+                Giving this code completes the order and releases the payment to the seller. It cannot be undone.
               </p>
             </div>
           </div>
@@ -178,11 +275,33 @@ export function OrderTrackingClient({
       )}
 
       {/* Seller's Handover Verification Form */}
-      {isSeller && status !== "completed" && status !== "cancelled" && (
+      {isSeller && awaitingHandover && (
         <Card className="p-6">
+          {status !== "delivered" && (
+            <div className="mb-4 flex flex-wrap gap-2 border-b pb-4">
+              {status === "in_escrow" && (
+                <Button
+                  variant="outline"
+                  disabled={actionBusy}
+                  onClick={() => orderAction("stage", { stage: "dispatched" })}
+                  className="min-h-9 px-3 text-xs"
+                >
+                  Mark as dispatched
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                disabled={actionBusy}
+                onClick={() => orderAction("stage", { stage: "delivered" })}
+                className="min-h-9 px-3 text-xs"
+              >
+                Mark as delivered
+              </Button>
+            </div>
+          )}
           <h4 className="font-bold text-ink">Verify Handover & Release Escrow</h4>
           <p className="mt-1 text-xs text-muted">
-            Upon delivering the package to the buyer, ask them for their 6-digit Handover OTP. Entering it here releases the escrow payment directly to your balance.
+            When you hand the item to the buyer, ask for their 6-digit handover code. Entering it here completes the order and marks the payment as due to you. Five wrong attempts lock the order.
           </p>
 
           <form onSubmit={handleVerifyOtp} className="mt-4 space-y-3">
@@ -206,7 +325,7 @@ export function OrderTrackingClient({
                 disabled={submittingOtp || sellerOtpInput.length !== 6}
                 className="font-bold"
               >
-                {submittingOtp ? "Verifying..." : "Verify & Release 🚀"}
+                {submittingOtp ? "Checking..." : "Complete order"}
               </Button>
             </div>
           </form>
@@ -220,18 +339,35 @@ export function OrderTrackingClient({
             <span>🎉</span> Handover Verified & Escrow Released
           </h4>
           <p className="mt-1 text-xs text-emerald-800">
-            This transaction has been successfully verified via OTP release. Funds have been credited to the seller's account.
+            The handover code was confirmed. The order is complete and the payment is due to the seller.
           </p>
-          {otpVerifiedAt && (
+          {completedAt && (
             <p className="mt-2 text-[11px] text-emerald-700">
-              Completed on: {new Date(otpVerifiedAt).toLocaleString()}
+              Completed on: {new Date(completedAt).toLocaleString()}
             </p>
           )}
         </Card>
       )}
 
+      {status === "disputed" && (
+        <Card className="border-red-200 bg-red-50/50 p-6">
+          <h4 className="font-bold text-red-800 text-sm">This order is under review</h4>
+          <p className="mt-1 text-xs text-red-700">
+            Servilist support is looking at this order. The payment stays with the provider until
+            it is resolved.
+          </p>
+        </Card>
+      )}
+
+      {status === "cancelled" && (
+        <Card className="p-6">
+          <h4 className="font-bold text-ink text-sm">This order was cancelled</h4>
+          <p className="mt-1 text-xs text-muted">Nothing was charged for it.</p>
+        </Card>
+      )}
+
       {/* Dispute Section */}
-      {status !== "completed" && status !== "cancelled" && status !== "disputed" && (
+      {disputesOpen && awaitingHandover && (
         <div className="flex justify-end pt-2">
           {!disputeOpen ? (
             <Button

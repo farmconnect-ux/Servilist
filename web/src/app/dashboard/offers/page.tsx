@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { OfferActions } from "@/components/marketplace/ListingActions";
+import { ButtonLink } from "@/components/ui/button";
 import { Badge, Card, EmptyState, type BadgeTone } from "@/components/ui/card";
 import { createDb } from "@/lib/db/server";
 import { formatMoney } from "@/lib/money";
@@ -84,10 +85,14 @@ export default async function DashboardOffersPage() {
                   {offer.status === "pending" ? (
                     <OfferActions offerId={offer.id} currency={offer.currency} mine={mine} />
                   ) : null}
-                  {offer.status === "accepted" ? (
+                  {offer.status === "accepted" && iAmBuyer ? (
+                    <ButtonLink href={`/checkout?offerId=${offer.id}`}>
+                      Pay the agreed price
+                    </ButtonLink>
+                  ) : null}
+                  {offer.status === "accepted" && !iAmBuyer ? (
                     <p className="text-sm text-muted">
-                      Price agreed. Use Messages to arrange the handover; checkout for agreed offers
-                      opens with orders and payments.
+                      Price agreed. The buyer can now pay; the order then appears under Orders.
                     </p>
                   ) : null}
                 </Card>

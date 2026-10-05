@@ -1,54 +1,48 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { PaymentsUnavailableError, getPaymentProvider } from "@/server/payments/provider";
-import { handlePaymentSuccessAction } from "@/server/services/orders";
+import { settlePayment } from "@/server/services/orders";
 
+/**
+ * Payment provider webhooks.
+ *
+ * The body is used for one thing only: to learn which payment reference to
+ * look at. Whether it was paid, and how much, is then asked of the provider
+ * directly, and the database checks that amount against the order.
+ */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ provider: string }> },
 ) {
+  let provider;
   try {
-    const { provider: providerName } = await params;
-    const provider = getPaymentProvider(providerName);
-    const rawBody = await request.text();
-    const signature =
-      request.headers.get("x-paystack-signature") || request.headers.get("verif-hash") || "";
-
-    // A webhook without a signature is never trusted
-    if (!signature || !provider.verifyWebhookSignature(rawBody, signature)) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
-
-    const payload = JSON.parse(rawBody);
-    let orderId: string | undefined;
-    let reference: string | undefined;
-
-    if (providerName === "paystack") {
-      if (payload.event === "charge.success") {
-        orderId = payload.data?.metadata?.order_id;
-        reference = payload.data?.reference;
-      }
-    } else if (providerName === "flutterwave") {
-      if (payload.event === "charge.completed" && payload.data?.status === "successful") {
-        orderId = payload.data?.meta?.order_id;
-        reference = payload.data?.tx_ref;
-      }
-    } else {
-      orderId = payload.orderId;
-      reference = payload.reference;
-    }
-
-    if (orderId && reference) {
-      await handlePaymentSuccessAction(orderId, reference, providerName);
-    }
-
-    return NextResponse.json({ status: "received" }, { status: 200 });
-  } catch (err: any) {
+    provider = getPaymentProvider((await params).provider);
+  } catch (err) {
     if (err instanceof PaymentsUnavailableError) {
       return NextResponse.json({ error: "Unknown payment provider" }, { status: 404 });
     }
-    return NextResponse.json(
-      { error: err.message || "Webhook processing failed" },
-      { status: 400 },
-    );
+    throw err;
   }
+
+  const rawBody = await request.text();
+  if (!provider.verifyWebhook(rawBody, request.headers)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  const reference = provider.webhookReference(payload);
+  if (reference) {
+    const result = await settlePayment(provider.name, reference);
+    // A failure here is ours, not the provider's: ask it to retry later
+    if (!result.ok && result.code !== "NOT_FOUND") {
+      return NextResponse.json({ error: "Could not record the payment" }, { status: 500 });
+    }
+  }
+
+  return NextResponse.json({ status: "received" });
 }

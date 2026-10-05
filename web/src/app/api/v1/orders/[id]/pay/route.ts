@@ -16,13 +16,9 @@ export async function POST(
 
   try {
     const { id } = await params;
-    let provider = "mock_escrow";
-    try {
-      const body = await request.json();
-      if (body?.provider) provider = body.provider;
-    } catch {
-      // default provider
-    }
+    // There is no default: the buyer chooses Paystack or Flutterwave
+    const body = await request.json().catch(() => null);
+    const provider: unknown = body?.provider;
 
     const result = await initializeOrderPaymentAction(user, id, provider);
 

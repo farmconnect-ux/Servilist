@@ -18,6 +18,10 @@ describe("release gate", () => {
       "/requests/new",
       "/dashboard/offers",
       "/api/v1/offers",
+      "/checkout",
+      "/dashboard/orders/abc",
+      "/api/v1/orders/1/pay",
+      "/api/v1/webhooks/payments/paystack",
     ]) {
       expect(isReleased(path), path).toBe(true);
     }
@@ -25,17 +29,17 @@ describe("release gate", () => {
 
   it("keeps unverified sprints closed", () => {
     for (const path of [
-      "/checkout",
       "/services",
       "/auctions/1",
       "/business/acme",
-      "/dashboard/orders",
       "/dashboard/seller",
       "/admin/vendors",
       "/admin/reports",
-      "/api/v1/orders/1/pay",
-      "/api/v1/webhooks/payments/paystack",
-      "/api/v1/orders",
+      "/api/v1/orders/1/dispute",
+      "/api/v1/orders/1/delivery",
+      "/api/v1/orders/1/delivery/track",
+      "/api/v1/webhooks/other",
+      "/api/v1/requests/abc/matches",
     ]) {
       expect(isReleased(path), path).toBe(false);
     }

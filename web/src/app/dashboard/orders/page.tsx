@@ -30,7 +30,7 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
         <div>
           <h2 className="text-xl font-bold text-ink">Orders & Escrow Protection</h2>
           <p className="text-xs text-muted">
-            Track deliveries, verify handover OTPs, and monitor releases from escrow.
+            Pay for purchases, track handover and confirm completion with the handover code.
           </p>
         </div>
       </div>
@@ -78,7 +78,6 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
       ) : (
         <div className="space-y-4">
           {orders.map((o) => {
-            const item = o.items[0];
             const partner = currentTab === "buyer" ? o.seller : o.buyer;
 
             return (
@@ -100,13 +99,13 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
                             : "bg-amber-100 text-amber-800"
                         }`}
                       >
-                        {o.status.replace("_", " ").toUpperCase()}
+                        {o.status === "in_escrow" ? "PAID, AWAITING HANDOVER" : o.status.replace("_", " ").toUpperCase()}
                       </span>
                     </div>
 
                     <h3 className="font-bold text-ink">
                       <Link href={`/dashboard/orders/${o.id}`} className="hover:text-brand">
-                        {item?.title || "Marketplace Item"}
+                        {o.title}
                       </Link>
                     </h3>
 

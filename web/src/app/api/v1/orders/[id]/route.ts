@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createDb } from "@/lib/db/server";
+import { isUuid } from "@/lib/ids";
 import { getSessionUser } from "@/server/auth/session";
 import { getOrderById } from "@/server/repositories/orders";
 
@@ -18,20 +19,13 @@ export async function GET(
   try {
     const { id } = await params;
     const db = await createDb();
-    const isAdmin = user.roles.includes("admin");
-    const order = await getOrderById(db, id, user.userId, isAdmin);
+    // Row-level security returns an order only to its buyer, its seller or staff
+    const order = isUuid(id) ? await getOrderById(db, id) : null;
 
     if (!order) {
       return NextResponse.json(
         { success: false, error: { code: "NOT_FOUND", message: "Order not found" } },
         { status: 404 },
-      );
-    }
-
-    if (order.buyerId !== user.userId && order.sellerId !== user.userId && !isAdmin) {
-      return NextResponse.json(
-        { success: false, error: { code: "FORBIDDEN", message: "Not authorized to view this order" } },
-        { status: 403 },
       );
     }
 
