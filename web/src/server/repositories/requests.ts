@@ -146,7 +146,7 @@ export async function listBuyerRequests(
     query = query.eq("category", params.category);
   }
   if (params.city && params.city !== "all") {
-    query = query.ilike("city", `%${params.city}%`);
+    query = query.ilike("city", likePattern(params.city));
   }
 
   query = query.order("created_at", { ascending: false });

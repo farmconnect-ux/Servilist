@@ -219,7 +219,7 @@ export async function searchListings(
     query = query.eq("category", params.category);
   }
   if (params.city && params.city !== "all") {
-    query = query.ilike("city", `%${params.city}%`);
+    query = query.ilike("city", likePattern(params.city));
   }
   if (params.condition) {
     query = query.eq("condition", params.condition);

@@ -1,15 +1,72 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createDb } from "@/lib/db/server";
-import { getListingBySlug } from "@/server/repositories/listings";
-import { formatMoney } from "@/lib/money";
-import { Badge } from "@/components/ui/card";
-import { ButtonLink } from "@/components/ui/button";
+import { ChevronRight, MapPin, MessageSquare, ShieldCheck, Tag } from "lucide-react";
 import { ListingActions } from "@/components/marketplace/ListingActions";
+import { ProductGallery } from "@/components/marketplace/ProductGallery";
 import { ReportButton } from "@/components/marketplace/TrustActions";
-import { getSessionUser } from "@/server/auth/session";
+import { ListingCard, Rating } from "@/components/marketplace/cards";
+import { ButtonLink } from "@/components/ui/button";
+import { Badge, Card, VerifiedBadge } from "@/components/ui/card";
+import { createDb } from "@/lib/db/server";
+import { formatMoney } from "@/lib/money";
 import { isReleased } from "@/lib/release";
+import { getSessionUser } from "@/server/auth/session";
 import { canParticipate } from "@/server/policies/access";
+import { getListingBySlug, searchListings } from "@/server/repositories/listings";
+import { listReviewsForProfile } from "@/server/repositories/moderation";
+
+/**
+ * Product page (docs/UI_UX_SPEC.md sections 15, 16, 62 and 77).
+ * Desktop: gallery beside the summary. Phone: gallery, summary, then details,
+ * with the main actions fixed at the bottom of the screen.
+ */
+
+const CONDITIONS: Record<string, string> = {
+  new: "New",
+  refurbished: "Refurbished",
+  used_like_new: "Used, like new",
+  used_good: "Used, good condition",
+  used_fair: "Used, fair condition",
+};
+
+const FULFILLMENT: Record<string, string> = {
+  pickup: "Pickup from the seller",
+  shipping: "Delivery by the seller",
+  both: "Pickup or delivery",
+};
+
+function safeImage(value: unknown): string | null {
+  const url = typeof value === "string" ? value.trim() : "";
+  return /^https:\/\/[^\s"'<>]+$/i.test(url) ? url : null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const listing = await getListingBySlug(await createDb(), slug);
+  if (!listing) return { title: "Listing not found" };
+  const description = listing.description.slice(0, 160);
+  const image = safeImage(listing.imageUrl);
+  return {
+    title: listing.title,
+    description,
+    alternates: { canonical: `/products/${listing.slug}` },
+    openGraph: { title: listing.title, description, images: image ? [image] : undefined },
+  };
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-line py-3 text-sm last:border-b-0">
+      <dt className="text-muted">{label}</dt>
+      <dd className="text-right font-medium text-ink">{value}</dd>
+    </div>
+  );
+}
 
 export default async function ProductDetailPage({
   params,
@@ -19,135 +76,101 @@ export default async function ProductDetailPage({
   const { slug } = await params;
   const db = await createDb();
   const [listing, viewer] = await Promise.all([getListingBySlug(db, slug), getSessionUser()]);
+  if (!listing) notFound();
 
-  if (!listing) {
-    notFound();
-  }
+  const reviewsOpen = isReleased("/api/v1/reviews");
+  const [reviews, related] = await Promise.all([
+    reviewsOpen ? listReviewsForProfile(db, listing.sellerId) : Promise.resolve([]),
+    searchListings(db, { category: listing.category, limit: 5, page: 1 }),
+  ]);
 
-  const allImages = [
-    listing.imageUrl,
-    ...(listing.galleryImages || []).map((img) => img.url),
-  ].filter(Boolean);
+  const images = [listing.imageUrl, ...(listing.galleryImages ?? []).map((image) => image.url)]
+    .map(safeImage)
+    .filter((url): url is string => url !== null)
+    .filter((url, position, all) => all.indexOf(url) === position);
 
-  const sellerHref = listing.seller.username ? `/seller/${listing.seller.username}` : "#";
+  const sellerHref = listing.seller.username ? `/seller/${listing.seller.username}` : null;
+  const isAuction = listing.format === "auction";
+  const isOwner = viewer?.userId === listing.sellerId;
+  const available = listing.status === "active";
+  const canAct = Boolean(viewer) && !isOwner && available && canParticipate(viewer ?? null);
+  const canBuy = canAct && !isAuction && isReleased("/checkout");
+  const loginHref = `/login?next=${encodeURIComponent(`/products/${slug}`)}`;
+  const relatedListings = related.listings.filter((item) => item.id !== listing.id).slice(0, 4);
+  const price = formatMoney(listing.amountMinor, listing.currency);
+  // Some listings already carry the country in the city field
+  const place =
+    listing.country && listing.city.toLowerCase().includes(listing.country.toLowerCase())
+      ? listing.city
+      : [listing.city, listing.country].filter(Boolean).join(", ");
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8">
-      {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" className="text-xs text-muted">
-        <Link href="/" className="hover:text-brand">Home</Link> &gt;{" "}
-        <Link href={`/categories/${listing.category}`} className="capitalize hover:text-brand">
-          {listing.category}
-        </Link>{" "}
-        &gt; <span className="line-clamp-1 font-semibold text-ink">{listing.title}</span>
+    // Extra bottom padding on phones keeps content clear of the fixed action bar
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-6 pb-28 md:px-5 md:pb-8 lg:px-6">
+      <nav aria-label="Breadcrumb">
+        <ol className="flex flex-wrap items-center gap-1 text-sm text-muted">
+          <li>
+            <Link href="/" className="hover:text-primary-700">
+              Home
+            </Link>
+          </li>
+          <ChevronRight className="size-4" aria-hidden="true" />
+          <li>
+            <Link href={`/categories/${listing.category}`} className="capitalize hover:text-primary-700">
+              {listing.category}
+            </Link>
+          </li>
+          <ChevronRight className="size-4" aria-hidden="true" />
+          <li className="line-clamp-1 text-ink" aria-current="page">
+            {listing.title}
+          </li>
+        </ol>
       </nav>
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        {/* Left Column: Image Gallery (7 cols) */}
-        <div className="max-lg:contents lg:col-span-7 lg:flex lg:flex-col lg:gap-4">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-line bg-page max-lg:order-1">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={listing.imageUrl}
-              alt={listing.title}
-              className="size-full object-cover"
-            />
-            <div className="absolute top-4 left-4 flex gap-2">
-              <Badge tone="success" className="capitalize">
-                {listing.format.replace("_", " ")}
-              </Badge>
-              <Badge tone="neutral" className="capitalize">
-                {listing.condition.replace(/_/g, " ")}
-              </Badge>
-            </div>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <ProductGallery images={images} title={listing.title} />
+
+        {/* Summary and actions */}
+        <section aria-label="Summary" className="flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            {isAuction ? <Badge tone="accent">Auction</Badge> : null}
+            {!available ? <Badge tone="neutral">No longer available</Badge> : null}
           </div>
+          <h1 className="text-[28px] leading-tight font-bold text-ink md:text-[32px]">{listing.title}</h1>
+          <Rating value={listing.seller.rating} count={listing.seller.reviewsCount} />
+          <p className="flex flex-wrap items-baseline gap-2">
+            <span className="text-[32px] leading-none font-bold text-ink">{price}</span>
+            {listing.negotiable ? <span className="text-sm text-muted">Open to offers</span> : null}
+          </p>
+          <ul className="flex flex-col gap-2 text-sm text-ink-soft">
+            <li className="flex items-center gap-2">
+              <Tag className="size-4 text-muted" aria-hidden="true" />
+              {CONDITIONS[listing.condition] ?? listing.condition.replace(/_/g, " ")}
+            </li>
+            <li className="flex items-center gap-2">
+              <MapPin className="size-4 text-muted" aria-hidden="true" />
+              {place}
+            </li>
+          </ul>
 
-          {allImages.length > 1 ? (
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {allImages.map((imgUrl, idx) => (
-                <div
-                  key={idx}
-                  className="size-20 shrink-0 overflow-hidden rounded-control border border-line bg-page"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={imgUrl} alt="" className="size-full object-cover" />
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {/* Description & Specs Section */}
-          <div className="rounded-card border border-line bg-surface p-6 max-lg:order-3">
-            <h3 className="text-lg font-bold text-ink">Description</h3>
-            <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted">
-              {listing.description}
-            </p>
-
-            <div className="mt-6 grid grid-cols-2 gap-4 border-t border-line pt-4 text-xs sm:grid-cols-3">
-              <div>
-                <span className="text-muted">Condition:</span>
-                <p className="font-semibold text-ink capitalize">{listing.condition.replace(/_/g, " ")}</p>
-              </div>
-              <div>
-                <span className="text-muted">Fulfillment:</span>
-                <p className="font-semibold text-ink capitalize">{listing.fulfillment}</p>
-              </div>
-              <div>
-                <span className="text-muted">Location:</span>
-                <p className="font-semibold text-ink">{listing.city}, {listing.country}</p>
-              </div>
-              <div>
-                <span className="text-muted">Published:</span>
-                <p className="font-semibold text-ink">{new Date(listing.createdAt).toLocaleDateString()}</p>
-              </div>
-              <div>
-                <span className="text-muted">Quantity:</span>
-                <p className="font-semibold text-ink">{listing.quantity} available</p>
-              </div>
-              <div>
-                <span className="text-muted">Negotiable:</span>
-                <p className="font-semibold text-ink">{listing.negotiable ? "Yes" : "Fixed"}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Pricing, Buyer Actions & Seller Strip (5 cols) */}
-        <div className="flex flex-col gap-6 max-lg:order-2 lg:col-span-5">
-          <div className="flex flex-col gap-4 rounded-card border border-line bg-surface p-6 shadow-sm">
-            <h1 className="text-2xl font-bold leading-snug text-ink sm:text-3xl">
-              {listing.title}
-            </h1>
-
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-brand">
-                {formatMoney(listing.amountMinor, listing.currency)}
-              </span>
-              {listing.negotiable ? (
-                <span className="text-xs font-semibold text-muted">(Negotiable)</span>
-              ) : null}
-            </div>
-
-            <p className="text-xs text-muted">Available in {listing.city}, {listing.country}</p>
-
-            {/* Offers and messages are open; checkout opens with orders and payments */}
+          <div id="actions" className="flex scroll-mt-40 flex-col gap-4">
             {!viewer ? (
-              <ButtonLink href={`/login?next=${encodeURIComponent(`/products/${slug}`)}`}>
-                {listing.negotiable ? "Sign in to make an offer or message the seller" : "Sign in to message the seller"}
+              <ButtonLink href={loginHref} size="lg">
+                Sign in to buy or contact the seller
               </ButtonLink>
-            ) : viewer.userId === listing.sellerId ? (
-              <p className="rounded-[10px] bg-brand-soft px-3 py-2.5 text-sm text-ink">
+            ) : isOwner ? (
+              <p className="rounded-input bg-primary-50 p-3 text-sm text-ink">
                 This is your listing. Offers from buyers appear under Offers in your dashboard.
               </p>
-            ) : listing.status !== "active" ? (
-              <p className="rounded-[10px] bg-page px-3 py-2.5 text-sm text-muted">
+            ) : !available ? (
+              <p className="rounded-input bg-surface-muted p-3 text-sm text-ink-soft">
                 This listing is no longer available.
               </p>
-            ) : canParticipate(viewer) ? (
+            ) : canAct ? (
               <>
-                {listing.format !== "auction" && isReleased("/checkout") ? (
-                  <ButtonLink href={`/checkout?listingId=${listing.id}`}>
-                    Buy now for {formatMoney(listing.amountMinor, listing.currency)}
+                {canBuy ? (
+                  <ButtonLink href={`/checkout?listingId=${listing.id}`} size="lg">
+                    Buy now
                   </ButtonLink>
                 ) : null}
                 <ListingActions
@@ -156,58 +179,182 @@ export default async function ProductDetailPage({
                   currency={listing.currency}
                   negotiable={listing.negotiable}
                 />
-                {isReleased("/api/v1/reports") ? (
-                  <ReportButton
-                    targetType="listing"
-                    targetId={listing.id}
-                    label="Report this listing"
-                  />
-                ) : null}
               </>
-            ) : null}
-
-            {/* Escrow Guarantee Callout */}
-            <div className="rounded-control bg-page p-3.5 text-xs text-muted">
-              <p className="font-bold text-ink">Servilist Buyer Protection</p>
-              <p className="mt-1">
-                You pay through a licensed payment provider. The seller is paid after you inspect the item and give them your handover code.
+            ) : (
+              <p className="rounded-input bg-surface-muted p-3 text-sm text-ink-soft">
+                Your account is restricted, so you cannot buy or send messages.
               </p>
-            </div>
+            )}
           </div>
 
-          {/* Seller Card (Section 56) */}
-          <div className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
-            <h4 className="text-xs font-bold uppercase tracking-wide text-muted">Sold by</h4>
+          <p className="flex items-start gap-2 rounded-input bg-surface-muted p-3 text-sm text-ink-soft">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary-700" aria-hidden="true" />
+            You pay through a licensed payment provider. The seller is paid after you inspect the
+            item and give them your handover code.
+          </p>
+
+          {/* Trust information sits beside the decision (section 77) */}
+          <Card className="flex flex-col gap-3 p-4">
+            <h2 className="text-sm font-semibold text-muted">Seller</h2>
             <div className="flex items-center gap-3">
-              <div className="flex size-12 items-center justify-center rounded-full bg-brand-soft text-lg font-bold text-brand-strong">
+              <span
+                className="flex size-12 shrink-0 items-center justify-center rounded-pill bg-primary-50 text-base font-semibold text-primary-800"
+                aria-hidden="true"
+              >
                 {listing.seller.displayName.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <Link href={sellerHref} className="truncate text-base font-bold text-ink hover:text-brand">
+              </span>
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-2">
+                  <span className="truncate text-base font-semibold text-ink">
                     {listing.seller.displayName}
-                  </Link>
-                  {listing.seller.verified ? (
-                    <Badge tone="success">Verified</Badge>
-                  ) : null}
-                </div>
-                <p className="text-xs text-muted">
-                  ★ {listing.seller.rating.toFixed(1)} ({listing.seller.reviewsCount} sales &bull; 99% positive)
+                  </span>
+                  {listing.seller.verified ? <VerifiedBadge /> : null}
                 </p>
+                {listing.seller.reviewsCount > 0 ? (
+                  <Rating value={listing.seller.rating} count={listing.seller.reviewsCount} />
+                ) : (
+                  <p className="text-xs text-muted">No reviews yet</p>
+                )}
               </div>
             </div>
+            {sellerHref ? (
+              <ButtonLink href={sellerHref} variant="secondary">
+                View seller profile
+              </ButtonLink>
+            ) : null}
+          </Card>
 
-            <div className="flex gap-2 pt-2">
-              <ButtonLink href={sellerHref} variant="outline" className="flex-1 text-center text-xs">
-                View Storefront
-              </ButtonLink>
-              <ButtonLink href="/dashboard" variant="ghost" className="text-center text-xs">
-                Contact
-              </ButtonLink>
-            </div>
-          </div>
+          {canAct && isReleased("/api/v1/reports") ? (
+            <ReportButton targetType="listing" targetId={listing.id} label="Report this listing" />
+          ) : null}
+        </section>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
+        <section aria-labelledby="description-title" className="flex flex-col gap-3">
+          <h2 id="description-title" className="text-xl font-semibold text-ink md:text-2xl">
+            Description
+          </h2>
+          <p className="text-[15px] leading-relaxed whitespace-pre-line text-ink-soft md:text-base">
+            {listing.description}
+          </p>
+        </section>
+
+        <div className="flex flex-col gap-8">
+          <section aria-labelledby="specs-title" className="flex flex-col gap-1">
+            <h2 id="specs-title" className="text-xl font-semibold text-ink md:text-2xl">
+              Specifications
+            </h2>
+            <dl>
+              <DetailRow
+                label="Condition"
+                value={CONDITIONS[listing.condition] ?? listing.condition.replace(/_/g, " ")}
+              />
+              <DetailRow label="Quantity available" value={String(listing.quantity)} />
+              <DetailRow label="Price" value={listing.negotiable ? `${price}, open to offers` : `${price}, fixed`} />
+              <DetailRow
+                label="Listed"
+                value={new Date(listing.createdAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}
+              />
+            </dl>
+          </section>
+
+          <section aria-labelledby="delivery-title" className="flex flex-col gap-1">
+            <h2 id="delivery-title" className="text-xl font-semibold text-ink md:text-2xl">
+              Delivery
+            </h2>
+            <dl>
+              <DetailRow label="Handover" value={FULFILLMENT[listing.fulfillment] ?? listing.fulfillment} />
+              <DetailRow
+                label="Item location"
+                value={place}
+              />
+            </dl>
+          </section>
         </div>
       </div>
-    </div>
+
+      {reviewsOpen ? (
+        <section aria-labelledby="reviews-title" className="flex flex-col gap-4">
+          <h2 id="reviews-title" className="text-xl font-semibold text-ink md:text-2xl">
+            Reviews of this seller
+          </h2>
+          {reviews.length > 0 ? (
+            <ul className="grid gap-4 md:grid-cols-2">
+              {reviews.slice(0, 6).map((review) => (
+                <li key={review.id}>
+                  <Card className="flex h-full flex-col gap-2 p-4">
+                    <Rating value={review.rating} count={1} />
+                    {review.comment ? <p className="text-sm text-ink-soft">{review.comment}</p> : null}
+                    <p className="mt-auto text-xs text-muted">
+                      {review.reviewer?.displayName ?? "A member"} ·{" "}
+                      {new Date(review.createdAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}
+                    </p>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">
+              This seller has no reviews yet. Reviews appear after completed orders.
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      {relatedListings.length > 0 ? (
+        <section aria-labelledby="related-title" className="flex flex-col gap-4">
+          <h2 id="related-title" className="text-xl font-semibold text-ink md:text-2xl">
+            More in this category
+          </h2>
+          <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {relatedListings.map((item) => (
+              <li key={item.id}>
+                <ListingCard
+                  listing={{
+                    id: item.id,
+                    slug: item.slug,
+                    title: item.title,
+                    category: item.category,
+                    format: item.format === "auction" ? "auction" : "buy_now",
+                    currency: item.currency,
+                    amountMinor: item.amountMinor,
+                    bidsCount: item.bidsCount,
+                    auctionEndsAt: null,
+                    city: item.city,
+                    imageUrl: safeImage(item.imageUrl),
+                    createdAt: item.createdAt,
+                    seller: item.seller,
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Phone: the main actions stay within reach (section 62), above the bottom navigation */}
+      {available && !isOwner ? (
+        <div className="fixed inset-x-0 bottom-16 z-30 flex gap-2 border-t border-line bg-surface p-3 md:hidden">
+          {canAct ? (
+            <>
+              <ButtonLink href="#actions" variant="secondary" className="flex-1">
+                <MessageSquare className="size-4" aria-hidden="true" />
+                {listing.negotiable ? "Message or offer" : "Message"}
+              </ButtonLink>
+              {canBuy ? (
+                <ButtonLink href={`/checkout?listingId=${listing.id}`} className="flex-1">
+                  Buy now
+                </ButtonLink>
+              ) : null}
+            </>
+          ) : !viewer ? (
+            <ButtonLink href={loginHref} className="flex-1">
+              Sign in to buy
+            </ButtonLink>
+          ) : null}
+        </div>
+      ) : null}
+    </main>
   );
 }
