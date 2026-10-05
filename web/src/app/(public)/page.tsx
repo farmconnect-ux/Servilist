@@ -32,11 +32,11 @@ export default async function HomePage({
           <SearchBar defaultValue={query} />
           <div className="flex flex-wrap gap-3">
             <ButtonLink href="#listings">Buy</ButtonLink>
-            <ButtonLink href="/dashboard" variant="secondary">
+            <ButtonLink href="/sell" variant="secondary">
               Sell
             </ButtonLink>
-            <ButtonLink href="/dashboard" variant="outline">
-              Post a request
+            <ButtonLink href="/categories" variant="outline">
+              Browse categories
             </ButtonLink>
           </div>
         </div>

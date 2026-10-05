@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Shell, SiteFooter, SiteHeader } from "@/components/layout/site";
 import { Alert } from "@/components/ui/form";
+import { isReleased } from "@/lib/release";
 import { requireUser } from "@/server/auth/session";
 import { canParticipate } from "@/server/policies/access";
 
@@ -13,6 +14,7 @@ const NAV = [
   { href: "/dashboard/requests", label: "Requests & Quotes" },
   { href: "/dashboard/seller", label: "Seller Hub" },
   { href: "/dashboard/messages", label: "Messages" },
+  { href: "/sell", label: "Sell an item" },
   { href: "/dashboard/settings", label: "Profile and settings" },
 ];
 
@@ -22,7 +24,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <>
       <SiteHeader />
-      <Shell title="Your account" navLabel="Dashboard" items={NAV}>
+      <Shell
+        title="Your account"
+        navLabel="Dashboard"
+        items={NAV.filter((item) => isReleased(item.href))}
+      >
         {canParticipate(user) ? null : (
           <Alert tone="danger">
             Your account is restricted. You can still view your activity, but you cannot post or

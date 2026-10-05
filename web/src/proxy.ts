@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isReleased } from "@/lib/release";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/admin"];
 
@@ -9,6 +10,19 @@ const PROTECTED_PREFIXES = ["/dashboard", "/admin"];
  * action checks the session and permissions again on the server.
  */
 export async function proxy(request: NextRequest) {
+  // Unverified sprints stay closed: their pages and endpoints answer "not found"
+  if (!isReleased(request.nextUrl.pathname)) {
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: { code: "not_found", message: "Not found." } },
+        { status: 404 },
+      );
+    }
+    const missing = request.nextUrl.clone();
+    missing.pathname = "/_closed";
+    return NextResponse.rewrite(missing, { status: 404 });
+  }
+
   let response = NextResponse.next({ request });
 
   const url = process.env.SUPABASE_URL;

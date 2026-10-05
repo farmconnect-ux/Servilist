@@ -17,7 +17,8 @@ export default async function AdminReportsPage() {
       <div>
         <h1 className="text-2xl font-bold text-ink">Reports & Content Moderation Queue</h1>
         <p className="text-sm text-muted">
-          Review flagged product listings, counterfeit claims, offensive reviews, and trade disputes across the marketplace.
+          Review flagged product listings, counterfeit claims, offensive reviews, and trade disputes
+          across the marketplace.
         </p>
       </div>
 

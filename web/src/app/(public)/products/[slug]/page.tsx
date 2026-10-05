@@ -125,15 +125,11 @@ export default async function ProductDetailPage({
 
             <p className="text-xs text-muted">📍 Available in {listing.city}, {listing.country}</p>
 
-            {/* CTAs */}
-            <div className="flex flex-col gap-2.5 pt-2">
-              <ButtonLink href="/dashboard" className="w-full text-center py-3.5">
-                ⚡ Buy Now with Escrow Protection
-              </ButtonLink>
-              <ButtonLink href="/dashboard" variant="secondary" className="w-full text-center">
-                💬 Message Seller & Make Offer
-              </ButtonLink>
-            </div>
+            {/* Buying, offers and messages open here once their sprint is verified */}
+            <p className="rounded-[10px] bg-brand-soft px-3 py-2.5 text-sm text-ink">
+              Buying, offers and messages are opening in this version soon. Until then, contact
+              the seller on the current Servilist site.
+            </p>
 
             {/* Escrow Guarantee Callout */}
             <div className="rounded-control bg-page p-3.5 text-xs text-muted">

@@ -4,10 +4,11 @@ import { getServiceBySlug } from "@/server/repositories/services";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { slug } = await params;
+    // The public address of a service is its slug; the folder is named [id] to match /book
+    const { id: slug } = await params;
     const db = await createDb();
     const service = await getServiceBySlug(db, slug);
 

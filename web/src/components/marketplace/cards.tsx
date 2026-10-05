@@ -93,7 +93,7 @@ export function RequestCard({ request }: { request: RequestSummary }) {
 
 export function SearchBar({ defaultValue = "" }: { defaultValue?: string }) {
   return (
-    <form action="/" method="get" role="search" className="flex w-full max-w-xl gap-2">
+    <form action="/search" method="get" role="search" className="flex w-full max-w-xl gap-2">
       <label htmlFor="q" className="sr-only">
         Search listings and requests
       </label>

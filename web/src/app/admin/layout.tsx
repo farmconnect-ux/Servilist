@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Shell, SiteHeader, type NavItem } from "@/components/layout/site";
 import { requirePermission } from "@/server/auth/session";
+import { isReleased } from "@/lib/release";
 import { can, type Permission } from "@/server/policies/access";
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } };
@@ -17,7 +18,9 @@ const SECTIONS: (NavItem & { permission: Permission })[] = [
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // Checked on the server for every admin page; hiding links is not the protection
   const user = await requirePermission("admin.access", "/admin");
-  const items = SECTIONS.filter((section) => can(user, section.permission));
+  const items = SECTIONS.filter(
+    (section) => isReleased(section.href) && can(user, section.permission),
+  );
 
   return (
     <>

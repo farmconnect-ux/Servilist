@@ -17,7 +17,8 @@ export default async function AdminVendorsPage() {
       <div>
         <h1 className="text-2xl font-bold text-ink">Vendor Verification & Compliance</h1>
         <p className="text-sm text-muted">
-          Review business registration numbers, CAC/tax certificates, and approve official Pan-African merchant badges.
+          Review business registration numbers, CAC/tax certificates, and approve official
+          Pan-African merchant badges.
         </p>
       </div>
 

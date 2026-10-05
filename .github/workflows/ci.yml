@@ -2,7 +2,7 @@ name: CI - Servilist Pan-African Marketplace
 
 on:
   push:
-    branches: ['main', 'phase-*']
+    branches: ['main', 'claude/**', 'phase-*']
   pull_request:
     branches: ['main', 'phase-*']
 
@@ -74,3 +74,33 @@ jobs:
           name: playwright-test-results
           path: test-results/
           retention-days: 7
+
+  web:
+    name: New app (web/) - Typecheck, Unit Tests & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript Type Check
+        run: npm run typecheck
+
+      - name: Unit Tests (Vitest)
+        run: npm test
+
+      # Configuration is read per request, so the build needs no secrets
+      - name: Production Build (Next.js)
+        run: npm run build

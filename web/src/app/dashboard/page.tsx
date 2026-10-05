@@ -24,8 +24,8 @@ export default async function DashboardPage() {
       </div>
 
       <Alert>
-        Posting listings and requests moves into this new version in the next sprints. Until then
-        you can keep posting on the current site, and everything you post there appears here.
+        You can list items for sale here now. Buyer requests, offers and orders open in this
+        version as each is verified; until then they remain on the current site.
       </Alert>
     </>
   );
