@@ -35,6 +35,9 @@ describe("release gate", () => {
       "/auctions/1",
       "/business/acme",
       "/dashboard/business",
+      "/api/v1/requests/abc/matches",
+      "/api/v1/search/unified",
+      "/api/v1/seller/matches",
       "/api/v1/businesses/acme",
       "/api/v1/orders/1/delivery",
       "/api/v1/orders/1/delivery/track",
@@ -50,7 +53,7 @@ describe("release gate", () => {
       "/admin/vendors",
       "/api/v1/verifications",
       "/api/v1/webhooks/other",
-      "/api/v1/requests/abc/matches",
+      "/api/v1/sellers",
     ]) {
       expect(isReleased(path), path).toBe(false);
     }

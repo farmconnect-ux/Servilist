@@ -1,21 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getSessionUser } from "@/server/auth/session";
 import { getSuggestedListingsForRequestAction } from "@/server/services/matching";
 
-export async function GET(
-  req: NextRequest,
-  props: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await props.params;
-    const { searchParams } = new URL(req.url);
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 10;
-
-    const matches = await getSuggestedListingsForRequestAction(id, limit);
-    return NextResponse.json({ success: true, data: matches });
-  } catch (error: any) {
+/** Listings that fit a request. Only the member who posted the request gets any. */
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await getSessionUser();
+  if (!user) {
     return NextResponse.json(
-      { success: false, error: { code: "MATCHING_FAILED", message: error.message } },
-      { status: 500 },
+      { success: false, error: { code: "AUTH_REQUIRED", message: "Sign in required" } },
+      { status: 401 },
     );
   }
+  const result = await getSuggestedListingsForRequestAction((await params).id, {
+    limit: request.nextUrl.searchParams.get("limit") ?? undefined,
+  });
+  if (!result.ok) {
+    return NextResponse.json(
+      { success: false, error: { code: result.code, message: result.error } },
+      { status: result.code === "NOT_FOUND" ? 404 : result.code === "SERVER_ERROR" ? 500 : 400 },
+    );
+  }
+  return NextResponse.json({ success: true, data: result.data });
 }

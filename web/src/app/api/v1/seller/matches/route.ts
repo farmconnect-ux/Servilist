@@ -1,26 +1,24 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getSessionUser } from "@/server/auth/session";
 import { getSuggestedRequestsForSellerAction } from "@/server/services/matching";
 
-export async function GET(req: NextRequest) {
-  try {
-    const user = await getSessionUser();
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: { code: "UNAUTHORIZED", message: "Login required" } },
-        { status: 401 },
-      );
-    }
-
-    const { searchParams } = new URL(req.url);
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 10;
-
-    const matches = await getSuggestedRequestsForSellerAction(user.userId, limit);
-    return NextResponse.json({ success: true, data: matches });
-  } catch (error: any) {
+/** Open requests in the categories the signed-in member sells in. */
+export async function GET(request: NextRequest) {
+  const user = await getSessionUser();
+  if (!user) {
     return NextResponse.json(
-      { success: false, error: { code: "SELLER_MATCHES_FAILED", message: error.message } },
-      { status: 500 },
+      { success: false, error: { code: "AUTH_REQUIRED", message: "Sign in required" } },
+      { status: 401 },
     );
   }
+  const result = await getSuggestedRequestsForSellerAction({
+    limit: request.nextUrl.searchParams.get("limit") ?? undefined,
+  });
+  if (!result.ok) {
+    return NextResponse.json(
+      { success: false, error: { code: result.code, message: result.error } },
+      { status: result.code === "NOT_FOUND" ? 404 : result.code === "SERVER_ERROR" ? 500 : 400 },
+    );
+  }
+  return NextResponse.json({ success: true, data: result.data });
 }

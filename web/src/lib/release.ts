@@ -61,15 +61,15 @@ const PREFIXES = [
   "/business",
   "/dashboard/business",
   "/api/v1/businesses",
+  // Sprint 9: one search across the marketplace, and matches for sellers
+  "/api/v1/search",
+  "/api/v1/seller",
   // The design system reference: staff only, checked on the page itself
   "/design-system",
 ];
 
 /** Still closed, even though they sit beneath an open path. */
-const CLOSED = [
-  // Sprint 9: request-to-listing matching
-  /^\/api\/v1\/requests\/[^/]+\/matches$/,
-];
+const CLOSED: RegExp[] = [];
 
 export function isReleased(pathname: string): boolean {
   const path = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;

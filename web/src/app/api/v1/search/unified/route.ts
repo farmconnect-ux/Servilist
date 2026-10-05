@@ -1,32 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { unifiedSearchAction } from "@/server/services/matching";
 
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const q = searchParams.get("q") || "";
-    if (!q.trim()) {
-      return NextResponse.json({
-        success: true,
-        data: { listings: [], requests: [], services: [], auctions: [] },
-      });
-    }
-
-    const entityType = (searchParams.get("type") || "all") as any;
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : 20;
-
-    const result = await unifiedSearchAction({
-      q,
-      entityType,
-      limit,
-      page: 1,
-    });
-
-    return NextResponse.json({ success: true, data: result });
-  } catch (error: any) {
+/** One search across listings, services, requests and auctions. */
+export async function GET(request: NextRequest) {
+  const params = request.nextUrl.searchParams;
+  const result = await unifiedSearchAction({
+    q: params.get("q") ?? "",
+    type: params.get("type") ?? undefined,
+    limit: params.get("limit") ?? undefined,
+  });
+  if (!result.ok) {
     return NextResponse.json(
-      { success: false, error: { code: "SEARCH_FAILED", message: error.message } },
-      { status: 400 },
+      { success: false, error: { code: result.code, message: result.error } },
+      { status: result.code === "NOT_FOUND" ? 404 : result.code === "SERVER_ERROR" ? 500 : 400 },
     );
   }
+  return NextResponse.json({ success: true, data: result.data });
 }

@@ -4,6 +4,8 @@ import { requireUser } from "@/server/auth/session";
 import { formatMoney } from "@/lib/money";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { isReleased } from "@/lib/release";
+import { findMatchingRequestsForSeller, MATCH_REASON_LABELS } from "@/server/repositories/matching";
 
 export const metadata = {
   title: "My Requests & Quotes · Servilist Dashboard",
@@ -28,6 +30,7 @@ export default async function DashboardRequestsPage() {
   }
 
   const requests = userRequests || [];
+  const leads = isReleased("/api/v1/seller/matches") ? await findMatchingRequestsForSeller(db, 6) : [];
 
   return (
     <div className="space-y-6">
@@ -42,6 +45,36 @@ export default async function DashboardRequestsPage() {
           <Button className="min-h-11 px-3 text-xs">+ New Request</Button>
         </Link>
       </div>
+
+      {leads.length > 0 ? (
+        <Card className="flex flex-col gap-4 p-4 sm:p-6">
+          <div>
+            <h2 className="text-xl font-semibold text-ink">Buyers looking for what you sell</h2>
+            <p className="text-sm text-ink-soft">
+              Open requests in the categories of your active listings. Send a quote to respond.
+            </p>
+          </div>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {leads.map((lead) => (
+              <li key={lead.requestId}>
+                <Link
+                  href={`/requests/${lead.requestId}`}
+                  className="flex h-full flex-col gap-2 rounded-card border border-line p-3 transition-colors hover:border-line-strong"
+                >
+                  <p className="line-clamp-2 text-sm font-medium text-ink">{lead.title}</p>
+                  <p className="text-base font-bold text-ink">
+                    {lead.budgetMinor > 0 ? formatMoney(lead.budgetMinor, lead.currency) : "Budget not given"}
+                  </p>
+                  <p className="text-xs text-muted">{lead.city}</p>
+                  <p className="mt-auto text-xs text-primary-700">
+                    {lead.reasons.map((reason) => MATCH_REASON_LABELS[reason]).join(" · ")}
+                  </p>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       {requests.length === 0 ? (
         <Card className="p-8 text-center">

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createDb } from "@/lib/db/server";
 import { isUuid } from "@/lib/ids";
 import { isReleased } from "@/lib/release";
-import { findMatchingListingsForRequest } from "@/server/repositories/matching";
+import { findMatchingListingsForRequest, MATCH_REASON_LABELS } from "@/server/repositories/matching";
 import { getSessionUser } from "@/server/auth/session";
 import { getBuyerRequestById, getQuotesForRequest } from "@/server/repositories/requests";
 import { formatMoney } from "@/lib/money";
@@ -45,12 +45,12 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
     notFound();
   }
 
-  // Matching is written but not yet verified, so it stays switched off with its endpoint
-  const matches = isReleased(`/api/v1/requests/${id}/matches`)
-    ? await findMatchingListingsForRequest(db, id, 3)
-    : [];
-
   const isOwner = sessionUser?.userId === request.buyerId;
+  // The database returns matches only to the member who posted the request
+  const matches =
+    isOwner && request.status === "open" && isReleased(`/api/v1/requests/${id}/matches`)
+      ? await findMatchingListingsForRequest(db, id, 3)
+      : [];
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 md:px-5 lg:px-6">
@@ -120,54 +120,36 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
             signedIn={Boolean(sessionUser)}
           />
 
-          {/* Listings that match this request (opens with Sprint 9 matching) */}
-          {matches.length > 0 && (
-            <Card className="p-6 border-accent-200 bg-accent-50/20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-accent-600 uppercase tracking-wide">
-                    Intelligent Matching Engine
-                  </span>
-                  <h3 className="text-sm font-bold text-ink mt-0.5">
-                    Existing Seller Listings That Match Your Request
-                  </h3>
-                </div>
-                <span className="rounded-full bg-accent-100 px-2 py-0.5 text-xs font-bold text-accent-600">
-                  {matches.length} Matched
-                </span>
+          {/* Listings that fit this request, shown only to the member who posted it */}
+          {matches.length > 0 ? (
+            <Card className="flex flex-col gap-4 p-4 sm:p-6">
+              <div>
+                <h2 className="text-xl font-semibold text-ink">Listings that fit your request</h2>
+                <p className="text-sm text-ink-soft">
+                  Already for sale in this category. Only you can see this list.
+                </p>
               </div>
-
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <ul className="grid gap-3 sm:grid-cols-3">
                 {matches.map((item) => (
-                  <Link
-                    key={item.listingId}
-                    href={`/products/${item.listingId}`}
-                    className="rounded-xl border border-line bg-surface p-3 shadow-sm hover:shadow transition flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between text-[10px]">
-                        <span className="font-semibold text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">
-                          {item.matchScore}% Match
-                        </span>
-                        <span className="text-disabled capitalize">{item.city}</span>
-                      </div>
-                      <p className="mt-2 text-xs font-bold text-ink line-clamp-2">
-                        {item.title}
-                      </p>
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t pt-2">
-                      <span className="text-xs font-bold text-ink">
+                  <li key={item.listingId}>
+                    <Link
+                      href={`/products/${item.slug}`}
+                      className="flex h-full flex-col gap-2 rounded-card border border-line p-3 transition-colors hover:border-line-strong"
+                    >
+                      <p className="line-clamp-2 text-sm font-medium text-ink">{item.title}</p>
+                      <p className="text-base font-bold text-ink">
                         {formatMoney(item.amountMinor, item.currency)}
-                      </span>
-                      <span className="text-[10px] font-semibold text-accent-600 hover:underline">
-                        View Item →
-                      </span>
-                    </div>
-                  </Link>
+                      </p>
+                      <p className="text-xs text-muted">{item.city}</p>
+                      <p className="mt-auto text-xs text-primary-700">
+                        {item.reasons.map((reason) => MATCH_REASON_LABELS[reason]).join(" · ")}
+                      </p>
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </Card>
-          )}
+          ) : null}
         </div>
 
         {/* Sidebar (1 col) */}

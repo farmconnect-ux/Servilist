@@ -4,7 +4,7 @@ import { requireUser } from "@/server/auth/session";
 import { listListingsBySeller } from "@/server/repositories/listings";
 import { listOrdersForUser } from "@/server/repositories/orders";
 import { getProfileById } from "@/server/repositories/sellerProfiles";
-import { findMatchingRequestsForSeller } from "@/server/repositories/matching";
+import { findMatchingRequestsForSeller, MATCH_REASON_LABELS } from "@/server/repositories/matching";
 import { Card } from "@/components/ui/card";
 import { formatMoney } from "@/lib/money";
 import { SellerDashboardClient } from "@/components/marketplace/SellerDashboardClient";
@@ -21,7 +21,7 @@ export default async function SellerDashboardPage() {
     getProfileById(db, user.userId),
     listListingsBySeller(db, user.userId),
     listOrdersForUser(db, user.userId, "seller"),
-    findMatchingRequestsForSeller(db, user.userId, 4),
+    findMatchingRequestsForSeller(db, 4),
   ]);
 
   return (
@@ -62,7 +62,7 @@ export default async function SellerDashboardPage() {
                 <div>
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="font-semibold text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">
-                      {req.matchScore}% Match
+                      {req.reasons.map((reason) => MATCH_REASON_LABELS[reason]).join(", ")}
                     </span>
                     <span className="text-disabled capitalize">{req.city}</span>
                   </div>

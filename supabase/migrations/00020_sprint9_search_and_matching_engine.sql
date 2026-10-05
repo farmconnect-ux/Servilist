@@ -1,163 +1,103 @@
--- Migration 00020: Sprint 9 - Search Optimization & Intelligent Marketplace Matching Engine
--- Master Spec Section 1, 73 & Section 95 (Intelligent Marketplace Matching)
+-- Sprint 9: faster search, and matching between requests and listings.
+--
+-- Nothing here changes a table the live site uses. The first draft added a
+-- column and a trigger to listings and buyer_requests; instead, search gets
+-- indexes only, and matches are worked out when asked for, so there is no
+-- stored "match" that could go stale or be edited.
+--
+-- Both matching functions run with the caller's own access (SECURITY INVOKER),
+-- so row-level security decides what they can see, and each one only answers
+-- for the signed-in member's own request or own listings.
 
--- Enable pg_trgm for fuzzy string matching and text similarity if not already enabled
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- Makes "title contains ..." searches use an index
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA extensions;
+CREATE INDEX IF NOT EXISTS idx_listings_title_trgm
+    ON public.listings USING GIN (title extensions.gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_buyer_requests_title_trgm
+    ON public.buyer_requests USING GIN (title extensions.gin_trgm_ops);
+CREATE INDEX IF NOT EXISTS idx_services_title_trgm
+    ON public.services USING GIN (title extensions.gin_trgm_ops);
 
--- 1. Full-Text Search Vectors and Indexes on listings
-ALTER TABLE public.listings 
-    ADD COLUMN IF NOT EXISTS search_tsv TSVECTOR;
-
-CREATE OR REPLACE FUNCTION public.listings_generate_search_vector()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.search_tsv := setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
-                      setweight(to_tsvector('english', coalesce(NEW.category, '')), 'B') ||
-                      setweight(to_tsvector('english', coalesce(NEW.city, '')), 'C') ||
-                      setweight(to_tsvector('english', coalesce(NEW.description, '')), 'D');
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trg_listings_search_tsv ON public.listings;
-CREATE TRIGGER trg_listings_search_tsv
-    BEFORE INSERT OR UPDATE ON public.listings
-    FOR EACH ROW
-    EXECUTE FUNCTION public.listings_generate_search_vector();
-
--- Populate existing listings
-UPDATE public.listings SET search_tsv = 
-    setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
-    setweight(to_tsvector('english', coalesce(category, '')), 'B') ||
-    setweight(to_tsvector('english', coalesce(city, '')), 'C') ||
-    setweight(to_tsvector('english', coalesce(description, '')), 'D');
-
-CREATE INDEX IF NOT EXISTS idx_listings_search_tsv ON public.listings USING GIN(search_tsv);
-CREATE INDEX IF NOT EXISTS idx_listings_title_trgm ON public.listings USING GIN(title gin_trgm_ops);
-
--- 2. Full-Text Search Vectors and Indexes on buyer_requests
-ALTER TABLE public.buyer_requests 
-    ADD COLUMN IF NOT EXISTS search_tsv TSVECTOR;
-
-CREATE OR REPLACE FUNCTION public.buyer_requests_generate_search_vector()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.search_tsv := setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
-                      setweight(to_tsvector('english', coalesce(NEW.category, '')), 'B') ||
-                      setweight(to_tsvector('english', coalesce(NEW.city, '')), 'C') ||
-                      setweight(to_tsvector('english', coalesce(NEW.description, '')), 'D');
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DROP TRIGGER IF EXISTS trg_buyer_requests_search_tsv ON public.buyer_requests;
-CREATE TRIGGER trg_buyer_requests_search_tsv
-    BEFORE INSERT OR UPDATE ON public.buyer_requests
-    FOR EACH ROW
-    EXECUTE FUNCTION public.buyer_requests_generate_search_vector();
-
--- Populate existing buyer requests
-UPDATE public.buyer_requests SET search_tsv = 
-    setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
-    setweight(to_tsvector('english', coalesce(category, '')), 'B') ||
-    setweight(to_tsvector('english', coalesce(city, '')), 'C') ||
-    setweight(to_tsvector('english', coalesce(description, '')), 'D');
-
-CREATE INDEX IF NOT EXISTS idx_buyer_requests_search_tsv ON public.buyer_requests USING GIN(search_tsv);
-CREATE INDEX IF NOT EXISTS idx_buyer_requests_title_trgm ON public.buyer_requests USING GIN(title gin_trgm_ops);
-
--- 3. Marketplace Matches Table
-CREATE TABLE IF NOT EXISTS public.marketplace_matches (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    request_id UUID NOT NULL REFERENCES public.buyer_requests(id) ON DELETE CASCADE,
-    listing_id UUID NOT NULL REFERENCES public.listings(id) ON DELETE CASCADE,
-    match_score NUMERIC(5,2) NOT NULL CHECK (match_score >= 0 AND match_score <= 100),
-    match_reasons JSONB NOT NULL DEFAULT '[]'::jsonb,
-    status VARCHAR(30) NOT NULL DEFAULT 'unseen' CHECK (status IN ('unseen', 'viewed', 'quoted', 'dismissed')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE(request_id, listing_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_marketplace_matches_req ON public.marketplace_matches(request_id, match_score DESC);
-CREATE INDEX IF NOT EXISTS idx_marketplace_matches_list ON public.marketplace_matches(listing_id, match_score DESC);
-
--- 4. Matching Algorithm Function: Finds matching listings for a buyer request
-CREATE OR REPLACE FUNCTION public.find_matching_listings_for_request(p_request_id UUID, p_limit INTEGER DEFAULT 10)
-RETURNS TABLE (
-    listing_id UUID,
-    title TEXT,
-    amount_minor BIGINT,
-    currency VARCHAR(3),
-    category TEXT,
-    city TEXT,
-    image_url TEXT,
-    match_score NUMERIC(5,2),
-    match_reasons JSONB
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
+-- Listings that fit one of the caller's own requests.
+-- A listing must be in the request's category. It then ranks higher when its
+-- title or description shares words with the request, when it is within the
+-- budget (same currency only: amounts in different currencies are never
+-- compared), and when it is in the same city.
+CREATE OR REPLACE FUNCTION public.match_listings_for_request(p_request_id UUID, p_limit INT DEFAULT 6)
+RETURNS TABLE (listing_id UUID, score INT, reasons TEXT[])
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path TO ''
 AS $$
-DECLARE
-    v_req public.buyer_requests;
-BEGIN
-    SELECT * INTO v_req FROM public.buyer_requests WHERE id = p_request_id;
-    IF NOT FOUND THEN
-        RETURN;
-    END IF;
-
-    RETURN QUERY
-    SELECT 
-        l.id AS listing_id,
-        l.title,
-        l.amount_minor,
-        l.currency,
-        l.category,
-        l.city,
-        l.image_url,
-        ROUND(
-            (
-                CASE WHEN l.category = v_req.category THEN 40.0 ELSE 0.0 END +
-                CASE WHEN v_req.budget_minor IS NOT NULL AND l.amount_minor <= v_req.budget_minor THEN 25.0 
-                     WHEN v_req.budget_minor IS NOT NULL AND l.amount_minor <= (v_req.budget_minor * 1.2) THEN 15.0
-                     ELSE 5.0 END +
-                CASE WHEN LOWER(l.city) = LOWER(v_req.city) THEN 20.0 ELSE 0.0 END +
-                CASE WHEN l.search_tsv @@ plainto_tsquery('english', v_req.title) THEN 15.0 ELSE 0.0 END
-            )::numeric, 2
-        ) AS match_score,
-        jsonb_build_array(
-            CASE WHEN l.category = v_req.category THEN 'category_match' ELSE NULL END,
-            CASE WHEN v_req.budget_minor IS NOT NULL AND l.amount_minor <= v_req.budget_minor THEN 'within_budget' ELSE NULL END,
-            CASE WHEN LOWER(l.city) = LOWER(v_req.city) THEN 'city_match' ELSE NULL END,
-            CASE WHEN l.search_tsv @@ plainto_tsquery('english', v_req.title) THEN 'keyword_similarity' ELSE NULL END
-        ) AS match_reasons
-    FROM public.listings l
-    WHERE l.status = 'active'
-      AND (
-          l.category = v_req.category 
-          OR LOWER(l.city) = LOWER(v_req.city)
-          OR l.search_tsv @@ plainto_tsquery('english', v_req.title)
-      )
-    ORDER BY match_score DESC
-    LIMIT p_limit;
-END;
+    WITH req AS (
+        SELECT r.*,
+               -- any of the request's words, not all of them
+               NULLIF(replace(plainto_tsquery('english', r.title)::text, '&', '|'), '') AS words
+          FROM public.buyer_requests r
+         WHERE r.id = p_request_id AND r.buyer_id = auth.uid()
+    ),
+    scored AS (
+        SELECT l.id,
+               (req.words IS NOT NULL
+                AND to_tsvector('english', l.title || ' ' || COALESCE(l.description, ''))
+                    @@ to_tsquery('english', req.words)) AS shares_words,
+               (req.budget_amount_minor IS NOT NULL AND l.currency = req.currency
+                AND l.amount_minor <= req.budget_amount_minor) AS within_budget,
+               COALESCE(lower(btrim(l.city)) = lower(btrim(req.city)), false) AS same_city
+          FROM public.listings l
+          JOIN req ON l.category = req.category
+         WHERE l.status = 'active'
+           AND l.seller_id <> req.buyer_id
+           AND (l.format <> 'auction' OR l.auction_end_at > now())
+    )
+    SELECT s.id,
+           40 + s.shares_words::int * 30 + s.within_budget::int * 20 + s.same_city::int * 10,
+           array_remove(ARRAY['category',
+                              CASE WHEN s.shares_words THEN 'words' END,
+                              CASE WHEN s.within_budget THEN 'budget' END,
+                              CASE WHEN s.same_city THEN 'city' END], NULL)
+      FROM scored s
+     ORDER BY 2 DESC, s.id
+     LIMIT LEAST(GREATEST(COALESCE(p_limit, 6), 1), 20);
 $$;
 
--- RLS
-ALTER TABLE public.marketplace_matches ENABLE ROW LEVEL SECURITY;
+-- Open requests that fit what the caller sells: requests in a category where
+-- the caller has an active listing. They rank higher when the buyer's budget
+-- covers one of those listings (same currency) and when the city matches.
+CREATE OR REPLACE FUNCTION public.match_requests_for_seller(p_limit INT DEFAULT 6)
+RETURNS TABLE (request_id UUID, score INT, reasons TEXT[])
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path TO ''
+AS $$
+    WITH mine AS (
+        SELECT l.category, l.currency, l.amount_minor, lower(btrim(l.city)) AS city
+          FROM public.listings l
+         WHERE l.seller_id = auth.uid() AND l.status = 'active'
+    ),
+    scored AS (
+        SELECT r.id, r.created_at,
+               bool_or(r.budget_amount_minor IS NOT NULL AND mine.currency = r.currency
+                       AND mine.amount_minor <= r.budget_amount_minor) AS within_budget,
+               COALESCE(bool_or(mine.city = lower(btrim(r.city))), false) AS same_city
+          FROM public.buyer_requests r
+          JOIN mine ON mine.category = r.category
+         WHERE r.status = 'open' AND r.buyer_id <> auth.uid()
+         GROUP BY r.id, r.created_at
+    )
+    SELECT s.id,
+           50 + s.within_budget::int * 30 + s.same_city::int * 20,
+           array_remove(ARRAY['category',
+                              CASE WHEN s.within_budget THEN 'budget' END,
+                              CASE WHEN s.same_city THEN 'city' END], NULL)
+      FROM scored s
+     ORDER BY 2 DESC, s.created_at DESC
+     LIMIT LEAST(GREATEST(COALESCE(p_limit, 6), 1), 20);
+$$;
 
-DROP POLICY IF EXISTS "Users view their own matches" ON public.marketplace_matches;
-CREATE POLICY "Users view their own matches" ON public.marketplace_matches
-    FOR SELECT TO authenticated
-    USING (
-        EXISTS (SELECT 1 FROM public.buyer_requests r WHERE r.id = marketplace_matches.request_id AND r.buyer_id = auth.uid())
-        OR EXISTS (SELECT 1 FROM public.listings l WHERE l.id = marketplace_matches.listing_id AND l.seller_id = auth.uid())
-    );
-
-DROP POLICY IF EXISTS "Users dismiss their own matches" ON public.marketplace_matches;
-CREATE POLICY "Users dismiss their own matches" ON public.marketplace_matches
-    FOR UPDATE TO authenticated
-    USING (
-        EXISTS (SELECT 1 FROM public.buyer_requests r WHERE r.id = marketplace_matches.request_id AND r.buyer_id = auth.uid())
-        OR EXISTS (SELECT 1 FROM public.listings l WHERE l.id = marketplace_matches.listing_id AND l.seller_id = auth.uid())
-    );
+REVOKE ALL ON FUNCTION public.match_listings_for_request(UUID, INT) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.match_requests_for_seller(INT) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.match_listings_for_request(UUID, INT) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.match_requests_for_seller(INT) TO authenticated;
