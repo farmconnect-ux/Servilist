@@ -1,0 +1,106 @@
+name: CI - Servilist Pan-African Marketplace
+
+on:
+  push:
+    branches: ['main', 'claude/**', 'phase-*']
+  pull_request:
+    branches: ['main', 'phase-*']
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint, Typecheck, Unit Tests & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Code Style Check (Prettier)
+        run: npm run format:check
+
+      - name: Linter Check (ESLint)
+        run: npm run lint
+
+      - name: TypeScript Type Check
+        run: npm run typecheck
+
+      - name: Unit Tests (Vitest)
+        run: npm run test:unit
+
+      - name: Production Bundle (Vite)
+        run: npm run build
+
+  smoke-test:
+    name: Playwright E2E Smoke Tests
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build Application
+        run: npm run build
+
+      - name: Run Playwright Smoke Tests
+        run: npm run test:smoke
+
+      - name: Upload Test Results on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 7
+
+  web:
+    name: New app (web/) - Typecheck, Unit Tests & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: TypeScript Type Check
+        run: npm run typecheck
+
+      - name: Unit Tests (Vitest)
+        run: npm test
+
+      # Configuration is read per request, so the build needs no secrets
+      - name: Production Build (Next.js)
+        run: npm run build

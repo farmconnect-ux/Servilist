@@ -2,8 +2,9 @@
 .env
 Pass.docx
 
-# Dependencies
+# Dependencies and build outputs
 node_modules/
+dist/
 
 # Test output and artifacts
 test-results/
@@ -15,3 +16,5 @@ playwright-report/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+# Local Claude preview config
+.claude/
