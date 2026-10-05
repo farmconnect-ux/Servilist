@@ -110,7 +110,14 @@ export function ListingCard({ listing }: { listing: ListingSummary }) {
 }
 
 /** Section 21: a buyer's need, with budget, location and the buyer's standing. */
-export function RequestCard({ request }: { request: RequestSummary }) {
+export function RequestCard({
+  request,
+  responses,
+}: {
+  request: RequestSummary;
+  /** How many sellers have responded, when the caller knows it. */
+  responses?: number;
+}) {
   const href = `/requests/${request.id}`;
   return (
     <Card className="flex flex-col gap-3 p-4 transition-colors duration-200 hover:border-line-strong">
@@ -143,6 +150,18 @@ export function RequestCard({ request }: { request: RequestSummary }) {
           <dt className="text-muted">Location</dt>
           <dd className="truncate text-ink-soft">{request.city}</dd>
         </div>
+        {responses !== undefined ? (
+          <div className="flex justify-between gap-3">
+            <dt className="text-muted">Responses</dt>
+            <dd className="text-ink-soft">
+              {responses === 0
+                ? "Be the first to respond"
+                : responses === 1
+                  ? "1 seller responded"
+                  : `${responses} sellers responded`}
+            </dd>
+          </div>
+        ) : null}
       </dl>
 
       <p className="flex items-center gap-2 text-xs text-ink-soft">

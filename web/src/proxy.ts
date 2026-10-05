@@ -1,16 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/public-config";
+import { requiresSignIn } from "@/lib/protected";
 import { isReleased } from "@/lib/release";
-
-const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/admin",
-  "/requests/new",
-  "/checkout",
-  "/design-system",
-  "/sell",
-];
 
 /**
  * Keeps the session cookie fresh and sends signed-out visitors away from
@@ -62,7 +54,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  if (!user && PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
+  if (!user && requiresSignIn(pathname)) {
     const login = request.nextUrl.clone();
     login.pathname = "/login";
     login.search = `?next=${encodeURIComponent(pathname + request.nextUrl.search)}`;

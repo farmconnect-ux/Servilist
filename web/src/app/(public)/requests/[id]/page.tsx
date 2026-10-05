@@ -9,6 +9,8 @@ import { getBuyerRequestById, getQuotesForRequest } from "@/server/repositories/
 import { formatMoney } from "@/lib/money";
 import { Card } from "@/components/ui/card";
 import { RequestDetailClient } from "@/components/marketplace/RequestDetailClient";
+import { Rating } from "@/components/marketplace/cards";
+import { VerifiedBadge } from "@/components/ui/card";
 
 interface RequestPageProps {
   params: Promise<{ id: string }>;
@@ -51,7 +53,7 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
   const isOwner = sessionUser?.userId === request.buyerId;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 md:px-5 lg:px-6">
       {/* Breadcrumb */}
       <nav aria-label="Breadcrumb" className="text-xs text-muted">
         <Link href="/" className="hover:text-brand">Home</Link> &gt;{" "}
@@ -64,11 +66,11 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
         <div className="space-y-6 lg:col-span-2">
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">
-                {request.category.toUpperCase()}
+              <span className="rounded-control border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-800">
+                Looking for
               </span>
-              <span className="rounded-full bg-info-soft px-2.5 py-0.5 text-xs font-semibold text-info">
-                {request.requestType.replace("_", " ").toUpperCase()}
+              <span className="rounded-control border border-line bg-surface-muted px-2 py-0.5 text-xs font-medium text-ink-soft capitalize">
+                {request.category}
               </span>
               <span
                 className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
@@ -79,11 +81,11 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
                     : "bg-surface-muted text-ink-soft"
                 }`}
               >
-                {request.status.toUpperCase()}
+                {request.status === "open" ? "Open" : request.status === "matched" ? "Offer accepted" : "Closed"}
               </span>
             </div>
 
-            <h1 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">
+            <h1 className="mt-3 text-[28px] leading-tight font-bold text-ink md:text-[40px]">
               {request.title}
             </h1>
             <p className="mt-1 text-xs text-muted">
@@ -94,7 +96,7 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
 
           <Card className="p-6">
             <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">
-              Request Details & Specifications
+              What the buyer needs
             </h2>
             <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink">
               {request.description}
@@ -115,6 +117,7 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
             initialQuotes={quotes}
             isOwner={isOwner}
             requestStatus={request.status}
+            signedIn={Boolean(sessionUser)}
           />
 
           {/* Listings that match this request (opens with Sprint 9 matching) */}
@@ -170,22 +173,22 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
         {/* Sidebar (1 col) */}
         <div className="space-y-6">
           <Card className="p-6">
-            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">Buyer Budget</h3>
-            <p className="mt-2 text-3xl font-bold text-brand">
+            <h2 className="text-sm text-muted">Budget</h2>
+            <p className="mt-1 text-[32px] leading-none font-bold text-ink">
               {formatMoney(request.budgetMinor, request.currency)}
             </p>
             <div className="mt-4 space-y-2 border-t pt-4 text-xs text-muted">
               <div className="flex justify-between">
-                <span>Urgency</span>
+                <span>Needed by</span>
                 <span className="font-semibold text-ink">{request.urgency}</span>
               </div>
               <div className="flex justify-between">
-                <span>Fulfillment</span>
+                <span>Handover</span>
                 <span className="font-semibold text-ink capitalize">{request.fulfillment}</span>
               </div>
               {request.deadline && (
                 <div className="flex justify-between">
-                  <span>Quotes Close</span>
+                  <span>Offers close</span>
                   <span className="font-semibold text-ink">
                     {new Date(request.deadline).toLocaleDateString()}
                   </span>
@@ -195,29 +198,32 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
           </Card>
 
           <Card className="p-6">
-            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">Requested By</h3>
+            <h2 className="text-sm text-muted">Buyer</h2>
             <div className="mt-4 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 font-bold text-brand">
                 {request.buyer.displayName.charAt(0)}
               </div>
               <div>
                 <p className="font-semibold text-ink">{request.buyer.displayName}</p>
-                <p className="text-xs text-muted">
-                  ★ {request.buyer.rating.toFixed(1)} ({request.buyer.reviewsCount} reviews)
-                </p>
+                {request.buyer.reviewsCount > 0 ? (
+                  <Rating value={request.buyer.rating} count={request.buyer.reviewsCount} />
+                ) : (
+                  <p className="text-xs text-muted">No reviews yet</p>
+                )}
               </div>
             </div>
             {request.buyer.verified && (
-              <div className="mt-3 flex items-center gap-1.5 text-xs text-primary-700 font-medium">
-                <span>✓ Identity & Phone Verified</span>
+              <div className="mt-3">
+                <VerifiedBadge text="Verified buyer" />
               </div>
             )}
           </Card>
 
           <Card className="border-primary-200 bg-primary-50/50 p-6 text-xs text-primary-900">
-            <h4 className="font-bold">Protected by Servilist Escrow</h4>
+            <h2 className="font-semibold">What happens when an offer is accepted</h2>
             <p className="mt-2 leading-relaxed">
-              When a quote is accepted, buyer funds are secured in licensed third-party escrow. The vendor is paid upon buyer confirmation and verification OTP release.
+              The buyer and seller get a handover order with a code. Agree how you will pay, meet
+              safely, and the buyer gives the code only after checking the item or service.
             </p>
           </Card>
         </div>

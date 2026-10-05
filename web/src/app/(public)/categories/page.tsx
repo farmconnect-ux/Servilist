@@ -21,7 +21,7 @@ export default async function CategoriesPage() {
         </nav>
         <h1 className="text-3xl font-bold text-ink">Marketplace Categories</h1>
         <p className="mt-1 text-sm text-muted">
-          Discover products, vehicles, equipment and local services across Pan-African hubs.
+          Browse everything on Servilist by category.
         </p>
       </div>
 

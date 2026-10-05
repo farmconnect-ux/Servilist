@@ -14,10 +14,13 @@ export interface SellerPublicProfile {
   verified: boolean;
   status: string;
   memberSince: string;
+  /**
+   * Counted from the database. Orders are private, so completed sales are only
+   * countable for the member themselves or staff; public pages do not show them.
+   */
   stats: {
     activeListingsCount: number;
     completedSalesCount: number;
-    responseRate: string;
   };
 }
 
@@ -41,9 +44,9 @@ export async function getSellerByUsername(
   return {
     id: profile.id,
     username: profile.username,
-    displayName: profile.display_name || "Merchant",
+    displayName: profile.display_name || "Servilist member",
     avatarUrl: profile.avatar_url,
-    bio: profile.bio || "Active Pan-African marketplace trader.",
+    bio: profile.bio || null,
     city: profile.city,
     country: profile.country,
     ratingAverage: Number(profile.rating || 5.0),
@@ -54,7 +57,6 @@ export async function getSellerByUsername(
     stats: {
       activeListingsCount: activeListings || 0,
       completedSalesCount: completedOrders || 0,
-      responseRate: "98% within 1 hour",
     },
   };
 }
@@ -79,9 +81,9 @@ export async function getProfileById(
   return {
     id: profile.id,
     username: profile.username,
-    displayName: profile.display_name || "Merchant",
+    displayName: profile.display_name || "Servilist member",
     avatarUrl: profile.avatar_url,
-    bio: profile.bio || "Active Pan-African marketplace trader.",
+    bio: profile.bio || null,
     city: profile.city,
     country: profile.country,
     ratingAverage: Number(profile.rating || 5.0),
@@ -92,7 +94,6 @@ export async function getProfileById(
     stats: {
       activeListingsCount: activeListings || 0,
       completedSalesCount: completedOrders || 0,
-      responseRate: "98% within 1 hour",
     },
   };
 }
