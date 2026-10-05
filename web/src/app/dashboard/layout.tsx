@@ -10,10 +10,10 @@ export const metadata: Metadata = { title: "Dashboard" };
 // Sections are added here as each sprint delivers them, so no link leads nowhere.
 const NAV = [
   { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/orders", label: "Orders & Escrow" },
-  { href: "/dashboard/requests", label: "Requests & Quotes" },
+  { href: "/dashboard/orders", label: "Orders" },
+  { href: "/dashboard/requests", label: "My requests" },
   { href: "/dashboard/offers", label: "Offers" },
-  { href: "/dashboard/seller", label: "Seller Hub" },
+  { href: "/dashboard/seller", label: "Selling" },
   { href: "/dashboard/messages", label: "Messages" },
   { href: "/sell", label: "Sell an item" },
   { href: "/dashboard/settings", label: "Profile and settings" },

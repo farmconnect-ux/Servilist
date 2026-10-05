@@ -13,6 +13,8 @@ interface OrderTrackingProps {
   isSeller: boolean;
   otpCode?: string | null;
   completedAt?: string | null;
+  placedAt?: string | null;
+  paidAt?: string | null;
   /** When an unpaid order stops holding the item. */
   paymentDueAt?: string;
   /** Payment providers the buyer can use for this order. */
@@ -31,6 +33,8 @@ export function OrderTrackingClient({
   isSeller,
   otpCode,
   completedAt,
+  placedAt,
+  paidAt,
   paymentDueAt,
   providers = [],
   disputesOpen = false,
@@ -132,64 +136,64 @@ export function OrderTrackingClient({
     }
   };
 
-  const steps = [
-    { key: "pending_payment", label: "Order Placed" },
-    { key: "in_escrow", label: "Paid, Held by Provider" },
-    { key: "dispatched", label: "In Transit" },
-    { key: "completed", label: "Handover Verified" },
+  // Section 41: each stage with its state and, where known, when it happened
+  const reached = { pending_payment: 0, in_escrow: 1, dispatched: 2, delivered: 3, completed: 4 }[status] ?? 1;
+  const closed = status === "cancelled" || status === "refunded";
+  const stages = [
+    { label: "Order placed", at: placedAt },
+    { label: "Payment confirmed", at: paidAt },
+    { label: "Dispatched", at: null },
+    { label: "Delivered", at: null },
+    { label: "Completed", at: completedAt },
   ];
-
-  const getStepIndex = (st: string) => {
-    switch (st) {
-      case "pending_payment":
-        return 0;
-      case "in_escrow":
-        return 1;
-      case "dispatched":
-      case "delivered":
-        return 2;
-      case "completed":
-        return 3;
-      case "cancelled":
-        return -1;
-      default:
-        return 1;
-    }
-  };
-
-  const currentStepIdx = getStepIndex(status);
 
   return (
     <div className="space-y-6">
-      {/* Escrow Progress Bar */}
-      <Card className="p-6">
-        <h3 className="text-sm font-bold text-ink uppercase tracking-wide">
-          Order Progress
-        </h3>
-
-        <div className="mt-6 flex items-center justify-between">
-          {steps.map((s, idx) => {
-            const isCompleted = currentStepIdx >= idx;
-            const isCurrent = currentStepIdx === idx;
-
-            return (
-              <div key={s.key} className="flex flex-1 flex-col items-center relative">
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${
-                    isCompleted
-                      ? "bg-brand text-white shadow-sm"
-                      : "bg-surface-muted text-muted"
-                  } ${isCurrent ? "ring-4 ring-brand/20" : ""}`}
-                >
-                  {isCompleted ? "✓" : idx + 1}
-                </div>
-                <span className="mt-2 text-[11px] font-semibold text-center text-ink">
-                  {s.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+      <Card className="p-4 sm:p-6">
+        <h2 className="text-xl font-semibold text-ink">Order progress</h2>
+        {closed ? (
+          <p className="mt-2 text-sm text-ink-soft">
+            {status === "cancelled" ? "This order was cancelled." : "This order was refunded."}
+          </p>
+        ) : (
+          <ol className="mt-4 flex flex-col">
+            {stages.map((stage, index) => {
+              const done = index < reached || status === "completed";
+              const current = index === reached && status !== "completed";
+              return (
+                <li key={stage.label} className="flex gap-3" aria-current={current ? "step" : undefined}>
+                  <div className="flex flex-col items-center">
+                    <span
+                      className={`flex size-6 shrink-0 items-center justify-center rounded-pill border-2 text-xs font-semibold ${
+                        done
+                          ? "border-primary-600 bg-primary-600 text-white"
+                          : current
+                            ? "border-primary-600 bg-surface text-primary-700"
+                            : "border-line-strong bg-surface text-muted"
+                      }`}
+                    >
+                      {done ? "✓" : ""}
+                    </span>
+                    {index < stages.length - 1 ? (
+                      <span className={`w-0.5 flex-1 ${done ? "bg-primary-600" : "bg-line"}`} />
+                    ) : null}
+                  </div>
+                  <div className="pb-5">
+                    <p className={`text-sm ${done || current ? "font-semibold text-ink" : "text-muted"}`}>
+                      {stage.label}
+                      {current ? <span className="font-normal text-ink-soft"> (current)</span> : null}
+                    </p>
+                    {stage.at && (done || current) ? (
+                      <p className="text-xs text-muted">
+                        {new Date(stage.at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+                      </p>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </Card>
 
       {actionError && (

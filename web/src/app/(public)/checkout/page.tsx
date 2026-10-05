@@ -9,8 +9,8 @@ import { isUuid } from "@/lib/ids";
 import { CheckoutClient } from "@/components/marketplace/CheckoutClient";
 
 export const metadata = {
-  title: "Secure Escrow Checkout · Servilist Africa",
-  description: "Complete your purchase with guaranteed buyer protection and escrow security.",
+  title: "Checkout",
+  robots: { index: false, follow: false },
 };
 
 interface CheckoutPageProps {
@@ -81,13 +81,10 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8 md:px-5 lg:px-6">
       <div>
-        <nav aria-label="Breadcrumb" className="mb-2 text-xs text-muted">
-          <Link href="/" className="hover:text-brand">Home</Link> &gt; <span>Checkout</span>
-        </nav>
-        <h1 className="text-2xl font-bold text-ink sm:text-3xl">Secure Escrow Checkout</h1>
-        <p className="mt-1 text-sm text-muted">
+        <h1 className="text-[28px] leading-tight font-bold text-ink md:text-[40px]">Checkout</h1>
+        <p className="mt-1 text-sm text-ink-soft md:text-base">
           You pay through a licensed payment provider. The seller is paid after you inspect the item and give them your handover code.
         </p>
       </div>

@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export const metadata = {
-  title: "Orders & Escrow · Servilist Dashboard",
+  title: "Orders",
 };
 
 interface OrdersPageProps {
@@ -28,7 +28,7 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-xl font-bold text-ink">Orders & Escrow Protection</h2>
+          <h1 className="text-[28px] leading-tight font-bold text-ink md:text-[32px]">Orders</h1>
           <p className="text-xs text-muted">
             Pay for purchases, track handover and confirm completion with the handover code.
           </p>
@@ -45,7 +45,7 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
               : "border-transparent text-muted hover:text-ink"
           }`}
         >
-          My Purchases (Buyer)
+          Purchases
         </Link>
         <Link
           href="/dashboard/orders?tab=sales"
@@ -55,23 +55,23 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
               : "border-transparent text-muted hover:text-ink"
           }`}
         >
-          My Sales (Seller)
+          Sales
         </Link>
       </div>
 
       {orders.length === 0 ? (
         <Card className="p-8 text-center">
           <p className="font-semibold text-ink">
-            No {currentTab === "buyer" ? "purchases" : "sales"} found.
+            No {currentTab === "buyer" ? "purchases" : "sales"} yet
           </p>
           <p className="mt-1 text-xs text-muted">
             {currentTab === "buyer"
-              ? "Browse verified listings or post requests to start purchasing safely."
-              : "List an item for sale or quote on buyer requests to receive orders."}
+              ? "When you buy something, the order appears here."
+              : "When a buyer orders one of your listings, it appears here."}
           </p>
           <Link href={currentTab === "buyer" ? "/search" : "/sell"} className="mt-4 inline-block">
             <Button className="min-h-11 px-3 text-xs">
-              {currentTab === "buyer" ? "Explore Marketplace" : "Start Selling"}
+              {currentTab === "buyer" ? "Start shopping" : "Sell something"}
             </Button>
           </Link>
         </Card>
@@ -128,7 +128,7 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
 
                     <Link href={`/dashboard/orders/${o.id}`}>
                       <Button variant="outline" className="min-h-11 px-3 text-xs">
-                        Track & Details →
+                        View order
                       </Button>
                     </Link>
                   </div>

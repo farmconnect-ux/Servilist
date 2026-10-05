@@ -28,8 +28,49 @@ export default async function AdminUsersPage() {
       {members.length === 0 ? (
         <EmptyState title="No members yet" />
       ) : (
-        <Card className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+        <>
+        <ul className="flex flex-col gap-3 md:hidden">
+          {members.map((member) => {
+            const isSelf = member.id === admin.userId;
+            const next = member.status === "active" ? "suspended" : "active";
+            return (
+              <li key={member.id}>
+                <Card className="flex flex-col gap-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-ink">{member.displayName}</p>
+                      <p className="text-xs text-muted">
+                        {member.city ?? "No city set"} · Joined {dateFormat.format(new Date(member.joinedAt))}
+                      </p>
+                    </div>
+                    <Badge tone={member.status === "active" ? "success" : "danger"}>{member.status}</Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {member.roles.map((role) => (
+                      <Badge key={role} tone={role === "USER" ? "neutral" : "brand"}>
+                        {role.replace(/_/g, " ").toLowerCase()}
+                      </Badge>
+                    ))}
+                  </div>
+                  {canManage && !isSelf ? (
+                    <form action={setMemberStatusAction}>
+                      <input type="hidden" name="memberId" value={member.id} />
+                      <input type="hidden" name="status" value={next} />
+                      <button
+                        type="submit"
+                        className="min-h-11 w-full rounded-input border border-line-strong px-3 text-sm font-semibold text-ink hover:border-primary-600"
+                      >
+                        {next === "suspended" ? "Suspend" : "Restore"}
+                      </button>
+                    </form>
+                  ) : null}
+                </Card>
+              </li>
+            );
+          })}
+        </ul>
+        <Card className="hidden overflow-hidden md:block">
+          <table className="w-full text-left text-sm">
             <thead className="bg-page text-[11px] font-bold tracking-wide text-muted uppercase">
               <tr>
                 <th scope="col" className="px-4 py-3">
@@ -102,6 +143,7 @@ export default async function AdminUsersPage() {
             </tbody>
           </table>
         </Card>
+        </>
       )}
     </>
   );

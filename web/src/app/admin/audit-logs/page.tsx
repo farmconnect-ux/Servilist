@@ -27,8 +27,24 @@ export default async function AuditLogPage() {
           Suspending a member or changing a role will appear here.
         </EmptyState>
       ) : (
-        <Card className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+        <>
+        <ul className="flex flex-col gap-3 md:hidden">
+          {entries.map((entry) => (
+            <li key={entry.id}>
+              <Card className="flex flex-col gap-1 p-4">
+                <p className="text-sm font-semibold text-ink">{entry.action}</p>
+                <p className="text-xs text-muted">
+                  {entry.actorName} · {timeFormat.format(new Date(entry.createdAt))}
+                </p>
+                <p className="text-xs break-all text-ink-soft">
+                  {entry.entityType} {entry.entityId ?? ""} {JSON.stringify(entry.metadata)}
+                </p>
+              </Card>
+            </li>
+          ))}
+        </ul>
+        <Card className="hidden overflow-hidden md:block">
+          <table className="w-full table-fixed text-left text-sm">
             <thead className="bg-page text-[11px] font-bold tracking-wide text-muted uppercase">
               <tr>
                 <th scope="col" className="px-4 py-3">
@@ -61,6 +77,7 @@ export default async function AuditLogPage() {
             </tbody>
           </table>
         </Card>
+        </>
       )}
     </>
   );

@@ -124,6 +124,8 @@ export default async function DashboardOrderDetailPage({
             isSeller={isSeller}
             otpCode={handoverCode}
             completedAt={order.completedAt}
+            placedAt={order.createdAt}
+            paidAt={order.paidAt}
             paymentDueAt={order.paymentDueAt}
             providers={isBuyer ? availableProviders(order.currency) : []}
             disputesOpen={isReleased(`/api/v1/orders/${id}/dispute`)}

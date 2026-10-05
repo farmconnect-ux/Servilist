@@ -2,16 +2,25 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
+import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Alert, Field, Input } from "@/components/ui/form";
 import { formatMoney } from "@/lib/money";
+import { cn } from "@/lib/utils";
+
+/**
+ * Checkout (docs/UI_UX_SPEC.md sections 38, 39 and 80): delivery, address and
+ * payment on the left, the order summary on the right. The fee and total are
+ * visible from the start. The figures shown here are for display; the server
+ * works out the same figures from the listing and charges those.
+ */
 
 interface CheckoutItemDetails {
   title: string;
   priceMinor: number;
   currency: string;
   listingId?: string;
-  quoteId?: string;
   offerId?: string;
   sellerName?: string;
 }
@@ -22,13 +31,26 @@ interface ProviderOption {
   description: string;
 }
 
+const HANDOVER = [
+  {
+    value: "pickup",
+    label: "Pickup",
+    text: "Meet the seller in a public place and check the item before giving your handover code.",
+  },
+  {
+    value: "delivery",
+    label: "Delivery",
+    text: "Sent to your address. Agree the delivery cost with the seller. Give your code when it arrives.",
+  },
+] as const;
+
 export function CheckoutClient({
   item,
   feeBps,
   providers,
 }: {
   item: CheckoutItemDetails;
-  /** Buyer protection fee in basis points. Shown here; charged by the server. */
+  /** Buyer protection fee in basis points. */
   feeBps: number;
   /** Payment providers that are configured and can charge in this currency. */
   providers: ProviderOption[];
@@ -36,31 +58,27 @@ export function CheckoutClient({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("pickup");
   const [provider, setProvider] = useState(providers[0]?.name ?? "");
-
   const [address, setAddress] = useState({
     recipientName: "",
     phoneNumber: "",
     addressLine: "",
-    city: "Lagos",
-    country: "Nigeria",
+    city: "",
+    country: "",
   });
 
-  // For display only: the server works out the same figures and charges those
-  const deliveryFeeMinor = 0;
-  const escrowFeeMinor = Math.floor((item.priceMinor * feeBps) / 10000);
-  const totalMinor = item.priceMinor + deliveryFeeMinor + escrowFeeMinor;
+  const feeMinor = Math.floor((item.priceMinor * feeBps) / 10000);
+  const totalMinor = item.priceMinor + feeMinor;
   const canPay = providers.length > 0;
+  const setField = (field: keyof typeof address, value: string) =>
+    setAddress((current) => ({ ...current, [field]: value }));
 
-  const handleCheckout = async (e: React.FormEvent) => {
-    e.preventDefault();
+  async function pay(event: React.FormEvent) {
+    event.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
-      // 1. Create order
       const orderRes = await fetch("/api/v1/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -71,253 +89,225 @@ export function CheckoutClient({
           shippingAddress: fulfillment === "delivery" ? address : undefined,
         }),
       });
-
-      const orderJson = await orderRes.json();
-      if (!orderRes.ok || !orderJson.success) {
-        throw new Error(orderJson.error?.message || "Failed to create order");
+      const orderJson = await orderRes.json().catch(() => null);
+      if (!orderRes.ok || !orderJson?.success) {
+        throw new Error(orderJson?.error?.message || "We couldn't place your order. Please try again.");
       }
-
       const orderId = orderJson.data.id;
 
-      // 2. Initiate payment
       const payRes = await fetch(`/api/v1/orders/${orderId}/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider }),
       });
-
       const payJson = await payRes.json().catch(() => null);
       if (!payRes.ok || !payJson?.success) {
         // The order exists; it can be paid or cancelled from its own page
         router.push(`/dashboard/orders/${orderId}`);
         return;
       }
-
-      // Continue on the provider's own payment page (Paystack or Flutterwave)
+      // Continue on the provider's own payment page
       window.location.href = payJson.data.checkoutUrl;
-    } catch (err: any) {
-      setError(err.message || "An error occurred during checkout");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "We couldn't place your order.");
       setLoading(false);
     }
-  };
+  }
+
+  const summary = (
+    <dl className="flex flex-col gap-2 text-sm">
+      <div className="flex justify-between gap-4">
+        <dt className="text-ink-soft">Item</dt>
+        <dd className="font-medium text-ink">{formatMoney(item.priceMinor, item.currency)}</dd>
+      </div>
+      <div className="flex justify-between gap-4">
+        <dt className="text-ink-soft">Delivery</dt>
+        <dd className="text-right text-ink-soft">
+          {fulfillment === "delivery" ? "Agreed with the seller" : "Pickup"}
+        </dd>
+      </div>
+      <div className="flex justify-between gap-4">
+        <dt className="text-ink-soft">Buyer protection fee ({feeBps / 100}%)</dt>
+        <dd className="font-medium text-ink">{formatMoney(feeMinor, item.currency)}</dd>
+      </div>
+      <div className="mt-1 flex justify-between gap-4 border-t border-line pt-3 text-base">
+        <dt className="font-semibold text-ink">Total</dt>
+        <dd className="font-bold text-ink">{formatMoney(totalMinor, item.currency)}</dd>
+      </div>
+    </dl>
+  );
 
   return (
-    <form onSubmit={handleCheckout} className="grid grid-cols-1 gap-8 md:grid-cols-3">
-      {/* Checkout Inputs (2 cols) */}
-      <div className="space-y-6 md:col-span-2">
-        {error && (
-          <div className="rounded-lg border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
-            {error}
-          </div>
-        )}
+    <form onSubmit={pay} className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="flex flex-col gap-6">
+        {error ? <Alert tone="danger">{error}</Alert> : null}
 
-        {/* Fulfillment selection */}
-        <Card className="p-6">
-          <h2 className="text-lg font-bold text-ink">1. Fulfillment Method</h2>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <button
-              type="button"
-              onClick={() => setFulfillment("delivery")}
-              className={`rounded-xl border p-4 text-left transition ${
-                fulfillment === "delivery"
-                  ? "border-brand bg-brand/5 shadow-sm"
-                  : "border-border hover:border-line-strong"
-              }`}
-            >
-              <p className="font-bold text-ink">Doorstep Delivery</p>
-              <p className="text-xs text-muted mt-1">
-                Sent to your address. You give the handover code when it arrives.
-              </p>
-              <p className="mt-2 text-xs font-semibold text-brand">
-                Delivery cost is agreed with the seller
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setFulfillment("pickup")}
-              className={`rounded-xl border p-4 text-left transition ${
-                fulfillment === "pickup"
-                  ? "border-brand bg-brand/5 shadow-sm"
-                  : "border-border hover:border-line-strong"
-              }`}
-            >
-              <p className="font-bold text-ink">Direct Pickup / Meeting</p>
-              <p className="text-xs text-muted mt-1">
-                Meet the seller in a public place and inspect the item before giving your handover code.
-              </p>
-              <p className="mt-2 text-xs font-semibold text-primary-600">No delivery cost</p>
-            </button>
+        {/* Phones: the summary folds away above the form (section 38) */}
+        <details className="rounded-card border border-line bg-surface lg:hidden">
+          <summary className="flex min-h-11 cursor-pointer items-center justify-between gap-3 px-4 text-sm font-semibold text-ink">
+            <span>Order summary</span>
+            <span>{formatMoney(totalMinor, item.currency)}</span>
+          </summary>
+          <div className="border-t border-line p-4">
+            <p className="mb-3 text-sm font-medium text-ink">{item.title}</p>
+            {summary}
           </div>
+        </details>
+
+        <Card className="flex flex-col gap-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">Delivery</h2>
+          <fieldset className="grid gap-3 sm:grid-cols-2">
+            <legend className="sr-only">How you receive the item</legend>
+            {HANDOVER.map((option) => {
+              const selected = fulfillment === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={cn(
+                    "flex cursor-pointer flex-col gap-1 rounded-card border p-4 transition-colors",
+                    selected ? "border-primary-600 bg-primary-50" : "border-line hover:border-line-strong",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="fulfillment"
+                    value={option.value}
+                    checked={selected}
+                    onChange={() => setFulfillment(option.value)}
+                    className="sr-only"
+                  />
+                  <span className="text-base font-semibold text-ink">{option.label}</span>
+                  <span className="text-sm text-ink-soft">{option.text}</span>
+                </label>
+              );
+            })}
+          </fieldset>
         </Card>
 
-        {/* Shipping address (if delivery) */}
-        {fulfillment === "delivery" && (
-          <Card className="p-6 space-y-4">
-            <h2 className="text-lg font-bold text-ink">2. Delivery Address & Contact</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-semibold text-ink">Recipient Name</label>
-                <input
-                  type="text"
+        {fulfillment === "delivery" ? (
+          <Card className="flex flex-col gap-4 p-4 sm:p-6">
+            <h2 className="text-xl font-semibold text-ink">Address</h2>
+            <p className="text-sm text-ink-soft">Shared only with the seller of this order.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="checkout-name" label="Recipient name" required>
+                <Input
+                  id="checkout-name"
+                  autoComplete="name"
                   required
-                  placeholder="Full name"
+                  maxLength={120}
                   value={address.recipientName}
-                  onChange={(e) => setAddress({ ...address, recipientName: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                  onChange={(event) => setField("recipientName", event.target.value)}
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-ink">Phone Number</label>
-                <input
+              </Field>
+              <Field id="checkout-phone" label="Phone number" required>
+                <Input
+                  id="checkout-phone"
                   type="tel"
+                  autoComplete="tel"
                   required
-                  placeholder="e.g. +234 801 234 5678"
+                  maxLength={30}
                   value={address.phoneNumber}
-                  onChange={(e) => setAddress({ ...address, phoneNumber: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                  onChange={(event) => setField("phoneNumber", event.target.value)}
                 />
-              </div>
+              </Field>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-ink">Street Address</label>
-              <input
-                type="text"
+            <Field id="checkout-street" label="Street address" required>
+              <Input
+                id="checkout-street"
+                autoComplete="street-address"
                 required
-                placeholder="House number, street name, apartment or landmark"
+                maxLength={300}
                 value={address.addressLine}
-                onChange={(e) => setAddress({ ...address, addressLine: e.target.value })}
-                className="mt-1 block w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                onChange={(event) => setField("addressLine", event.target.value)}
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-ink">City / Town</label>
-                <input
-                  type="text"
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="checkout-city" label="City" required>
+                <Input
+                  id="checkout-city"
+                  autoComplete="address-level2"
                   required
+                  maxLength={80}
                   value={address.city}
-                  onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                  onChange={(event) => setField("city", event.target.value)}
                 />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-ink">Country</label>
-                <select
+              </Field>
+              <Field id="checkout-country" label="Country" required>
+                <Input
+                  id="checkout-country"
+                  autoComplete="country-name"
+                  required
+                  maxLength={80}
                   value={address.country}
-                  onChange={(e) => setAddress({ ...address, country: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-brand focus:outline-none"
-                >
-                  <option value="Nigeria">Nigeria</option>
-                  <option value="Kenya">Kenya</option>
-                  <option value="Ghana">Ghana</option>
-                  <option value="South Africa">South Africa</option>
-                  <option value="Egypt">Egypt</option>
-                </select>
-              </div>
+                  onChange={(event) => setField("country", event.target.value)}
+                />
+              </Field>
             </div>
           </Card>
-        )}
+        ) : null}
 
-        {/* Payment gateway */}
-        <Card className="p-6">
-          <h2 className="text-lg font-bold text-ink">3. Payment Provider</h2>
-          <p className="mt-1 text-xs text-muted">
-            Choose who processes your payment. Servilist never sees your card or wallet details.
-          </p>
-
-          <div className="mt-4 space-y-2">
-            {!canPay && (
-              <p className="rounded-lg border border-accent-200 bg-accent-50 p-3 text-sm text-accent-600">
-                Online payment in {item.currency} is not available yet. You can still message the
-                seller to arrange the purchase.
+        <Card className="flex flex-col gap-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">Payment</h2>
+          {canPay ? (
+            <>
+              <p className="text-sm text-ink-soft">
+                You pay on the provider&apos;s own page. Servilist never sees your card or wallet details.
               </p>
-            )}
-            {providers
-              .map((p) => ({ id: p.name, name: p.label, desc: p.description }))
-              .map((p) => (
-              <label
-                key={p.id}
-                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
-                  provider === p.id ? "border-brand bg-brand/5" : "border-border hover:bg-surface-muted"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="paymentProvider"
-                  value={p.id}
-                  checked={provider === p.id}
-                  onChange={() => setProvider(p.id)}
-                  className="mt-1"
-                />
-                <div>
-                  <p className="text-sm font-semibold text-ink">{p.name}</p>
-                  <p className="text-xs text-muted">{p.desc}</p>
-                </div>
-              </label>
-            ))}
-          </div>
+              <fieldset className="flex flex-col gap-3">
+                <legend className="sr-only">Payment provider</legend>
+                {providers.map((option) => {
+                  const selected = provider === option.name;
+                  return (
+                    <label
+                      key={option.name}
+                      className={cn(
+                        "flex min-h-14 cursor-pointer items-center gap-3 rounded-card border p-4 transition-colors",
+                        selected ? "border-primary-600 bg-primary-50" : "border-line hover:border-line-strong",
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="provider"
+                        value={option.name}
+                        checked={selected}
+                        onChange={() => setProvider(option.name)}
+                        className="size-5 accent-primary-600"
+                      />
+                      <span>
+                        <span className="block text-base font-semibold text-ink">{option.label}</span>
+                        <span className="block text-sm text-ink-soft">{option.description}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </fieldset>
+            </>
+          ) : (
+            <Alert tone="warning">
+              Online payment in {item.currency} is not available yet. You can still message the
+              seller to arrange the purchase.
+            </Alert>
+          )}
         </Card>
       </div>
 
-      {/* Order Summary (1 col) */}
-      <div className="space-y-6">
-        <Card className="p-6">
-          <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">
-            Order Summary
-          </h3>
-
-          <div className="mt-4 space-y-3 border-b pb-4">
-            <div>
-              <p className="font-bold text-ink text-sm">{item.title}</p>
-              {item.sellerName && (
-                <p className="text-xs text-muted">Seller: {item.sellerName}</p>
-              )}
-            </div>
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-40 lg:self-start">
+        <Card className="flex flex-col gap-4 p-4 sm:p-6">
+          <h2 className="text-xl font-semibold text-ink">Order summary</h2>
+          <div>
+            <p className="text-base font-medium text-ink">{item.title}</p>
+            {item.sellerName ? <p className="text-sm text-ink-soft">Sold by {item.sellerName}</p> : null}
           </div>
-
-          <div className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between text-muted">
-              <span>Item Subtotal</span>
-              <span className="font-medium text-ink">
-                {formatMoney(item.priceMinor, item.currency)}
-              </span>
-            </div>
-            <div className="flex justify-between text-muted">
-              <span>Delivery Fee</span>
-              <span className="font-medium text-ink">
-                {deliveryFeeMinor === 0 ? "Not included" : formatMoney(deliveryFeeMinor, item.currency)}
-              </span>
-            </div>
-            <div className="flex justify-between text-muted">
-              <span>Buyer protection fee ({feeBps / 100}%)</span>
-              <span className="font-medium text-ink">
-                {formatMoney(escrowFeeMinor, item.currency)}
-              </span>
-            </div>
-
-            <div className="border-t pt-3 flex justify-between font-bold text-base text-ink">
-              <span>Total Payable</span>
-              <span className="text-brand">{formatMoney(totalMinor, item.currency)}</span>
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            disabled={loading || !canPay || !provider}
-            className="mt-6 w-full font-bold"
-          >
-            {loading ? "Opening payment page..." : "Continue to payment"}
+          {summary}
+          <Button type="submit" size="lg" disabled={loading || !canPay || !provider} aria-busy={loading}>
+            {loading ? "Opening payment page..." : "Pay now"}
           </Button>
-
-          <p className="mt-3 text-[11px] text-center text-muted">
-            The order is released to the seller only when you give them your 6-digit handover code.
+          <p className="flex items-start gap-2 text-sm text-ink-soft">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary-700" aria-hidden="true" />
+            The seller is paid only after you give them your 6-digit handover code.
           </p>
         </Card>
-      </div>
+      </aside>
     </form>
   );
 }
