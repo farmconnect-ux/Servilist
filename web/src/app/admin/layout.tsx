@@ -9,6 +9,8 @@ export const metadata: Metadata = { title: "Admin", robots: { index: false, foll
 const SECTIONS: (NavItem & { permission: Permission })[] = [
   { href: "/admin", label: "Overview", permission: "admin.access" },
   { href: "/admin/users", label: "Members", permission: "users.read" },
+  { href: "/admin/vendors", label: "Vendor Verification", permission: "verifications.manage" },
+  { href: "/admin/reports", label: "Reports & Moderation", permission: "reports.manage" },
   { href: "/admin/audit-logs", label: "Audit log", permission: "audit.read" },
 ];
 

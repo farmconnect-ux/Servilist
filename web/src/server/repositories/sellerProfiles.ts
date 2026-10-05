@@ -58,3 +58,41 @@ export async function getSellerByUsername(
     },
   };
 }
+
+export async function getProfileById(
+  db: Db,
+  id: string,
+): Promise<SellerPublicProfile | null> {
+  const { data: profile, error } = await db
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, bio, city, country, rating, reviews_count, is_verified, status, created_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !profile) return null;
+
+  const [{ count: activeListings }, { count: completedOrders }] = await Promise.all([
+    db.from("listings").select("id", { count: "exact", head: true }).eq("seller_id", profile.id).in("status", ["active", "published"]),
+    db.from("orders").select("id", { count: "exact", head: true }).eq("seller_id", profile.id).eq("status", "completed"),
+  ]);
+
+  return {
+    id: profile.id,
+    username: profile.username,
+    displayName: profile.display_name || "Merchant",
+    avatarUrl: profile.avatar_url,
+    bio: profile.bio || "Active Pan-African marketplace trader.",
+    city: profile.city,
+    country: profile.country,
+    ratingAverage: Number(profile.rating || 5.0),
+    ratingCount: Number(profile.reviews_count || 0),
+    verified: Boolean(profile.is_verified),
+    status: profile.status || "active",
+    memberSince: profile.created_at,
+    stats: {
+      activeListingsCount: activeListings || 0,
+      completedSalesCount: completedOrders || 0,
+      responseRate: "98% within 1 hour",
+    },
+  };
+}

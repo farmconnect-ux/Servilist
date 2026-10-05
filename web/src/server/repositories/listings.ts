@@ -306,3 +306,22 @@ export async function setListingStatus(
     throw new Error(`Failed to transition listing status to ${status}: ${error.message}`);
   }
 }
+
+export async function listListingsBySeller(
+  db: Db,
+  sellerId: string,
+): Promise<FullListing[]> {
+  const { data, error } = await db
+    .from("listings")
+    .select(`
+      *,
+      category:categories(name, slug),
+      seller:profiles!seller_id(${PUBLIC_SELLER}),
+      images:listing_images(*)
+    `)
+    .eq("seller_id", sellerId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`Could not load seller listings: ${error.message}`);
+  return (data || []).map(mapFullListing);
+}
