@@ -140,3 +140,20 @@ export async function listOpenRequests(
     buyer: mapProfile(row.buyer),
   }));
 }
+
+/** How many active listings each category holds, keyed by category slug. */
+export async function countActiveListingsByCategory(db: Db): Promise<Map<string, number>> {
+  const { data, error } = await db
+    .from("listings")
+    .select("category")
+    .eq("status", "active")
+    .limit(5000);
+  if (error) throw new Error(`Could not count listings: ${error.message}`);
+
+  const counts = new Map<string, number>();
+  for (const row of (data ?? []) as Row[]) {
+    const slug = String(row.category ?? "");
+    counts.set(slug, (counts.get(slug) ?? 0) + 1);
+  }
+  return counts;
+}

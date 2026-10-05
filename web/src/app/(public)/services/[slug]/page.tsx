@@ -50,15 +50,15 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
               <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand uppercase">
                 {service.categorySlug}
               </span>
-              <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 capitalize">
+              <span className="rounded-full bg-info-soft px-2.5 py-0.5 text-xs font-semibold text-info capitalize">
                 {service.deliveryType.replace("_", " ")}
               </span>
-              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 capitalize">
+              <span className="rounded-full bg-primary-50 px-2.5 py-0.5 text-xs font-semibold text-primary-700 capitalize">
                 {service.pricingModel.replace("_", " ")}
               </span>
             </div>
 
-            <h1 className="mt-3 text-2xl font-extrabold text-ink sm:text-3xl">
+            <h1 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">
               {service.title}
             </h1>
             <p className="mt-1 text-xs text-muted">
@@ -68,7 +68,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
           </div>
 
           <Card className="p-6">
-            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider">
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wide">
               Service Description & Scope of Work
             </h2>
             <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink">
@@ -78,7 +78,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
 
           {/* Provider Card */}
           <Card className="p-6">
-            <h2 className="text-xs font-semibold text-muted uppercase tracking-wider">
+            <h2 className="text-xs font-semibold text-muted uppercase tracking-wide">
               About the Service Provider
             </h2>
 
@@ -92,7 +92,7 @@ export default async function ServiceDetailPage({ params }: ServiceDetailPagePro
                     {service.provider?.displayName}
                   </h3>
                   {service.provider?.verified && (
-                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                    <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[10px] font-bold text-primary-800">
                       VERIFIED PRO
                     </span>
                   )}

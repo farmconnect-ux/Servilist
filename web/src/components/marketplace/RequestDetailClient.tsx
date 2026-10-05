@@ -121,7 +121,7 @@ export function RequestDetailClient({
   return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
           {error}
         </div>
       )}
@@ -140,7 +140,7 @@ export function RequestDetailClient({
               onClick={() => setShowQuoteForm((v) => !v)}
               className="bg-brand hover:bg-brand/90"
             >
-              {showQuoteForm ? "Cancel Quote" : "Send Vendor Quote 💬"}
+              {showQuoteForm ? "Cancel Quote" : "Send Vendor Quote "}
             </Button>
           </div>
 
@@ -155,7 +155,7 @@ export function RequestDetailClient({
                     required
                     value={quoteData.amountMajor}
                     onChange={(e) => setQuoteData({ ...quoteData, amountMajor: Number(e.target.value) })}
-                    className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                    className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                   />
                 </div>
                 <div>
@@ -166,7 +166,7 @@ export function RequestDetailClient({
                     placeholder="e.g. 24 hours, or 2-3 business days"
                     value={quoteData.timeline}
                     onChange={(e) => setQuoteData({ ...quoteData, timeline: e.target.value })}
-                    className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                    className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                   />
                 </div>
               </div>
@@ -179,7 +179,7 @@ export function RequestDetailClient({
                   placeholder="Describe your item condition, delivery timeline, or warranty..."
                   value={quoteData.message}
                   onChange={(e) => setQuoteData({ ...quoteData, message: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                  className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
                 />
               </div>
 
@@ -221,7 +221,7 @@ export function RequestDetailClient({
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-ink">{q.provider.displayName}</span>
                     {q.provider.verified && (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                      <span className="rounded-full bg-primary-100 px-2 py-0.5 text-[10px] font-bold text-primary-800">
                         VERIFIED
                       </span>
                     )}
@@ -242,10 +242,10 @@ export function RequestDetailClient({
                     <span
                       className={`block text-xs font-semibold ${
                         q.status === "accepted"
-                          ? "text-emerald-600"
+                          ? "text-primary-600"
                           : q.status === "rejected"
-                          ? "text-red-500"
-                          : "text-amber-600"
+                          ? "text-danger"
+                          : "text-accent-600"
                       }`}
                     >
                       {q.status.toUpperCase()}
@@ -256,7 +256,7 @@ export function RequestDetailClient({
                     <Button
                       disabled={acceptingQuoteId === q.id}
                       onClick={() => handleAcceptQuote(q.id)}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-9 px-3 text-xs"
+                      className="bg-primary-600 hover:bg-primary-700 text-white min-h-11 px-3 text-xs"
                     >
                       {acceptingQuoteId === q.id ? "Accepting..." : "Accept Quote"}
                     </Button>

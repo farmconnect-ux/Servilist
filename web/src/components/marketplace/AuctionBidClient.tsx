@@ -157,18 +157,18 @@ export function AuctionBidClient({
   };
 
   return (
-    <div className="space-y-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+    <div className="space-y-6 rounded-2xl border border-line bg-surface p-6 shadow-sm">
       {/* Live Timer Banner */}
       <div
         className={`rounded-xl p-4 text-center transition-colors ${
           timeLeft.isEnded
-            ? "bg-stone-100 text-stone-600"
+            ? "bg-surface-muted text-ink-soft"
             : timeLeft.isUnderFiveMinutes
-              ? "bg-amber-100 text-amber-900 border border-amber-300 animate-pulse"
-              : "bg-stone-900 text-white"
+              ? "bg-accent-100 text-accent-600 border border-accent-200 animate-pulse"
+              : "bg-ink text-white"
         }`}
       >
-        <div className="text-xs font-semibold uppercase tracking-wider">
+        <div className="text-xs font-semibold uppercase tracking-wide">
           {timeLeft.isEnded ? "Auction Closed" : "Time Remaining"}
         </div>
         <div className="mt-1 font-mono text-3xl font-bold tracking-tight">
@@ -177,35 +177,35 @@ export function AuctionBidClient({
             : `${String(timeLeft.hours).padStart(2, "0")}h : ${String(timeLeft.minutes).padStart(2, "0")}m : ${String(timeLeft.seconds).padStart(2, "0")}s`}
         </div>
         {timeLeft.isUnderFiveMinutes && !timeLeft.isEnded && (
-          <p className="mt-1 text-xs text-amber-800 font-medium">
+          <p className="mt-1 text-xs text-accent-600 font-medium">
             Anti-sniping active: bids placed in final minutes add 5 min extension.
           </p>
         )}
       </div>
 
       {/* Pricing & Status Overview */}
-      <div className="grid grid-cols-2 gap-4 border-b border-stone-100 pb-4">
+      <div className="grid grid-cols-2 gap-4 border-b border-line pb-4">
         <div>
-          <div className="text-xs text-stone-500 font-medium">Current High Bid</div>
-          <div className="text-2xl font-bold text-stone-900">
+          <div className="text-xs text-muted font-medium">Current High Bid</div>
+          <div className="text-2xl font-bold text-ink">
             {formatMoney(currentPrice, currency)}
           </div>
-          <div className="text-xs text-stone-500 mt-0.5">
+          <div className="text-xs text-muted mt-0.5">
             Starts at: {formatMoney(startingAmountMinor, currency)}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-xs text-stone-500 font-medium">Reserve Status</div>
+          <div className="text-xs text-muted font-medium">Reserve Status</div>
           <div
             className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold mt-1 ${
               reserveMet
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-stone-100 text-stone-600"
+                ? "bg-primary-100 text-primary-800"
+                : "bg-surface-muted text-ink-soft"
             }`}
           >
             {reserveMet ? "Reserve Met ✓" : "Reserve Not Met"}
           </div>
-          <div className="text-xs text-stone-500 mt-1">
+          <div className="text-xs text-muted mt-1">
             Total Bids: <span className="font-semibold">{bids.length}</span>
           </div>
         </div>
@@ -213,12 +213,12 @@ export function AuctionBidClient({
 
       {/* Messages */}
       {errorMsg && (
-        <div className="rounded-lg bg-red-50 p-3 text-xs text-red-700 border border-red-200">
+        <div className="rounded-lg bg-danger-soft p-3 text-xs text-danger border border-danger/40">
           {errorMsg}
         </div>
       )}
       {successMsg && (
-        <div className="rounded-lg bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-200">
+        <div className="rounded-lg bg-primary-50 p-3 text-xs text-primary-800 border border-primary-200">
           {successMsg}
         </div>
       )}
@@ -226,14 +226,14 @@ export function AuctionBidClient({
       {/* Bidding Controls (if active and not ended) */}
       {status === "active" && !timeLeft.isEnded ? (
         isSeller ? (
-          <div className="rounded-xl bg-stone-50 p-4 text-center text-xs text-stone-600">
+          <div className="rounded-xl bg-surface-muted p-4 text-center text-xs text-ink-soft">
             You are the seller of this auction. Sellers cannot bid on their own listings.
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="text-xs text-stone-600">
+            <div className="text-xs text-ink-soft">
               Min next bid:{" "}
-              <span className="font-semibold text-stone-900">
+              <span className="font-semibold text-ink">
                 {formatMoney(currentPrice + minIncrementMinor, currency)}
               </span>{" "}
               (+{formatMoney(minIncrementMinor, currency)} increment)
@@ -274,7 +274,7 @@ export function AuctionBidClient({
             {/* Custom Bid Input */}
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <span className="absolute left-3 top-2.5 text-xs text-stone-400">
+                <span className="absolute left-3 top-2.5 text-xs text-disabled">
                   {currency}
                 </span>
                 <input
@@ -282,12 +282,12 @@ export function AuctionBidClient({
                   min={minRequiredAmountMajor}
                   value={customBidAmount}
                   onChange={(e) => setCustomBidAmount(parseFloat(e.target.value) || 0)}
-                  className="w-full rounded-lg border border-stone-200 py-2 pl-12 pr-3 text-sm focus:border-stone-900 focus:outline-none"
+                  className="w-full rounded-lg border border-line py-2 pl-12 pr-3 text-sm focus:border-ink focus:outline-none"
                   placeholder="Custom bid"
                 />
               </div>
               <Button
-                className="min-h-10 px-5 text-sm"
+                className="min-h-11 px-5 text-sm"
                 disabled={loading || customBidAmount < minRequiredAmountMajor}
                 onClick={() => handlePlaceBid(customBidAmount)}
               >
@@ -299,18 +299,18 @@ export function AuctionBidClient({
       ) : (
         /* Auction Ended or Settled */
         <div className="space-y-3">
-          <div className="rounded-xl bg-stone-50 p-4 text-center">
-            <span className="text-xs font-semibold uppercase tracking-wider text-stone-500">
+          <div className="rounded-xl bg-surface-muted p-4 text-center">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
               Auction State
             </span>
-            <p className="mt-1 text-sm font-medium text-stone-900 capitalize">
+            <p className="mt-1 text-sm font-medium text-ink capitalize">
               {status === "settled" ? "Settled (Order Generated)" : "Ended"}
             </p>
           </div>
 
           {status !== "settled" && (isSeller || (bids.length > 0 && bids[0].bidderId === currentUserId)) && (
             <Button
-              className="w-full min-h-10 text-sm"
+              className="w-full min-h-11 text-sm"
               disabled={loading}
               onClick={handleSettle}
             >
@@ -321,30 +321,30 @@ export function AuctionBidClient({
       )}
 
       {/* Bid History Table */}
-      <div className="border-t border-stone-100 pt-4">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">
+      <div className="border-t border-line pt-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted mb-3">
           Bid History ({bids.length})
         </h4>
         {bids.length === 0 ? (
-          <p className="text-xs text-stone-400 text-center py-4">No bids placed yet. Be the first to bid!</p>
+          <p className="text-xs text-disabled text-center py-4">No bids placed yet. Be the first to bid!</p>
         ) : (
-          <div className="divide-y divide-stone-100 max-h-48 overflow-y-auto pr-1">
+          <div className="divide-y divide-line max-h-48 overflow-y-auto pr-1">
             {bids.map((bid, idx) => (
               <div key={bid.id} className="py-2 flex items-center justify-between text-xs">
                 <div>
-                  <span className="font-semibold text-stone-900">
+                  <span className="font-semibold text-ink">
                     {bid.bidder?.displayName || `Bidder #${bid.bidderId.substring(0, 4)}`}
                   </span>
                   {idx === 0 && (
-                    <span className="ml-2 inline-flex items-center px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[10px] font-bold">
+                    <span className="ml-2 inline-flex items-center px-1.5 py-0.2 rounded bg-accent-100 text-accent-600 text-[10px] font-bold">
                       Highest
                     </span>
                   )}
-                  <div className="text-[10px] text-stone-400">
+                  <div className="text-[10px] text-disabled">
                     {new Date(bid.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </div>
                 </div>
-                <div className="font-bold text-stone-900">
+                <div className="font-bold text-ink">
                   {formatMoney(bid.amountMinor, currency)}
                 </div>
               </div>

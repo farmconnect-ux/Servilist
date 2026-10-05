@@ -18,7 +18,7 @@ export default async function SellPage() {
         <nav aria-label="Breadcrumb" className="mb-2 text-xs text-muted">
           <Link href="/" className="hover:text-brand">Home</Link> &gt; <span>Sell</span>
         </nav>
-        <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">List an Item or Service</h1>
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">List an Item or Service</h1>
         <p className="mt-1 text-sm text-muted">
           Reach active buyers across Lagos, Nairobi, Accra, Johannesburg and major commercial hubs.
         </p>

@@ -88,7 +88,7 @@ export default async function AdminUsersPage() {
                             <input type="hidden" name="status" value={next} />
                             <button
                               type="submit"
-                              className="min-h-9 rounded-control border border-line px-3 text-xs font-bold text-ink hover:border-brand"
+                              className="min-h-11 rounded-control border border-line px-3 text-xs font-bold text-ink hover:border-brand"
                             >
                               {next === "suspended" ? "Suspend" : "Restore"}
                             </button>

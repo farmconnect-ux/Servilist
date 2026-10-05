@@ -120,10 +120,10 @@ export function MessagesClient({
   }
 
   return (
-    <div className="grid grid-cols-1 overflow-hidden rounded-xl border bg-white md:grid-cols-3">
+    <div className="grid grid-cols-1 overflow-hidden rounded-xl border bg-surface md:grid-cols-3">
       {/* Sidebar List */}
       <div className="border-r border-border md:col-span-1">
-        <div className="border-b p-3 bg-gray-50 text-xs font-bold text-muted uppercase">
+        <div className="border-b p-3 bg-surface-muted text-xs font-bold text-muted uppercase">
           Conversations ({conversations.length})
         </div>
         <div className="max-h-[500px] divide-y overflow-y-auto">
@@ -134,7 +134,7 @@ export function MessagesClient({
                 type="button"
                 key={i}
                 onClick={() => loadMessages(c)}
-                className={`w-full p-3 text-left transition hover:bg-gray-50 ${
+                className={`w-full p-3 text-left transition hover:bg-surface-muted ${
                   isSelected ? "bg-brand/5 border-l-4 border-brand" : ""
                 }`}
               >
@@ -166,7 +166,7 @@ export function MessagesClient({
         {selectedConvo ? (
           <>
             {/* Header */}
-            <div className="border-b p-4 bg-gray-50 flex items-center justify-between">
+            <div className="border-b p-4 bg-surface-muted flex items-center justify-between">
               <div>
                 <h4 className="font-bold text-ink text-sm">
                   {selectedConvo.otherUser.displayName}
@@ -203,7 +203,7 @@ export function MessagesClient({
                         className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
                           isMe
                             ? "bg-brand text-white rounded-br-none"
-                            : "bg-gray-100 text-ink rounded-bl-none"
+                            : "bg-surface-muted text-ink rounded-bl-none"
                         }`}
                       >
                         <p>{m.body}</p>
@@ -225,7 +225,7 @@ export function MessagesClient({
             </div>
 
             {/* Input Form */}
-            <form onSubmit={handleSendMessage} className="border-t p-3 bg-white flex gap-2">
+            <form onSubmit={handleSendMessage} className="border-t p-3 bg-surface flex gap-2">
               <input
                 type="text"
                 placeholder="Type a secure message..."
@@ -233,7 +233,7 @@ export function MessagesClient({
                 onChange={(e) => setReplyText(e.target.value)}
                 className="flex-1 rounded-lg border border-border px-3 py-2 text-sm focus:border-brand focus:outline-none"
               />
-              <Button type="submit" className="min-h-9 px-3 text-xs" disabled={sending || !replyText.trim()}>
+              <Button type="submit" className="min-h-11 px-3 text-xs" disabled={sending || !replyText.trim()}>
                 {sending ? "..." : "Send"}
               </Button>
             </form>

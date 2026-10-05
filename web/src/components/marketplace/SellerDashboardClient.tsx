@@ -100,13 +100,13 @@ export function SellerDashboardClient({
     <div className="space-y-8">
       {/* Verification Banner */}
       {!sellerProfile.verified && (
-        <Card className="border-amber-200 bg-amber-50/70 p-5">
+        <Card className="border-accent-200 bg-accent-50/70 p-5">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <h3 className="font-bold text-amber-900">
-                {kycSubmitted ? "KYC Documents Under Review ⏳" : "Become a Verified Pan-African Merchant 🛡️"}
+              <h3 className="font-bold text-accent-600">
+                {kycSubmitted ? "KYC Documents Under Review " : "Become a Verified Pan-African Merchant "}
               </h3>
-              <p className="mt-1 text-xs text-amber-800">
+              <p className="mt-1 text-xs text-accent-600">
                 {kycSubmitted
                   ? "Your verification documents have been submitted and are being reviewed by compliance staff."
                   : "Verified sellers get 3x higher quote conversion and badge credibility across all Pan-African regions."}
@@ -115,7 +115,7 @@ export function SellerDashboardClient({
             {!kycSubmitted && (
               <Button
                 onClick={() => setKycModalOpen(true)}
-                className="bg-amber-600 hover:bg-amber-700 text-white min-h-9 px-3 text-xs"
+                className="bg-accent-600 hover:bg-accent-600 text-white min-h-11 px-3 text-xs"
               >
                 Submit KYC Verification
               </Button>
@@ -127,7 +127,7 @@ export function SellerDashboardClient({
       {/* KYC Modal */}
       {kycModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-md p-6 space-y-4 bg-white shadow-2xl">
+          <Card className="w-full max-w-md p-6 space-y-4 bg-surface shadow-2xl">
             <h3 className="font-bold text-lg text-ink">Vendor Verification Application</h3>
             <p className="text-xs text-muted">
               Submit business proof, tax identification, or government ID for verification.
@@ -184,7 +184,7 @@ export function SellerDashboardClient({
                 <Button
                   type="button"
                   variant="outline"
-                  className="min-h-9 px-3 text-xs"
+                  className="min-h-11 px-3 text-xs"
                   onClick={() => setKycModalOpen(false)}
                 >
                   Cancel
@@ -192,7 +192,7 @@ export function SellerDashboardClient({
                 <Button
                   type="submit"
                   disabled={kycSubmitting}
-                  className="min-h-9 px-3 text-xs"
+                  className="min-h-11 px-3 text-xs"
                 >
                   {kycSubmitting ? "Submitting..." : "Submit for Review"}
                 </Button>
@@ -232,7 +232,7 @@ export function SellerDashboardClient({
             </p>
           </div>
           <Link href="/dashboard/orders?tab=sales">
-            <Button variant="outline" className="min-h-9 px-3 text-xs">
+            <Button variant="outline" className="min-h-11 px-3 text-xs">
               View All Orders →
             </Button>
           </Link>
@@ -250,10 +250,10 @@ export function SellerDashboardClient({
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                         o.status === "completed"
-                          ? "bg-emerald-100 text-emerald-800"
+                          ? "bg-primary-100 text-primary-800"
                           : o.status === "in_escrow"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-amber-100 text-amber-800"
+                          ? "bg-info-soft text-info"
+                          : "bg-accent-100 text-accent-600"
                       }`}
                     >
                       {o.status.replace("_", " ").toUpperCase()}
@@ -270,7 +270,7 @@ export function SellerDashboardClient({
                     {formatMoney(o.totalMinor, o.currency)}
                   </span>
                   <Link href={`/dashboard/orders/${o.id}`}>
-                    <Button variant="outline" className="min-h-9 px-3 text-xs">
+                    <Button variant="outline" className="min-h-11 px-3 text-xs">
                       Fulfill / Verify OTP
                     </Button>
                   </Link>
@@ -291,7 +291,7 @@ export function SellerDashboardClient({
             </p>
           </div>
           <Link href="/sell">
-            <Button className="min-h-9 px-3 text-xs">+ Add New Listing</Button>
+            <Button className="min-h-11 px-3 text-xs">+ Add New Listing</Button>
           </Link>
         </div>
 
@@ -309,8 +309,8 @@ export function SellerDashboardClient({
                     <span
                       className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                         l.status === "active"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-gray-100 text-gray-800"
+                          ? "bg-primary-100 text-primary-800"
+                          : "bg-surface-muted text-ink"
                       }`}
                     >
                       {l.status.toUpperCase()}
@@ -326,12 +326,12 @@ export function SellerDashboardClient({
                   <Button
                     variant="outline"
                     onClick={() => togglePause(l.id, l.status === "paused")}
-                    className="min-h-9 px-3 text-xs"
+                    className="min-h-11 px-3 text-xs"
                   >
                     {l.status === "paused" ? "Resume" : "Pause"}
                   </Button>
                   <Link href={`/products/${l.slug || l.id}`}>
-                    <Button variant="outline" className="min-h-9 px-3 text-xs">
+                    <Button variant="outline" className="min-h-11 px-3 text-xs">
                       View
                     </Button>
                   </Link>

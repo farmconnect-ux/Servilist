@@ -70,7 +70,7 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
               : "List an item for sale or quote on buyer requests to receive orders."}
           </p>
           <Link href={currentTab === "buyer" ? "/search" : "/sell"} className="mt-4 inline-block">
-            <Button className="min-h-9 px-3 text-xs">
+            <Button className="min-h-11 px-3 text-xs">
               {currentTab === "buyer" ? "Explore Marketplace" : "Start Selling"}
             </Button>
           </Link>
@@ -91,12 +91,12 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
                       <span
                         className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
                           o.status === "completed"
-                            ? "bg-emerald-100 text-emerald-800"
+                            ? "bg-primary-100 text-primary-800"
                             : o.status === "in_escrow"
-                            ? "bg-blue-100 text-blue-800"
+                            ? "bg-info-soft text-info"
                             : o.status === "disputed"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-amber-100 text-amber-800"
+                            ? "bg-danger-soft text-danger"
+                            : "bg-accent-100 text-accent-600"
                         }`}
                       >
                         {o.status === "in_escrow" ? "PAID, AWAITING HANDOVER" : o.status.replace("_", " ").toUpperCase()}
@@ -127,7 +127,7 @@ export default async function DashboardOrdersPage({ searchParams }: OrdersPagePr
                     </div>
 
                     <Link href={`/dashboard/orders/${o.id}`}>
-                      <Button variant="outline" className="min-h-9 px-3 text-xs">
+                      <Button variant="outline" className="min-h-11 px-3 text-xs">
                         Track & Details →
                       </Button>
                     </Link>

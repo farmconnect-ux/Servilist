@@ -163,7 +163,7 @@ export function OrderTrackingClient({
     <div className="space-y-6">
       {/* Escrow Progress Bar */}
       <Card className="p-6">
-        <h3 className="text-sm font-bold text-ink uppercase tracking-wider">
+        <h3 className="text-sm font-bold text-ink uppercase tracking-wide">
           Order Progress
         </h3>
 
@@ -178,7 +178,7 @@ export function OrderTrackingClient({
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition ${
                     isCompleted
                       ? "bg-brand text-white shadow-sm"
-                      : "bg-gray-100 text-muted"
+                      : "bg-surface-muted text-muted"
                   } ${isCurrent ? "ring-4 ring-brand/20" : ""}`}
                 >
                   {isCompleted ? "✓" : idx + 1}
@@ -193,7 +193,7 @@ export function OrderTrackingClient({
       </Card>
 
       {actionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+        <div className="rounded-lg border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
           {actionError}
         </div>
       )}
@@ -208,7 +208,7 @@ export function OrderTrackingClient({
             the order closes and you can order again.
           </p>
           {providers.length === 0 ? (
-            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <p className="mt-4 rounded-lg border border-accent-200 bg-accent-50 p-3 text-sm text-accent-600">
               Online payment is not available yet.
             </p>
           ) : (
@@ -230,7 +230,7 @@ export function OrderTrackingClient({
               variant="outline"
               disabled={actionBusy}
               onClick={() => orderAction("cancel", {})}
-              className="min-h-9 px-3 text-xs"
+              className="min-h-11 px-3 text-xs"
             >
               Cancel this order
             </Button>
@@ -249,24 +249,24 @@ export function OrderTrackingClient({
 
       {/* Buyer's Secret Handover OTP */}
       {isBuyer && awaitingHandover && (
-        <Card className="border-amber-200 bg-amber-50/60 p-6">
+        <Card className="border-accent-200 bg-accent-50/60 p-6">
           <div className="flex items-start gap-4">
-            <span className="text-3xl">🔑</span>
+            <span className="text-3xl"></span>
             <div>
-              <h4 className="font-bold text-amber-900 text-base">
+              <h4 className="font-bold text-accent-600 text-base">
                 Your Secret Handover OTP Code
               </h4>
-              <p className="mt-1 text-xs text-amber-800 leading-relaxed">
+              <p className="mt-1 text-xs text-accent-600 leading-relaxed">
                 Provide this 6-digit code to the delivery driver or seller <strong>ONLY AFTER</strong> you have physically received and inspected the item.
               </p>
 
               <div className="mt-4 flex items-center gap-2">
-                <div className="rounded-xl border border-amber-300 bg-white px-6 py-3 font-mono text-2xl font-black tracking-widest text-ink shadow-inner">
+                <div className="rounded-xl border border-accent-200 bg-surface px-6 py-3 font-mono text-2xl font-bold tracking-wide text-ink shadow-inner">
                   {otpCode || "••••••"}
                 </div>
               </div>
 
-              <p className="mt-3 text-[11px] text-amber-700">
+              <p className="mt-3 text-[11px] text-accent-600">
                 Giving this code completes the order and releases the payment to the seller. It cannot be undone.
               </p>
             </div>
@@ -284,7 +284,7 @@ export function OrderTrackingClient({
                   variant="outline"
                   disabled={actionBusy}
                   onClick={() => orderAction("stage", { stage: "dispatched" })}
-                  className="min-h-9 px-3 text-xs"
+                  className="min-h-11 px-3 text-xs"
                 >
                   Mark as dispatched
                 </Button>
@@ -293,7 +293,7 @@ export function OrderTrackingClient({
                 variant="outline"
                 disabled={actionBusy}
                 onClick={() => orderAction("stage", { stage: "delivered" })}
-                className="min-h-9 px-3 text-xs"
+                className="min-h-11 px-3 text-xs"
               >
                 Mark as delivered
               </Button>
@@ -306,7 +306,7 @@ export function OrderTrackingClient({
 
           <form onSubmit={handleVerifyOtp} className="mt-4 space-y-3">
             {otpError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              <div className="rounded-lg border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
                 {otpError}
               </div>
             )}
@@ -318,7 +318,7 @@ export function OrderTrackingClient({
                 placeholder="6-digit OTP"
                 value={sellerOtpInput}
                 onChange={(e) => setSellerOtpInput(e.target.value)}
-                className="flex-1 rounded-lg border border-border px-3 py-2 text-center font-mono text-lg font-bold tracking-widest focus:border-brand focus:outline-none"
+                className="flex-1 rounded-lg border border-border px-3 py-2 text-center font-mono text-lg font-bold tracking-wide focus:border-brand focus:outline-none"
               />
               <Button
                 type="submit"
@@ -334,15 +334,15 @@ export function OrderTrackingClient({
 
       {/* Completed State */}
       {status === "completed" && (
-        <Card className="border-emerald-200 bg-emerald-50/50 p-6 text-emerald-950">
+        <Card className="border-primary-200 bg-primary-50/50 p-6 text-primary-900">
           <h4 className="text-base font-bold flex items-center gap-2">
-            <span>🎉</span> Handover Verified & Escrow Released
+            <span></span> Handover Verified & Escrow Released
           </h4>
-          <p className="mt-1 text-xs text-emerald-800">
+          <p className="mt-1 text-xs text-primary-800">
             The handover code was confirmed. The order is complete and the payment is due to the seller.
           </p>
           {completedAt && (
-            <p className="mt-2 text-[11px] text-emerald-700">
+            <p className="mt-2 text-[11px] text-primary-700">
               Completed on: {new Date(completedAt).toLocaleString()}
             </p>
           )}
@@ -350,9 +350,9 @@ export function OrderTrackingClient({
       )}
 
       {status === "disputed" && (
-        <Card className="border-red-200 bg-red-50/50 p-6">
-          <h4 className="font-bold text-red-800 text-sm">This order is under review</h4>
-          <p className="mt-1 text-xs text-red-700">
+        <Card className="border-danger/40 bg-danger-soft/50 p-6">
+          <h4 className="font-bold text-danger text-sm">This order is under review</h4>
+          <p className="mt-1 text-xs text-danger">
             Servilist support is looking at this order. The payment stays with the provider until
             it is resolved.
           </p>
@@ -373,13 +373,12 @@ export function OrderTrackingClient({
             <Button
               variant="outline"
               onClick={() => setDisputeOpen(true)}
-              className="text-xs text-red-600 border-red-200 hover:bg-red-50 min-h-9 px-3"
+              className="text-xs text-danger border-danger/40 hover:bg-danger-soft min-h-11 px-3"
             >
-              Raise an Escrow Dispute ⚠️
-            </Button>
+              Raise an Escrow Dispute             </Button>
           ) : (
-            <Card className="w-full border-red-200 p-6">
-              <h4 className="font-bold text-red-800 text-sm">Open Dispute with Support</h4>
+            <Card className="w-full border-danger/40 p-6">
+              <h4 className="font-bold text-danger text-sm">Open Dispute with Support</h4>
               <p className="text-xs text-muted mt-1">
                 A Servilist mediator will review the case, hold the funds, and assist both parties.
               </p>
@@ -390,7 +389,7 @@ export function OrderTrackingClient({
                   <select
                     value={disputeReason}
                     onChange={(e) => setDisputeReason(e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-xs focus:border-brand focus:outline-none"
+                    className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs focus:border-brand focus:outline-none"
                   >
                     <option value="item_not_received">Item Not Received / Delayed</option>
                     <option value="item_damaged_or_faulty">Item Damaged or Broken</option>
@@ -415,7 +414,7 @@ export function OrderTrackingClient({
                 <div className="flex justify-end gap-2">
                   <Button
                     variant="outline"
-                    className="min-h-9 px-3 text-xs"
+                    className="min-h-11 px-3 text-xs"
                     onClick={() => setDisputeOpen(false)}
                   >
                     Cancel
@@ -423,7 +422,7 @@ export function OrderTrackingClient({
                   <Button
                     type="submit"
                     disabled={disputeLoading}
-                    className="bg-red-600 hover:bg-red-700 text-white min-h-9 px-3 text-xs"
+                    className="bg-danger hover:bg-danger text-white min-h-11 px-3 text-xs"
                   >
                     {disputeLoading ? "Submitting..." : "Submit Dispute"}
                   </Button>

@@ -67,23 +67,23 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
               <span className="rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">
                 {request.category.toUpperCase()}
               </span>
-              <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+              <span className="rounded-full bg-info-soft px-2.5 py-0.5 text-xs font-semibold text-info">
                 {request.requestType.replace("_", " ").toUpperCase()}
               </span>
               <span
                 className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                   request.status === "open"
-                    ? "bg-emerald-50 text-emerald-700"
+                    ? "bg-primary-50 text-primary-700"
                     : request.status === "matched"
-                    ? "bg-blue-50 text-blue-700"
-                    : "bg-gray-100 text-gray-700"
+                    ? "bg-info-soft text-info"
+                    : "bg-surface-muted text-ink-soft"
                 }`}
               >
                 {request.status.toUpperCase()}
               </span>
             </div>
 
-            <h1 className="mt-3 text-2xl font-extrabold text-ink sm:text-3xl">
+            <h1 className="mt-3 text-2xl font-bold text-ink sm:text-3xl">
               {request.title}
             </h1>
             <p className="mt-1 text-xs text-muted">
@@ -93,7 +93,7 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
           </div>
 
           <Card className="p-6">
-            <h2 className="text-sm font-semibold text-muted uppercase tracking-wider">
+            <h2 className="text-sm font-semibold text-muted uppercase tracking-wide">
               Request Details & Specifications
             </h2>
             <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-ink">
@@ -119,17 +119,17 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
 
           {/* Listings that match this request (opens with Sprint 9 matching) */}
           {matches.length > 0 && (
-            <Card className="p-6 border-amber-200 bg-amber-50/20">
+            <Card className="p-6 border-accent-200 bg-accent-50/20">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+                  <span className="text-[11px] font-bold text-accent-600 uppercase tracking-wide">
                     Intelligent Matching Engine
                   </span>
-                  <h3 className="text-sm font-bold text-stone-900 mt-0.5">
+                  <h3 className="text-sm font-bold text-ink mt-0.5">
                     Existing Seller Listings That Match Your Request
                   </h3>
                 </div>
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
+                <span className="rounded-full bg-accent-100 px-2 py-0.5 text-xs font-bold text-accent-600">
                   {matches.length} Matched
                 </span>
               </div>
@@ -139,24 +139,24 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
                   <Link
                     key={item.listingId}
                     href={`/products/${item.listingId}`}
-                    className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm hover:shadow transition flex flex-col justify-between"
+                    className="rounded-xl border border-line bg-surface p-3 shadow-sm hover:shadow transition flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-center justify-between text-[10px]">
-                        <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                        <span className="font-semibold text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">
                           {item.matchScore}% Match
                         </span>
-                        <span className="text-stone-400 capitalize">{item.city}</span>
+                        <span className="text-disabled capitalize">{item.city}</span>
                       </div>
-                      <p className="mt-2 text-xs font-bold text-stone-900 line-clamp-2">
+                      <p className="mt-2 text-xs font-bold text-ink line-clamp-2">
                         {item.title}
                       </p>
                     </div>
                     <div className="mt-3 flex items-center justify-between border-t pt-2">
-                      <span className="text-xs font-bold text-stone-900">
+                      <span className="text-xs font-bold text-ink">
                         {formatMoney(item.amountMinor, item.currency)}
                       </span>
-                      <span className="text-[10px] font-semibold text-amber-700 hover:underline">
+                      <span className="text-[10px] font-semibold text-accent-600 hover:underline">
                         View Item →
                       </span>
                     </div>
@@ -170,8 +170,8 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
         {/* Sidebar (1 col) */}
         <div className="space-y-6">
           <Card className="p-6">
-            <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">Buyer Budget</h3>
-            <p className="mt-2 text-3xl font-extrabold text-brand">
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">Buyer Budget</h3>
+            <p className="mt-2 text-3xl font-bold text-brand">
               {formatMoney(request.budgetMinor, request.currency)}
             </p>
             <div className="mt-4 space-y-2 border-t pt-4 text-xs text-muted">
@@ -195,7 +195,7 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
           </Card>
 
           <Card className="p-6">
-            <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">Requested By</h3>
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">Requested By</h3>
             <div className="mt-4 flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 font-bold text-brand">
                 {request.buyer.displayName.charAt(0)}
@@ -208,14 +208,14 @@ export default async function RequestDetailPage({ params }: RequestPageProps) {
               </div>
             </div>
             {request.buyer.verified && (
-              <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
+              <div className="mt-3 flex items-center gap-1.5 text-xs text-primary-700 font-medium">
                 <span>✓ Identity & Phone Verified</span>
               </div>
             )}
           </Card>
 
-          <Card className="border-emerald-200 bg-emerald-50/50 p-6 text-xs text-emerald-900">
-            <h4 className="font-bold">🛡️ Protected by Servilist Escrow</h4>
+          <Card className="border-primary-200 bg-primary-50/50 p-6 text-xs text-primary-900">
+            <h4 className="font-bold">Protected by Servilist Escrow</h4>
             <p className="mt-2 leading-relaxed">
               When a quote is accepted, buyer funds are secured in licensed third-party escrow. The vendor is paid upon buyer confirmation and verification OTP release.
             </p>

@@ -79,8 +79,8 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
                 step === s.num
                   ? "bg-brand text-white"
                   : step > s.num
-                  ? "bg-emerald-600 text-white"
-                  : "bg-gray-100 text-muted"
+                  ? "bg-primary-600 text-white"
+                  : "bg-surface-muted text-muted"
               }`}
             >
               {step > s.num ? "✓" : s.num}
@@ -91,7 +91,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-6 rounded-lg border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
           {error}
         </div>
       )}
@@ -122,7 +122,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
                   className={`rounded-lg border p-3 text-left transition ${
                     formData.requestType === opt.type
                       ? "border-brand bg-brand/5 shadow-sm"
-                      : "border-border hover:border-gray-300"
+                      : "border-border hover:border-line-strong"
                   }`}
                 >
                   <p className="font-semibold text-ink text-sm">{opt.label}</p>
@@ -137,11 +137,11 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
             <select
               value={formData.category}
               onChange={(e) => update({ category: e.target.value })}
-              className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             >
               {categories.map((c) => (
                 <option key={c.slug} value={c.slug}>
-                  {c.icon} {c.name}
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -154,7 +154,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
               placeholder="e.g. Clean MacBook Pro M1 16GB / 512GB Space Gray"
               value={formData.title}
               onChange={(e) => update({ title: e.target.value })}
-              className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
 
@@ -165,7 +165,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
               placeholder="Specify requirements, preferred model years, color, warranty expectations, or deliverables..."
               value={formData.description}
               onChange={(e) => update({ description: e.target.value })}
-              className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
 
@@ -176,7 +176,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
               placeholder="e.g. Brand New in Box, or Lightly Used without scratches"
               value={formData.conditionRequired}
               onChange={(e) => update({ conditionRequired: e.target.value })}
-              className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             />
           </div>
 
@@ -210,7 +210,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
                 min={1}
                 value={formData.budgetMajor}
                 onChange={(e) => update({ budgetMajor: Number(e.target.value) })}
-                className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
             <div>
@@ -218,7 +218,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
               <select
                 value={formData.currency}
                 onChange={(e) => update({ currency: e.target.value })}
-                className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               >
                 {["NGN", "KES", "GHS", "ZAR", "EGP", "TZS", "UGX", "RWF", "USD"].map((cur) => (
                   <option key={cur} value={cur}>
@@ -234,7 +234,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
             <select
               value={formData.urgency}
               onChange={(e) => update({ urgency: e.target.value })}
-              className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             >
               <option value="Urgent - Today">Urgent - Today (Within 24 Hours)</option>
               <option value="Within 2-3 Days">Within 2-3 Days</option>
@@ -248,7 +248,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
             <select
               value={formData.deadlineDays}
               onChange={(e) => update({ deadlineDays: Number(e.target.value) })}
-              className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
             >
               <option value={3}>3 Days</option>
               <option value={7}>7 Days (Recommended)</option>
@@ -290,7 +290,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
                 placeholder="e.g. Lagos, Ikeja"
                 value={formData.city}
                 onChange={(e) => update({ city: e.target.value })}
-                className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               />
             </div>
             <div>
@@ -298,7 +298,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
               <select
                 value={formData.country}
                 onChange={(e) => update({ country: e.target.value })}
-                className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+                className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
               >
                 {["Nigeria", "Kenya", "Ghana", "South Africa", "Egypt", "Tanzania", "Uganda", "Rwanda"].map((c) => (
                   <option key={c} value={c}>
@@ -324,7 +324,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
                   className={`rounded-lg border p-3 text-left transition ${
                     formData.fulfillment === opt.val
                       ? "border-brand bg-brand/5 shadow-sm"
-                      : "border-border hover:border-gray-300"
+                      : "border-border hover:border-line-strong"
                   }`}
                 >
                   <p className="font-semibold text-ink text-sm">{opt.label}</p>
@@ -333,7 +333,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
             </div>
           </div>
 
-          <div className="rounded-lg bg-gray-50 p-4 text-xs text-muted">
+          <div className="rounded-lg bg-surface-muted p-4 text-xs text-muted">
             <span className="font-semibold text-ink">Escrow Protection:</span> When you accept a quote, funds are safely placed in licensed escrow until you verify delivery and release payment with your handover OTP.
           </div>
 
@@ -346,7 +346,7 @@ export function RequestWizard({ categories }: { categories: CategoryOption[] }) 
               disabled={loading || !formData.city.trim()}
               onClick={handleSubmit}
             >
-              {loading ? "Publishing Request..." : "Post Buyer Request Now 🚀"}
+              {loading ? "Publishing Request..." : "Post Buyer Request Now "}
             </Button>
           </div>
         </div>

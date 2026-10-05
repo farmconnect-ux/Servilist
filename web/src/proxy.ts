@@ -1,8 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { supabasePublishableKey, supabaseUrl } from "@/lib/public-config";
 import { isReleased } from "@/lib/release";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/requests/new", "/checkout"];
+const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/requests/new", "/checkout", "/design-system"];
 
 /**
  * Keeps the session cookie fresh and sends signed-out visitors away from
@@ -25,9 +26,8 @@ export async function proxy(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return response;
+  const url = supabaseUrl();
+  const key = supabasePublishableKey();
 
   const cookieOptions = {
     httpOnly: true,

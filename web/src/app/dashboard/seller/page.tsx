@@ -27,7 +27,7 @@ export default async function SellerDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-ink">Seller & Merchant Hub</h1>
+        <h1 className="text-2xl font-bold text-ink">Seller & Merchant Hub</h1>
         <p className="text-xs text-muted">
           Pan-African storefront analytics, catalog management, order fulfillment, and verified KYC credentials.
         </p>
@@ -35,20 +35,20 @@ export default async function SellerDashboardPage() {
 
       {/* Recommended Buyer Demands Matching Inventory */}
       {matchingRequests.length > 0 && (
-        <Card className="p-6 border-amber-200 bg-amber-50/20">
+        <Card className="p-6 border-accent-200 bg-accent-50/20">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
-              <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-accent-600 uppercase tracking-wide">
                 Matching Demand Signals
               </span>
-              <h3 className="text-sm font-bold text-stone-900 mt-0.5">
+              <h3 className="text-sm font-bold text-ink mt-0.5">
                 Open Buyer Requests Matching Your Inventory
               </h3>
-              <p className="text-xs text-stone-500">
+              <p className="text-xs text-muted">
                 Buyers in your product categories are actively looking to purchase. Quote directly to win orders.
               </p>
             </div>
-            <Link href="/requests" className="text-xs font-semibold text-amber-700 hover:underline shrink-0">
+            <Link href="/requests" className="text-xs font-semibold text-accent-600 hover:underline shrink-0">
               Browse All Requests →
             </Link>
           </div>
@@ -57,26 +57,26 @@ export default async function SellerDashboardPage() {
             {matchingRequests.map((req) => (
               <div
                 key={req.requestId}
-                className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm flex flex-col justify-between"
+                className="rounded-xl border border-line bg-surface p-3 shadow-sm flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                    <span className="font-semibold text-primary-700 bg-primary-50 px-1.5 py-0.5 rounded">
                       {req.matchScore}% Match
                     </span>
-                    <span className="text-stone-400 capitalize">{req.city}</span>
+                    <span className="text-disabled capitalize">{req.city}</span>
                   </div>
-                  <p className="mt-2 text-xs font-bold text-stone-900 line-clamp-2">{req.title}</p>
-                  <div className="mt-2 text-[11px] text-stone-500">
+                  <p className="mt-2 text-xs font-bold text-ink line-clamp-2">{req.title}</p>
+                  <div className="mt-2 text-[11px] text-muted">
                     Budget:{" "}
-                    <span className="font-bold text-stone-900">
+                    <span className="font-bold text-ink">
                       {req.budgetMinor ? formatMoney(req.budgetMinor, req.currency) : "Negotiable"}
                     </span>
                   </div>
                 </div>
                 <Link
                   href={`/requests/${req.requestId}`}
-                  className="mt-3 block text-center rounded-lg bg-stone-900 py-1.5 text-xs font-semibold text-white hover:bg-stone-800 transition"
+                  className="mt-3 block text-center rounded-lg bg-ink py-1.5 text-xs font-semibold text-white hover:bg-ink transition"
                 >
                   Submit Quote →
                 </Link>

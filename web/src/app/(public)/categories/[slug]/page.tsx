@@ -1,3 +1,4 @@
+import { CategoryIcon } from "@/components/marketplace/CategoryIcon";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createDb } from "@/lib/db/server";
@@ -42,9 +43,9 @@ export default async function CategoryDetailPage({
 
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{category.icon || "📦"}</span>
+            <CategoryIcon slug={category.slug} className="size-8 text-primary-700" />
             <div>
-              <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">{category.name}</h1>
+              <h1 className="text-2xl font-bold text-ink sm:text-3xl">{category.name}</h1>
               <p className="text-sm text-muted">{category.description}</p>
             </div>
           </div>

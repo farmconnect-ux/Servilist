@@ -86,7 +86,7 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
         <nav aria-label="Breadcrumb" className="mb-2 text-xs text-muted">
           <Link href="/" className="hover:text-brand">Home</Link> &gt; <span>Checkout</span>
         </nav>
-        <h1 className="text-2xl font-black text-ink sm:text-3xl">Secure Escrow Checkout</h1>
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">Secure Escrow Checkout</h1>
         <p className="mt-1 text-sm text-muted">
           You pay through a licensed payment provider. The seller is paid after you inspect the item and give them your handover code.
         </p>

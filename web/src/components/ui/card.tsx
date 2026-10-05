@@ -1,35 +1,41 @@
 import type { ComponentProps } from "react";
+import { BadgeCheck, Inbox } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+/**
+ * Surfaces and status chips (docs/UI_UX_SPEC.md sections 5, 6 and 8).
+ * Cards are a white surface with a 1px border; shadows are the exception.
+ */
 
 export interface CardProps extends ComponentProps<"div"> {
   variant?: "default" | "muted" | "elevated" | "interactive";
 }
 
-export function Card({ variant = "default", className, ...props }: CardProps) {
-  const variants = {
-    default: "rounded-xl border border-zinc-200 bg-white shadow-xs",
-    muted: "rounded-xl border border-zinc-200 bg-zinc-50",
-    elevated: "rounded-xl border border-zinc-200 bg-white shadow-md",
-    interactive:
-      "rounded-xl border border-zinc-200 bg-white shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-zinc-300",
-  };
+const cardVariants = {
+  default: "rounded-card border border-line bg-surface",
+  muted: "rounded-card border border-line bg-surface-muted",
+  elevated: "rounded-card border border-line bg-surface shadow-md",
+  interactive:
+    "rounded-card border border-line bg-surface transition-colors duration-200 hover:border-line-strong",
+} as const;
 
-  return <div className={cn(variants[variant], className)} {...props} />;
+export function Card({ variant = "default", className, ...props }: CardProps) {
+  return <div className={cn(cardVariants[variant], className)} {...props} />;
 }
 
 const tones = {
-  neutral: "bg-zinc-100 text-zinc-700 border-zinc-200",
-  brand: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  success: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  warning: "bg-amber-50 text-amber-800 border-amber-200",
-  danger: "bg-red-50 text-red-800 border-red-200",
-  accent: "bg-amber-100 text-amber-900 border-amber-300",
-  info: "bg-blue-50 text-blue-800 border-blue-200",
+  neutral: "bg-surface-muted text-ink-soft border-line",
+  brand: "bg-primary-50 text-primary-800 border-primary-200",
+  success: "bg-success-soft text-primary-800 border-primary-200",
+  warning: "bg-warning-soft text-accent-600 border-accent-200",
+  danger: "bg-danger-soft text-danger border-danger/30",
+  accent: "bg-accent-100 text-accent-600 border-accent-200",
+  info: "bg-info-soft text-info border-info/30",
 } as const;
 
 export type BadgeTone = keyof typeof tones;
 
-/** A short status chip: tinted background, subtle border, bold coloured text. */
+/** A short status chip. The label carries the meaning; colour only supports it. */
 export function Badge({
   tone = "neutral",
   pill = false,
@@ -39,17 +45,17 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 border px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase whitespace-nowrap",
-        pill ? "rounded-full" : "rounded-md",
+        "inline-flex items-center gap-1 border px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        pill ? "rounded-pill" : "rounded-control",
         tones[tone],
-        className
+        className,
       )}
       {...props}
     />
   );
 }
 
-/** Verified seller or business shield badge. */
+/** Shown beside a member whose identity or business has been verified by staff. */
 export function VerifiedBadge({
   text = "Verified",
   className,
@@ -58,31 +64,14 @@ export function VerifiedBadge({
   className?: string;
 }) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200",
-        className
-      )}
-      title="Verified Identity / Registered Business"
-    >
-      <svg
-        className="size-3 text-emerald-600 fill-emerald-600"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          fillRule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-          clipRule="evenodd"
-        />
-      </svg>
+    <span className={cn("inline-flex items-center gap-1 text-xs font-medium text-primary-700", className)}>
+      <BadgeCheck className="size-3.5" aria-hidden="true" />
       {text}
     </span>
   );
 }
 
-/** A figure with its label and optional trend/note for dashboards. */
+/** A figure with its label. Pass a note only when it states something measured. */
 export function Metric({
   label,
   value,
@@ -97,30 +86,27 @@ export function Metric({
   tone?: "neutral" | "positive" | "negative";
 }) {
   return (
-    <Card className="flex flex-col gap-2 p-5 bg-white">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">{label}</p>
+    <Card className="flex flex-col gap-1 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-muted">{label}</p>
         {change ? (
           <span
             className={cn(
-              "text-xs font-bold",
-              tone === "positive"
-                ? "text-emerald-600"
-                : tone === "negative"
-                ? "text-red-600"
-                : "text-zinc-600"
+              "text-xs font-medium",
+              tone === "positive" ? "text-success" : tone === "negative" ? "text-danger" : "text-ink-soft",
             )}
           >
             {change}
           </span>
         ) : null}
       </div>
-      <p className="text-3xl font-extrabold text-zinc-900 tracking-tight">{value}</p>
-      {note ? <p className="text-xs text-zinc-500">{note}</p> : null}
+      <p className="text-2xl font-bold text-ink">{value}</p>
+      {note ? <p className="text-xs text-muted">{note}</p> : null}
     </Card>
   );
 }
 
+/** Section 56: every page has a designed empty state with a next step. */
 export function EmptyState({
   title,
   children,
@@ -131,25 +117,18 @@ export function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <Card className="flex flex-col items-center justify-center gap-3 px-6 py-12 text-center bg-white border-dashed border-2 border-zinc-200">
-      <div className="flex size-12 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
-        <svg
-          className="size-6"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth="1.5"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-          />
-        </svg>
-      </div>
-      <p className="text-base font-bold text-zinc-900">{title}</p>
-      {children ? <div className="max-w-md text-sm text-zinc-500">{children}</div> : null}
+    <Card className="flex flex-col items-center justify-center gap-3 border-dashed px-6 py-12 text-center">
+      <span className="flex size-12 items-center justify-center rounded-pill bg-surface-muted text-muted">
+        <Inbox className="size-6" aria-hidden="true" />
+      </span>
+      <p className="text-base font-semibold text-ink">{title}</p>
+      {children ? <div className="max-w-md text-sm text-muted">{children}</div> : null}
       {action ? <div className="mt-2">{action}</div> : null}
     </Card>
   );
+}
+
+/** Section 57: a skeleton block for page-level loading. */
+export function Skeleton({ className }: { className?: string }) {
+  return <div aria-hidden="true" className={cn("animate-pulse rounded-control bg-surface-muted", className)} />;
 }

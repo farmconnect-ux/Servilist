@@ -33,17 +33,17 @@ export default async function SellerProfilePage({
       <div className="flex flex-col gap-6 rounded-card border border-line bg-surface p-6 sm:p-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-brand-soft text-2xl font-extrabold text-brand-strong">
+            <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-strong">
               {seller.displayName.slice(0, 2).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">{seller.displayName}</h1>
+                <h1 className="text-2xl font-bold text-ink sm:text-3xl">{seller.displayName}</h1>
                 {seller.verified ? <Badge tone="success">Verified Merchant</Badge> : null}
               </div>
               <p className="text-xs text-muted">@{seller.username} · Member since {new Date(seller.memberSince).toLocaleDateString()}</p>
               <p className="mt-1 text-sm text-ink">
-                📍 {seller.city || "Lagos"}, {seller.country || "Nigeria"}
+                {seller.city || "Lagos"}, {seller.country || "Nigeria"}
               </p>
             </div>
           </div>

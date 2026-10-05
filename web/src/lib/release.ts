@@ -49,6 +49,8 @@ const PREFIXES = [
   "/admin/reports",
   "/api/v1/reviews",
   "/api/v1/reports",
+  // The design system reference: staff only, checked on the page itself
+  "/design-system",
 ];
 
 /** Still closed, even though they sit beneath an open path. */

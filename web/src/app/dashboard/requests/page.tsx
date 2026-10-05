@@ -39,7 +39,7 @@ export default async function DashboardRequestsPage() {
           </p>
         </div>
         <Link href="/requests/new">
-          <Button className="min-h-9 px-3 text-xs">+ New Request</Button>
+          <Button className="min-h-11 px-3 text-xs">+ New Request</Button>
         </Link>
       </div>
 
@@ -50,7 +50,7 @@ export default async function DashboardRequestsPage() {
             Post what you are searching for, and verified sellers will submit proposals directly to you.
           </p>
           <Link href="/requests/new" className="mt-4 inline-block">
-            <Button className="min-h-9 px-3 text-xs">Post Your First Request</Button>
+            <Button className="min-h-11 px-3 text-xs">Post Your First Request</Button>
           </Link>
         </Card>
       ) : (
@@ -71,10 +71,10 @@ export default async function DashboardRequestsPage() {
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                           req.status === "open"
-                            ? "bg-emerald-100 text-emerald-800"
+                            ? "bg-primary-100 text-primary-800"
                             : req.status === "matched"
-                            ? "bg-blue-100 text-blue-800"
-                            : "bg-gray-100 text-gray-800"
+                            ? "bg-info-soft text-info"
+                            : "bg-surface-muted text-ink"
                         }`}
                       >
                         {req.status.toUpperCase()}
@@ -102,17 +102,17 @@ export default async function DashboardRequestsPage() {
                         {quotes.length} Quote{quotes.length === 1 ? "" : "s"}
                       </p>
                       {pendingQuotes > 0 && (
-                        <p className="text-amber-600 font-medium">
+                        <p className="text-accent-600 font-medium">
                           {pendingQuotes} awaiting review
                         </p>
                       )}
                       {acceptedQuote && (
-                        <p className="text-emerald-600 font-medium">Quote accepted</p>
+                        <p className="text-primary-600 font-medium">Quote accepted</p>
                       )}
                     </div>
 
                     <Link href={`/requests/${req.id}`}>
-                      <Button variant="outline" className="min-h-9 px-3 text-xs">
+                      <Button variant="outline" className="min-h-11 px-3 text-xs">
                         View & Manage
                       </Button>
                     </Link>

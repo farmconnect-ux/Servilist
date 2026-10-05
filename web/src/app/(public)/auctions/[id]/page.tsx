@@ -27,16 +27,16 @@ export default async function AuctionDetailPage(props: {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
-      <nav className="mb-6 flex text-xs text-stone-500">
-        <Link href="/" className="hover:text-stone-900">
+      <nav className="mb-6 flex text-xs text-muted">
+        <Link href="/" className="hover:text-ink">
           Home
         </Link>
         <span className="mx-2">/</span>
-        <Link href="/auctions" className="hover:text-stone-900">
+        <Link href="/auctions" className="hover:text-ink">
           Auctions
         </Link>
         <span className="mx-2">/</span>
-        <span className="truncate text-stone-900 font-medium max-w-xs">
+        <span className="truncate text-ink font-medium max-w-xs">
           {auction.listing?.title || "Auction Details"}
         </span>
       </nav>
@@ -44,8 +44,8 @@ export default async function AuctionDetailPage(props: {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         {/* Left column: Gallery & Listing information (7 cols) */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
-            <div className="aspect-4/3 w-full bg-stone-100 overflow-hidden">
+          <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-sm">
+            <div className="aspect-4/3 w-full bg-surface-muted overflow-hidden">
               <img
                 src={
                   auction.listing?.imageUrl ||
@@ -57,33 +57,33 @@ export default async function AuctionDetailPage(props: {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm space-y-4">
+          <div className="rounded-2xl border border-line bg-surface p-6 shadow-sm space-y-4">
             <div>
-              <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+              <span className="inline-block rounded-full bg-accent-100 px-2.5 py-0.5 text-xs font-semibold text-accent-600">
                 {auction.listing?.category || "Auction"}
               </span>
-              <h1 className="mt-2 text-2xl font-bold text-stone-900">
+              <h1 className="mt-2 text-2xl font-bold text-ink">
                 {auction.listing?.title}
               </h1>
-              <p className="mt-1 text-xs text-stone-500">
+              <p className="mt-1 text-xs text-muted">
                 Location: {auction.listing?.city}, {auction.listing?.country}
               </p>
             </div>
 
-            <div className="border-t border-stone-100 pt-4">
-              <h3 className="text-sm font-semibold text-stone-900 mb-2">Seller Information</h3>
+            <div className="border-t border-line pt-4">
+              <h3 className="text-sm font-semibold text-ink mb-2">Seller Information</h3>
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-900 font-bold text-white text-sm">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-ink font-bold text-white text-sm">
                   {auction.seller?.displayName?.charAt(0) || "S"}
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-stone-900">
+                  <div className="text-sm font-semibold text-ink">
                     {auction.seller?.displayName || "Verified Seller"}
                     {auction.seller?.verified && (
-                      <span className="ml-1 text-xs text-emerald-600 font-medium">✓ Verified</span>
+                      <span className="ml-1 text-xs text-primary-600 font-medium">✓ Verified</span>
                     )}
                   </div>
-                  <div className="text-xs text-stone-500">
+                  <div className="text-xs text-muted">
                     Rating: {auction.seller?.rating ? auction.seller.rating.toFixed(1) : "New"} (
                     {auction.seller?.reviewsCount || 0} reviews)
                   </div>

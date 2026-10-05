@@ -9,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: { default: "Servilist · Pan-African Marketplace", template: "%s · Servilist" },
+  title: { default: "Servilist: buy, sell and request across Africa", template: "%s · Servilist" },
   description:
-    "Buy what you need. Sell what you have. Request what you cannot find. Pan-African marketplace for products, services, requests, auctions, and escrow.",
+    "Buy what you need. Sell what you have. Request what you cannot find. A marketplace for products, services and buyer requests across Africa.",
 };
 
 export const viewport: Viewport = {
@@ -23,7 +23,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans bg-[#fafaf9] text-[#18181b]">{children}</body>
+      <body className="flex min-h-full flex-col bg-page font-sans text-ink">{children}</body>
     </html>
   );
 }

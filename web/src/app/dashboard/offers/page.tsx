@@ -66,7 +66,7 @@ export default async function DashboardOffersPage() {
                   </div>
 
                   <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                    <span className="text-xl font-extrabold text-brand">
+                    <span className="text-xl font-bold text-brand">
                       {formatMoney(offer.amountMinor, offer.currency)}
                     </span>
                     {offer.listing ? (

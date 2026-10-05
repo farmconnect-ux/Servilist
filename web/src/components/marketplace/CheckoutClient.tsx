@@ -106,7 +106,7 @@ export function CheckoutClient({
       {/* Checkout Inputs (2 cols) */}
       <div className="space-y-6 md:col-span-2">
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <div className="rounded-lg border border-danger/40 bg-danger-soft p-4 text-sm text-danger">
             {error}
           </div>
         )}
@@ -121,7 +121,7 @@ export function CheckoutClient({
               className={`rounded-xl border p-4 text-left transition ${
                 fulfillment === "delivery"
                   ? "border-brand bg-brand/5 shadow-sm"
-                  : "border-border hover:border-gray-300"
+                  : "border-border hover:border-line-strong"
               }`}
             >
               <p className="font-bold text-ink">Doorstep Delivery</p>
@@ -139,14 +139,14 @@ export function CheckoutClient({
               className={`rounded-xl border p-4 text-left transition ${
                 fulfillment === "pickup"
                   ? "border-brand bg-brand/5 shadow-sm"
-                  : "border-border hover:border-gray-300"
+                  : "border-border hover:border-line-strong"
               }`}
             >
               <p className="font-bold text-ink">Direct Pickup / Meeting</p>
               <p className="text-xs text-muted mt-1">
                 Meet the seller in a public place and inspect the item before giving your handover code.
               </p>
-              <p className="mt-2 text-xs font-semibold text-emerald-600">No delivery cost</p>
+              <p className="mt-2 text-xs font-semibold text-primary-600">No delivery cost</p>
             </button>
           </div>
         </Card>
@@ -209,7 +209,7 @@ export function CheckoutClient({
                 <select
                   value={address.country}
                   onChange={(e) => setAddress({ ...address, country: e.target.value })}
-                  className="mt-1 block w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:border-brand focus:outline-none"
+                  className="mt-1 block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm focus:border-brand focus:outline-none"
                 >
                   <option value="Nigeria">Nigeria</option>
                   <option value="Kenya">Kenya</option>
@@ -231,7 +231,7 @@ export function CheckoutClient({
 
           <div className="mt-4 space-y-2">
             {!canPay && (
-              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              <p className="rounded-lg border border-accent-200 bg-accent-50 p-3 text-sm text-accent-600">
                 Online payment in {item.currency} is not available yet. You can still message the
                 seller to arrange the purchase.
               </p>
@@ -242,7 +242,7 @@ export function CheckoutClient({
               <label
                 key={p.id}
                 className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition ${
-                  provider === p.id ? "border-brand bg-brand/5" : "border-border hover:bg-gray-50"
+                  provider === p.id ? "border-brand bg-brand/5" : "border-border hover:bg-surface-muted"
                 }`}
               >
                 <input
@@ -266,7 +266,7 @@ export function CheckoutClient({
       {/* Order Summary (1 col) */}
       <div className="space-y-6">
         <Card className="p-6">
-          <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
+          <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">
             Order Summary
           </h3>
 

@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { Badge, Card, VerifiedBadge, type BadgeTone } from "@/components/ui/card";
+import { ArrowRight, Clock, Gavel, ImageOff, MapPin, Search, Star } from "lucide-react";
+import { Badge, Card, VerifiedBadge } from "@/components/ui/card";
 import { formatMoney } from "@/lib/money";
 import type { ListingSummary, RequestSummary } from "@/server/repositories/marketplace";
+
+/**
+ * Marketplace cards (docs/UI_UX_SPEC.md sections 14, 21 and 29).
+ * They show only what the database holds: no placeholder ratings or counts.
+ */
+
+export { VerifiedBadge };
 
 export function PriceDisplay({
   amountMinor,
@@ -12,43 +20,54 @@ export function PriceDisplay({
   currency: string;
   size?: "sm" | "md" | "lg";
 }) {
-  const sizeClasses = {
-    sm: "text-sm font-bold text-emerald-700",
-    md: "text-lg font-black text-emerald-700 tracking-tight",
-    lg: "text-2xl font-black text-emerald-700 tracking-tight",
-  };
-
+  const sizes = { sm: "text-sm", md: "text-base", lg: "text-2xl" };
   return (
-    <span className={sizeClasses[size]}>
-      {amountMinor > 0 ? formatMoney(amountMinor, currency) : "Free / Barter"}
+    <span className={`${sizes[size]} font-bold text-ink`}>
+      {amountMinor > 0 ? formatMoney(amountMinor, currency) : "Free"}
     </span>
   );
 }
 
-const FORMAT_CONFIG: Record<
-  ListingSummary["format"],
-  { label: string; tone: BadgeTone; icon?: string }
-> = {
-  auction: { label: "Live Auction", tone: "accent", icon: "⚡" },
-  buy_now: { label: "Buy Now", tone: "success", icon: "🛒" },
-  service: { label: "Service", tone: "info", icon: "🛠️" },
-  free_barter: { label: "Free / Swap", tone: "brand", icon: "🔄" },
-};
+/** A seller's rating, shown only once they have real reviews. */
+export function Rating({ value, count }: { value: number; count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-ink-soft">
+      <Star className="size-3.5 fill-accent-500 text-accent-500" aria-hidden="true" />
+      <span className="font-medium">{value.toFixed(1)}</span>
+      <span className="sr-only">out of 5 from</span>
+      <span>({count})</span>
+    </span>
+  );
+}
 
-export { VerifiedBadge };
+export function LocationDisplay({ city }: { city: string }) {
+  if (!city) return null;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1">
+      <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+      <span className="truncate">{city}</span>
+    </span>
+  );
+}
 
-/** Product & Listing Card adhering to the UI Design Specification */
+function ImagePlaceholder() {
+  return (
+    <div className="flex size-full items-center justify-center bg-surface-muted text-disabled">
+      <ImageOff className="size-8" aria-hidden="true" />
+      <span className="sr-only">No photo</span>
+    </div>
+  );
+}
+
+/** Section 14: image at 4:3, then title, price, location and seller. */
 export function ListingCard({ listing }: { listing: ListingSummary }) {
-  const format = FORMAT_CONFIG[listing.format] || FORMAT_CONFIG.buy_now;
-  const productHref = `/products/${listing.slug || listing.id}`;
-  const sellerHref = listing.seller.username ? `/seller/${listing.seller.username}` : "#";
+  const href = `/products/${listing.slug || listing.id}`;
+  const isAuction = listing.format === "auction";
 
   return (
-    <Card
-      variant="interactive"
-      className="group flex flex-col overflow-hidden bg-white border border-zinc-200"
-    >
-      <Link href={productHref} className="relative aspect-[4/3] w-full bg-zinc-100 overflow-hidden block">
+    <Card className="group flex flex-col overflow-hidden transition-colors duration-200 hover:border-line-strong">
+      <Link href={href} className="relative block aspect-[4/3] overflow-hidden bg-surface-muted">
         {listing.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -56,137 +75,94 @@ export function ListingCard({ listing }: { listing: ListingSummary }) {
             alt={listing.title}
             loading="lazy"
             decoding="async"
-            className="size-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="flex size-full items-center justify-center text-zinc-300 bg-zinc-100">
-            <svg className="size-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-            </svg>
-          </div>
+          <ImagePlaceholder />
         )}
-
-        <Badge
-          tone={format.tone}
-          className="absolute top-2.5 left-2.5 backdrop-blur-xs shadow-xs font-bold"
-        >
-          {format.icon ? `${format.icon} ` : ""}
-          {format.label}
-        </Badge>
-
-        {listing.format === "auction" && (
-          <span className="absolute bottom-2.5 right-2.5 rounded-md bg-black/75 px-2 py-0.5 text-[11px] font-bold text-amber-300 backdrop-blur-xs">
-            {listing.bidsCount} bids
-          </span>
-        )}
+        {isAuction ? (
+          <Badge tone="accent" className="absolute top-2 left-2">
+            <Gavel className="size-3" aria-hidden="true" />
+            Auction
+          </Badge>
+        ) : null}
       </Link>
 
-      <div className="flex flex-1 flex-col justify-between p-4 gap-2">
-        <div>
-          <div className="flex items-center justify-between gap-2 text-xs text-zinc-500 mb-1">
-            <span className="truncate">{listing.category || "General"}</span>
-            <span className="shrink-0 flex items-center gap-0.5">
-              <svg className="size-3 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-              </svg>
-              {listing.city}
-            </span>
-          </div>
-
-          <Link href={productHref}>
-            <h3 className="line-clamp-2 text-sm font-bold text-zinc-900 group-hover:text-emerald-700 leading-snug">
-              {listing.title}
-            </h3>
-          </Link>
-        </div>
-
-        <div className="mt-2 pt-2 border-t border-zinc-100">
-          <div className="flex items-baseline justify-between">
-            <PriceDisplay amountMinor={listing.amountMinor} currency={listing.currency} size="md" />
-            {listing.seller.rating > 0 && (
-              <span className="text-xs font-bold text-zinc-700 flex items-center gap-0.5">
-                <span className="text-amber-500">★</span> {listing.seller.rating.toFixed(1)}
-              </span>
-            )}
-          </div>
-
-          <div className="mt-2 flex items-center justify-between gap-2 text-xs">
-            <Link
-              href={sellerHref}
-              className="truncate font-medium text-zinc-600 hover:text-emerald-700"
-            >
-              {listing.seller.displayName}
-            </Link>
-            {listing.seller.verified && <VerifiedBadge />}
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-/** Reverse Marketplace / Buyer Demand Card */
-export function RequestCard({ request }: { request: RequestSummary }) {
-  const urgencyColor =
-    request.urgency === "urgent" || request.urgency === "high"
-      ? "warning"
-      : request.urgency === "flexible"
-      ? "neutral"
-      : "brand";
-
-  return (
-    <Card
-      variant="interactive"
-      className="flex flex-col justify-between p-4 bg-white border border-zinc-200 border-l-4 border-l-emerald-600"
-    >
-      <div>
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <Badge tone={request.requestType === "service" ? "info" : "brand"}>
-            {request.requestType === "service" ? "Service Wanted" : "Item Wanted"}
-          </Badge>
-          <Badge tone={urgencyColor as BadgeTone} pill>
-            {request.urgency || "Standard"}
-          </Badge>
-        </div>
-
-        <Link href={`/requests/${request.id}`}>
-          <h3 className="line-clamp-2 text-base font-bold text-zinc-900 hover:text-emerald-700">
-            {request.title}
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        <Link href={href}>
+          <h3 className="line-clamp-2 text-[15px] leading-snug font-medium text-ink group-hover:text-primary-700 md:text-base">
+            {listing.title}
           </h3>
         </Link>
-
-        <div className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
-          <span>📍 {request.city}</span>
-          <span>•</span>
-          <span>{request.category}</span>
-        </div>
-      </div>
-
-      <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-between gap-2">
-        <div>
-          <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">
-            Target Budget
-          </span>
-          <span className="text-base font-black text-zinc-900">
-            {request.budgetMinor > 0
-              ? formatMoney(request.budgetMinor, request.currency)
-              : "Negotiable"}
-          </span>
-        </div>
-
-        <Link
-          href={`/requests/${request.id}`}
-          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs transition"
-        >
-          Make Offer →
-        </Link>
+        <PriceDisplay amountMinor={listing.amountMinor} currency={listing.currency} />
+        <p className="flex items-center gap-1.5 text-xs text-muted">
+          <LocationDisplay city={listing.city} />
+          {isAuction ? <span>· {listing.bidsCount} bids</span> : null}
+        </p>
+        <p className="mt-auto flex items-center gap-2 pt-1 text-xs text-ink-soft">
+          <Rating value={listing.seller.rating} count={listing.seller.reviewsCount} />
+          <span className="truncate">{listing.seller.displayName}</span>
+          {listing.seller.verified ? <VerifiedBadge /> : null}
+        </p>
       </div>
     </Card>
   );
 }
 
-/** Live Auction Card with Countdown Indicator */
+/** Section 21: a buyer's need, with budget, location and the buyer's standing. */
+export function RequestCard({ request }: { request: RequestSummary }) {
+  const href = `/requests/${request.id}`;
+  return (
+    <Card className="flex flex-col gap-3 p-4 transition-colors duration-200 hover:border-line-strong">
+      <div className="flex items-center justify-between gap-2">
+        <Badge tone="brand">{request.requestType === "service" ? "Service needed" : "Need"}</Badge>
+        {request.urgency ? (
+          <span className="inline-flex items-center gap-1 text-xs text-muted">
+            <Clock className="size-3.5" aria-hidden="true" />
+            {request.urgency}
+          </span>
+        ) : null}
+      </div>
+
+      <Link href={href}>
+        <h3 className="line-clamp-2 text-base font-semibold text-ink hover:text-primary-700">
+          {request.title}
+        </h3>
+      </Link>
+
+      <dl className="flex flex-col gap-1 text-sm">
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted">Budget</dt>
+          <dd className="font-semibold text-ink">
+            {request.budgetMinor > 0
+              ? formatMoney(request.budgetMinor, request.currency)
+              : "Open to offers"}
+          </dd>
+        </div>
+        <div className="flex justify-between gap-3">
+          <dt className="text-muted">Location</dt>
+          <dd className="truncate text-ink-soft">{request.city}</dd>
+        </div>
+      </dl>
+
+      <p className="flex items-center gap-2 text-xs text-ink-soft">
+        <span className="truncate">{request.buyer.displayName}</span>
+        {request.buyer.verified ? <VerifiedBadge /> : null}
+        <Rating value={request.buyer.rating} count={request.buyer.reviewsCount} />
+      </p>
+
+      <Link
+        href={href}
+        className="mt-auto inline-flex min-h-11 items-center justify-center gap-1.5 rounded-input border border-line-strong text-sm font-semibold text-ink transition-colors hover:border-primary-600 hover:text-primary-700"
+      >
+        View request
+        <ArrowRight className="size-4" aria-hidden="true" />
+      </Link>
+    </Card>
+  );
+}
+
+/** Section 29: amber is reserved for auction urgency. */
 export function AuctionCard({
   auction,
 }: {
@@ -201,60 +177,51 @@ export function AuctionCard({
     city: string;
   };
 }) {
+  const href = `/auctions/${auction.id}`;
   return (
-    <Card variant="interactive" className="group flex flex-col overflow-hidden bg-white border border-amber-200">
-      <Link href={`/auctions/${auction.id}`} className="relative aspect-[4/3] w-full bg-zinc-100 overflow-hidden block">
+    <Card className="group flex flex-col overflow-hidden transition-colors duration-200 hover:border-line-strong">
+      <Link href={href} className="relative block aspect-[4/3] overflow-hidden bg-surface-muted">
         {auction.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={auction.imageUrl}
             alt={auction.title}
-            className="size-full object-cover transition-transform group-hover:scale-105"
+            loading="lazy"
+            decoding="async"
+            className="size-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="flex size-full items-center justify-center bg-zinc-100 text-zinc-300">
-            ⚡
-          </div>
+          <ImagePlaceholder />
         )}
-        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-full bg-amber-500/90 backdrop-blur-xs px-2.5 py-1 text-xs font-bold text-white shadow-xs">
-          <span className="size-2 rounded-full bg-white animate-pulse" />
-          Live Auction
-        </div>
+        <Badge tone="accent" className="absolute top-2 left-2">
+          <Gavel className="size-3" aria-hidden="true" />
+          Auction
+        </Badge>
       </Link>
 
-      <div className="flex flex-1 flex-col justify-between p-4">
-        <div>
-          <div className="flex items-center justify-between text-xs text-zinc-500 mb-1">
-            <span>📍 {auction.city}</span>
-            <span className="font-semibold text-amber-600">{auction.bidsCount} bids placed</span>
-          </div>
-          <Link href={`/auctions/${auction.id}`}>
-            <h3 className="line-clamp-2 text-sm font-bold text-zinc-900 group-hover:text-amber-600">
-              {auction.title}
-            </h3>
-          </Link>
-        </div>
-
-        <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between">
-          <div>
-            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Current Bid</span>
-            <span className="text-base font-black text-amber-600">
-              {formatMoney(auction.currentBidMinor, auction.currency)}
-            </span>
-          </div>
-          <Link
-            href={`/auctions/${auction.id}`}
-            className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-600 shadow-xs transition"
-          >
-            Place Bid
-          </Link>
-        </div>
+      <div className="flex flex-1 flex-col gap-1 p-3">
+        <Link href={href}>
+          <h3 className="line-clamp-2 text-[15px] leading-snug font-medium text-ink group-hover:text-primary-700 md:text-base">
+            {auction.title}
+          </h3>
+        </Link>
+        <p className="text-xs text-muted">Current bid</p>
+        <PriceDisplay amountMinor={auction.currentBidMinor} currency={auction.currency} />
+        <p className="flex items-center gap-1.5 text-xs text-muted">
+          <span>{auction.bidsCount} bids</span>
+          <span>·</span>
+          <LocationDisplay city={auction.city} />
+        </p>
+        <p className="inline-flex items-center gap-1 text-xs font-medium text-accent-600">
+          <Clock className="size-3.5" aria-hidden="true" />
+          Ends {new Date(auction.endsAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}
+        </p>
       </div>
     </Card>
   );
 }
 
-/** Global Search Bar with Integrated Location Selector */
+/** The large search used on the home and search pages. */
 export function SearchBar({
   defaultValue = "",
   defaultCity = "",
@@ -262,89 +229,46 @@ export function SearchBar({
   defaultValue?: string;
   defaultCity?: string;
 }) {
-  const CITIES = [
-    { value: "", label: "All Locations (Pan-Africa)" },
-    { value: "lagos", label: "Lagos, Nigeria" },
-    { value: "abuja", label: "Abuja, Nigeria" },
-    { value: "port-harcourt", label: "Port Harcourt, Nigeria" },
-    { value: "ibadan", label: "Ibadan, Nigeria" },
-    { value: "kano", label: "Kano, Nigeria" },
-    { value: "accra", label: "Accra, Ghana" },
-    { value: "nairobi", label: "Nairobi, Kenya" },
-  ];
-
   return (
     <form
       action="/search"
       method="get"
       role="search"
-      className="flex w-full flex-col sm:flex-row items-stretch gap-2 bg-white p-1.5 rounded-2xl border border-zinc-300 shadow-sm focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-600/20"
+      className="flex w-full flex-col gap-2 rounded-card border border-line-strong bg-surface p-2 focus-within:border-primary-600 sm:flex-row sm:items-center"
     >
-      <div className="flex flex-1 items-center px-3 gap-2">
-        <svg
-          className="size-5 text-zinc-400 shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-          />
-        </svg>
-        <label htmlFor="q" className="sr-only">
-          Search products, services, or buyer requests
+      <div className="flex flex-1 items-center gap-2 px-2">
+        <Search className="size-5 shrink-0 text-muted" aria-hidden="true" />
+        <label htmlFor="home-q" className="sr-only">
+          What are you looking for?
         </label>
         <input
-          id="q"
+          id="home-q"
           name="q"
           type="search"
           defaultValue={defaultValue}
           maxLength={80}
-          placeholder="Search products, services, or buyer requests..."
-          className="w-full bg-transparent text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none min-h-10"
+          placeholder="What are you looking for?"
+          className="min-h-11 w-full bg-transparent text-base text-ink placeholder:text-muted focus:outline-none"
         />
       </div>
-
-      <div className="flex items-center border-t sm:border-t-0 sm:border-l border-zinc-200 px-3 py-1">
-        <svg
-          className="size-4 text-zinc-400 mr-2 shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z"
-          />
-        </svg>
-        <select
+      <div className="flex items-center gap-2 border-t border-line px-2 pt-2 sm:w-48 sm:border-t-0 sm:border-l sm:pt-0">
+        <MapPin className="size-5 shrink-0 text-muted" aria-hidden="true" />
+        <label htmlFor="home-city" className="sr-only">
+          Location
+        </label>
+        <input
+          id="home-city"
           name="city"
+          type="text"
           defaultValue={defaultCity}
-          aria-label="Location"
-          className="bg-transparent text-xs font-semibold text-zinc-700 focus:outline-none cursor-pointer pr-4"
-        >
-          {CITIES.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+          maxLength={50}
+          placeholder="City"
+          className="min-h-11 w-full bg-transparent text-base text-ink placeholder:text-muted focus:outline-none"
+        />
       </div>
-
       <button
         type="submit"
-        className="min-h-11 rounded-xl bg-emerald-600 px-6 text-sm font-bold text-white hover:bg-emerald-700 shadow-xs transition active:scale-[0.98] shrink-0"
+        className="min-h-12 rounded-input bg-primary-600 px-6 text-sm font-semibold text-white transition-colors hover:bg-primary-700 sm:min-h-11"
       >
         Search
       </button>

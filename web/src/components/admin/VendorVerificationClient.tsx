@@ -73,10 +73,10 @@ export function VendorVerificationClient({
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                       v.status === "approved"
-                        ? "bg-emerald-100 text-emerald-800"
+                        ? "bg-primary-100 text-primary-800"
                         : v.status === "rejected"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-amber-100 text-amber-800"
+                        ? "bg-danger-soft text-danger"
+                        : "bg-accent-100 text-accent-600"
                     }`}
                   >
                     {v.status.toUpperCase()}
@@ -102,8 +102,7 @@ export function VendorVerificationClient({
                       rel="noopener noreferrer"
                       className="text-brand underline font-medium"
                     >
-                      View KYC Document ↗
-                    </a>
+                      View KYC Document                     </a>
                   )}
                 </div>
               </div>
@@ -113,7 +112,7 @@ export function VendorVerificationClient({
                   <Button
                     onClick={() => handleReview(v.id, "approved")}
                     disabled={processingId === v.id}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-9 px-3 text-xs"
+                    className="bg-primary-600 hover:bg-primary-700 text-white min-h-11 px-3 text-xs"
                   >
                     Approve & Verify ✓
                   </Button>
@@ -124,7 +123,7 @@ export function VendorVerificationClient({
                       if (reason) handleReview(v.id, "rejected", reason);
                     }}
                     disabled={processingId === v.id}
-                    className="border-red-200 text-red-600 hover:bg-red-50 min-h-9 px-3 text-xs"
+                    className="border-danger/40 text-danger hover:bg-danger-soft min-h-11 px-3 text-xs"
                   >
                     Reject ✕
                   </Button>

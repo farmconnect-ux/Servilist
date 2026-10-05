@@ -92,7 +92,7 @@ export default async function DashboardOrderDetailPage({
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <span className="font-mono text-xs font-bold text-muted">{order.orderNumber}</span>
-          <h1 className="mt-1 text-2xl font-black text-ink">{order.title}</h1>
+          <h1 className="mt-1 text-2xl font-bold text-ink">{order.title}</h1>
           <p className="text-xs text-muted">
             Created on {new Date(order.createdAt).toLocaleDateString()} · Fulfillment:{" "}
             <span className="capitalize font-medium text-ink">{order.fulfillmentType}</span>
@@ -105,8 +105,8 @@ export default async function DashboardOrderDetailPage({
           role="status"
           className={
             paymentNotice.tone === "good"
-              ? "rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900"
-              : "rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900"
+              ? "rounded-lg border border-primary-200 bg-primary-50 p-3 text-sm font-semibold text-primary-900"
+              : "rounded-lg border border-accent-200 bg-accent-50 p-3 text-sm font-semibold text-accent-600"
           }
         >
           {paymentNotice.text}
@@ -142,7 +142,7 @@ export default async function DashboardOrderDetailPage({
 
           {/* Ordered Items */}
           <Card className="p-6">
-            <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">
               Order Items
             </h3>
             <div className="mt-4 divide-y">
@@ -161,7 +161,7 @@ export default async function DashboardOrderDetailPage({
           {/* Shipping Address */}
           {order.shippingAddress && (
             <Card className="p-6">
-              <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">
                 Delivery Destination
               </h3>
               <div className="mt-3 text-sm text-ink space-y-1">
@@ -180,16 +180,16 @@ export default async function DashboardOrderDetailPage({
             <Card className="p-6">
               <div className="flex items-center justify-between border-b pb-3">
                 <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
                     Courier Tracking ({delivery.courierProvider.replace("_", " ").toUpperCase()})
                   </h3>
                   {delivery.trackingCode && (
-                    <p className="font-mono text-xs font-bold text-amber-600 mt-0.5">
+                    <p className="font-mono text-xs font-bold text-accent-600 mt-0.5">
                       Waybill: {delivery.trackingCode}
                     </p>
                   )}
                 </div>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase bg-stone-100 text-stone-800">
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase bg-surface-muted text-ink">
                   {delivery.status.replace("_", " ")}
                 </span>
               </div>
@@ -199,15 +199,15 @@ export default async function DashboardOrderDetailPage({
                 {delivery.trackingEvents.map((evt, idx) => (
                   <div key={idx} className="flex gap-3 text-xs">
                     <div className="flex flex-col items-center">
-                      <span className="h-2 w-2 rounded-full bg-amber-600" />
+                      <span className="h-2 w-2 rounded-full bg-accent-600" />
                       {idx < delivery.trackingEvents.length - 1 && (
-                        <span className="w-0.5 flex-1 bg-stone-200 my-1" />
+                        <span className="w-0.5 flex-1 bg-line my-1" />
                       )}
                     </div>
                     <div className="flex-1 pb-2">
-                      <p className="font-semibold text-stone-900">{evt.description}</p>
-                      {evt.location && <p className="text-[11px] text-stone-500">{evt.location}</p>}
-                      <p className="text-[10px] text-stone-400">
+                      <p className="font-semibold text-ink">{evt.description}</p>
+                      {evt.location && <p className="text-[11px] text-muted">{evt.location}</p>}
+                      <p className="text-[10px] text-disabled">
                         {new Date(evt.timestamp).toLocaleString()}
                       </p>
                     </div>
@@ -221,7 +221,7 @@ export default async function DashboardOrderDetailPage({
         {/* Financial Summary & Participants Sidebar (1 col) */}
         <div className="space-y-6">
           <Card className="p-6">
-            <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">
               Payment Breakdown
             </h3>
 
@@ -257,7 +257,7 @@ export default async function DashboardOrderDetailPage({
           </Card>
 
           <Card className="p-6">
-            <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">
               {isBuyer ? "Seller Information" : "Buyer Information"}
             </h3>
 
@@ -276,7 +276,7 @@ export default async function DashboardOrderDetailPage({
             </div>
           </Card>
 
-          <Card className="border-emerald-200 bg-emerald-50/50 p-6 text-xs text-emerald-950">
+          <Card className="border-primary-200 bg-primary-50/50 p-6 text-xs text-primary-900">
             <h4 className="font-bold">How your payment is protected</h4>
             <p className="mt-2 leading-relaxed">
               Payments are taken by a licensed provider (Paystack or Flutterwave), not by Servilist.

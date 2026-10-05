@@ -23,15 +23,15 @@ export default async function AuctionsPage({
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-stone-200 pb-6">
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 border-b border-line pb-6">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-amber-600">
+          <span className="text-xs font-semibold uppercase tracking-wide text-accent-600">
             Live Bidding
           </span>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-stone-900">
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-ink">
             Marketplace Auctions
           </h1>
-          <p className="mt-1 text-sm text-stone-600">
+          <p className="mt-1 text-sm text-ink-soft">
             Bid on authentic items, verified collectibles, and high-demand products across Nigeria.
           </p>
         </div>
@@ -42,8 +42,8 @@ export default async function AuctionsPage({
             href="/auctions?status=active"
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               status === "active"
-                ? "bg-stone-900 text-white"
-                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                ? "bg-ink text-white"
+                : "bg-surface-muted text-ink-soft hover:bg-line"
             }`}
           >
             Live Auctions
@@ -52,15 +52,15 @@ export default async function AuctionsPage({
             href="/auctions?status=ended"
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               status === "ended"
-                ? "bg-stone-900 text-white"
-                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+                ? "bg-ink text-white"
+                : "bg-surface-muted text-ink-soft hover:bg-line"
             }`}
           >
             Closed
           </Link>
           <Link
             href="/sell?format=auction"
-            className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700"
+            className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-600"
           >
             + Create Auction
           </Link>
@@ -69,11 +69,11 @@ export default async function AuctionsPage({
 
       {/* Grid */}
       {auctions.length === 0 ? (
-        <div className="mt-12 rounded-2xl border border-dashed border-stone-300 p-12 text-center">
-          <p className="text-stone-500 text-sm">No auctions found in this category or status.</p>
+        <div className="mt-12 rounded-2xl border border-dashed border-line-strong p-12 text-center">
+          <p className="text-muted text-sm">No auctions found in this category or status.</p>
           <Link
             href="/sell?format=auction"
-            className="mt-4 inline-block text-xs font-semibold text-amber-600 hover:underline"
+            className="mt-4 inline-block text-xs font-semibold text-accent-600 hover:underline"
           >
             Be the first to list an auction →
           </Link>
@@ -88,10 +88,10 @@ export default async function AuctionsPage({
               <Link
                 key={auction.id}
                 href={`/auctions/${auction.id}`}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:shadow-md"
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sm transition hover:shadow-md"
               >
                 {/* Image */}
-                <div className="aspect-square w-full overflow-hidden bg-stone-100">
+                <div className="aspect-square w-full overflow-hidden bg-surface-muted">
                   <img
                     src={
                       auction.listing?.imageUrl ||
@@ -100,32 +100,32 @@ export default async function AuctionsPage({
                     alt={auction.listing?.title || "Auction Item"}
                     className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
-                  <div className="absolute top-3 right-3 rounded-full bg-stone-900/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+                  <div className="absolute top-3 right-3 rounded-full bg-ink/80 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
                     {isEnded ? "Ended" : "Live"}
                   </div>
                 </div>
 
                 {/* Content */}
                 <div className="flex flex-1 flex-col p-4">
-                  <div className="text-[11px] font-medium text-stone-500 uppercase tracking-wider">
+                  <div className="text-[11px] font-medium text-muted uppercase tracking-wide">
                     {auction.listing?.category || "General"}
                   </div>
-                  <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-stone-900 group-hover:text-amber-600">
+                  <h3 className="mt-1 line-clamp-1 text-sm font-semibold text-ink group-hover:text-accent-600">
                     {auction.listing?.title || "Untitled Auction Item"}
                   </h3>
 
-                  <div className="mt-4 flex items-end justify-between border-t border-stone-100 pt-3">
+                  <div className="mt-4 flex items-end justify-between border-t border-line pt-3">
                     <div>
-                      <span className="text-[10px] text-stone-500">Current Bid</span>
-                      <div className="text-base font-bold text-stone-900">
+                      <span className="text-[10px] text-muted">Current Bid</span>
+                      <div className="text-base font-bold text-ink">
                         {formatMoney(auction.currentAmountMinor, auction.currency)}
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] text-stone-500">
+                      <span className="text-[10px] text-muted">
                         {auction.totalBids} bid{auction.totalBids !== 1 ? "s" : ""}
                       </span>
-                      <div className="text-[11px] font-medium text-amber-700">
+                      <div className="text-[11px] font-medium text-accent-600">
                         {isEnded
                           ? "Closed"
                           : `Ends ${endsAtDate.toLocaleDateString([], {

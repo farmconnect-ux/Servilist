@@ -72,7 +72,7 @@ export function ServiceBookingClient({
   return (
     <div className="space-y-6">
       <Card className="p-6">
-        <h3 className="text-xs font-semibold text-muted uppercase tracking-wider">
+        <h3 className="text-xs font-semibold text-muted uppercase tracking-wide">
           Service Packages & Pricing
         </h3>
 
@@ -84,12 +84,12 @@ export function ServiceBookingClient({
               className={`cursor-pointer rounded-xl border p-4 transition ${
                 selectedPkg.name === pkg.name
                   ? "border-brand bg-brand/5 shadow-sm"
-                  : "border-border hover:border-gray-300"
+                  : "border-border hover:border-line-strong"
               }`}
             >
               <div className="flex items-center justify-between">
                 <span className="font-bold text-ink text-sm">{pkg.name}</span>
-                <span className="font-extrabold text-brand text-base">
+                <span className="font-bold text-brand text-base">
                   {formatMoney(pkg.priceMinor, currency)}
                 </span>
               </div>
@@ -105,18 +105,17 @@ export function ServiceBookingClient({
           onClick={() => setModalOpen(true)}
           className="mt-6 w-full font-bold"
         >
-          Book {selectedPkg.name} ({formatMoney(selectedPkg.priceMinor, currency)}) 💼
-        </Button>
+          Book {selectedPkg.name} ({formatMoney(selectedPkg.priceMinor, currency)})         </Button>
 
         <p className="mt-3 text-[11px] text-center text-muted">
-          🛡️ Escrow Protected: Funds are released only after service milestones are delivered and verified.
+          Escrow Protected: Funds are released only after service milestones are delivered and verified.
         </p>
       </Card>
 
       {/* Booking Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-md p-6 space-y-4 bg-white shadow-2xl">
+          <Card className="w-full max-w-md p-6 space-y-4 bg-surface shadow-2xl">
             <h3 className="font-bold text-lg text-ink">Confirm Service Booking</h3>
             <p className="text-xs text-muted">
               Package: <strong>{selectedPkg.name}</strong> · Amount:{" "}
@@ -124,7 +123,7 @@ export function ServiceBookingClient({
             </p>
 
             {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              <div className="rounded-lg border border-danger/40 bg-danger-soft p-3 text-xs text-danger">
                 {error}
               </div>
             )}
@@ -148,7 +147,7 @@ export function ServiceBookingClient({
                 <Button
                   type="button"
                   variant="outline"
-                  className="min-h-9 px-3 text-xs"
+                  className="min-h-11 px-3 text-xs"
                   onClick={() => setModalOpen(false)}
                 >
                   Cancel
@@ -156,7 +155,7 @@ export function ServiceBookingClient({
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="min-h-9 px-3 text-xs"
+                  className="min-h-11 px-3 text-xs"
                 >
                   {submitting ? "Booking..." : "Confirm & Book Now"}
                 </Button>

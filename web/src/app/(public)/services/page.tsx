@@ -31,21 +31,21 @@ export default async function ServicesDirectoryPage({ searchParams }: ServicesPa
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-8">
       {/* Header */}
-      <div className="flex flex-col justify-between gap-4 rounded-2xl bg-gradient-to-r from-ink via-blue-950 to-brand p-8 text-white sm:flex-row sm:items-center">
+      <div className="flex flex-col justify-between gap-4 rounded-2xl bg-gradient-to-r from-ink via-info to-brand p-8 text-white sm:flex-row sm:items-center">
         <div className="max-w-2xl">
-          <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold text-white">
+          <span className="rounded-full bg-surface/20 px-3 py-1 text-xs font-bold text-white">
             SERVICES MARKETPLACE
           </span>
-          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-4xl">
+          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">
             Hire Verified African Professionals
           </h1>
-          <p className="mt-2 text-sm text-gray-200">
+          <p className="mt-2 text-sm text-disabled">
             From certified solar technicians and electricians to mobile engineers and designers. Fixed packages with escrow milestone protection.
           </p>
         </div>
         <div>
           <Link href="/sell">
-            <Button className="bg-white text-ink hover:bg-gray-100 font-bold shadow-lg min-h-12 px-6">
+            <Button className="bg-surface text-ink hover:bg-surface-muted font-bold shadow-lg min-h-12 px-6">
               + Offer a Service
             </Button>
           </Link>
@@ -53,7 +53,7 @@ export default async function ServicesDirectoryPage({ searchParams }: ServicesPa
       </div>
 
       {/* Filter Bar */}
-      <form className="flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 shadow-sm" method="GET">
+      <form className="flex flex-wrap items-center gap-3 rounded-xl border bg-surface p-4 shadow-sm" method="GET">
         <input
           type="text"
           name="q"
@@ -75,14 +75,14 @@ export default async function ServicesDirectoryPage({ searchParams }: ServicesPa
           <option value="Johannesburg">Johannesburg, South Africa</option>
         </select>
 
-        <Button type="submit" variant="outline" className="min-h-9 px-3 text-xs">
+        <Button type="submit" variant="outline" className="min-h-11 px-3 text-xs">
           Filter
         </Button>
       </form>
 
       {/* Services Grid */}
       <div>
-        <p className="mb-4 text-xs font-semibold text-muted uppercase tracking-wider">
+        <p className="mb-4 text-xs font-semibold text-muted uppercase tracking-wide">
           {total} Professional Services Available
         </p>
 
@@ -123,7 +123,7 @@ export default async function ServicesDirectoryPage({ searchParams }: ServicesPa
                         {s.provider?.displayName}
                       </span>
                       {s.provider?.verified && (
-                        <span className="text-emerald-600 text-xs font-bold">✓</span>
+                        <span className="text-primary-600 text-xs font-bold">✓</span>
                       )}
                       <span className="text-xs text-muted">★ {s.provider?.rating.toFixed(1)}</span>
                     </div>
@@ -132,7 +132,7 @@ export default async function ServicesDirectoryPage({ searchParams }: ServicesPa
                   <div className="mt-6 border-t pt-4 flex items-baseline justify-between">
                     <div>
                       <span className="text-[10px] text-muted block uppercase">Starting at</span>
-                      <span className="text-lg font-extrabold text-ink">
+                      <span className="text-lg font-bold text-ink">
                         {formatMoney(s.basePriceMinor, s.currency)}
                       </span>
                     </div>

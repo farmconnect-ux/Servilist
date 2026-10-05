@@ -1,168 +1,108 @@
 import Link from "next/link";
-import { Metric, Card, Badge } from "@/components/ui/card";
-import { Alert } from "@/components/ui/form";
+import { ArrowRight } from "lucide-react";
+import { Card, Metric } from "@/components/ui/card";
 import { createDb } from "@/lib/db/server";
+import { isReleased } from "@/lib/release";
 import { requirePermission } from "@/server/auth/session";
+import { can, type Permission } from "@/server/policies/access";
 import { getPlatformOverview } from "@/server/repositories/accounts";
-import { formatMoney } from "@/lib/money";
 
-export const metadata = {
-  title: "Admin Platform Oversight · Servilist",
-  description: "Platform-wide analytics, vendor verification, dispute resolution, and commission controls.",
-};
+export const metadata = { title: "Admin overview" };
+
+/**
+ * Admin overview (docs/UI_UX_SPEC.md section 52). Figures are counted from the
+ * database at the moment the page loads; there are no estimates or trends
+ * until there is history to compute them from.
+ */
+
+const SECTIONS: { href: string; title: string; text: string; permission: Permission }[] = [
+  {
+    href: "/admin/users",
+    title: "Members",
+    text: "Roles, suspensions and restorations.",
+    permission: "users.read",
+  },
+  {
+    href: "/admin/reports",
+    title: "Reports and disputes",
+    text: "Flagged listings and reviews, and disputes on paid orders.",
+    permission: "reports.manage",
+  },
+  {
+    href: "/admin/vendors",
+    title: "Seller verification",
+    text: "Approve or reject verification requests.",
+    permission: "verifications.manage",
+  },
+  {
+    href: "/admin/audit-logs",
+    title: "Audit log",
+    text: "A permanent record of sensitive actions.",
+    permission: "audit.read",
+  },
+];
+
+async function countWhere(
+  db: Awaited<ReturnType<typeof createDb>>,
+  table: string,
+  column: string,
+  values: string[],
+): Promise<number> {
+  const { count } = await db.from(table).select("id", { count: "exact", head: true }).in(column, values);
+  return count ?? 0;
+}
 
 export default async function AdminOverviewPage() {
-  await requirePermission("admin.access", "/admin");
+  const user = await requirePermission("admin.access", "/admin");
   const db = await createDb();
-  const overview = await getPlatformOverview(db);
+  const showOrders = isReleased("/dashboard/orders") && can(user, "orders.read");
+  const showReports = isReleased("/admin/reports") && can(user, "reports.manage");
+
+  const [overview, openOrders, disputedOrders, openReports] = await Promise.all([
+    getPlatformOverview(db),
+    showOrders
+      ? countWhere(db, "orders", "status", ["pending_payment", "in_escrow", "dispatched", "delivered"])
+      : Promise.resolve(0),
+    showOrders ? countWhere(db, "orders", "status", ["disputed"]) : Promise.resolve(0),
+    showReports ? countWhere(db, "reports", "status", ["pending", "under_review"]) : Promise.resolve(0),
+  ]);
+
+  const sections = SECTIONS.filter(
+    (section) => isReleased(section.href) && can(user, section.permission),
+  );
 
   return (
-    <div className="space-y-8">
-      {/* Admin Header */}
-      <div className="border-b border-zinc-200 pb-5">
-        <div className="inline-flex items-center gap-1.5 rounded-md bg-zinc-900 px-2 py-0.5 text-[11px] font-bold text-white uppercase tracking-wide">
-          🛡️ Super Administrator Control Center
-        </div>
-        <h1 className="text-2xl font-black text-zinc-900 tracking-tight sm:text-3xl mt-1">
-          Platform-Wide Oversight & Governance
-        </h1>
-        <p className="text-xs text-zinc-500">
-          Monitor Gross Merchandise Value (GMV), oversee vendor KYC applications, resolve transaction disputes, and audit ledger transactions.
-        </p>
+    <>
+      <div>
+        <h1 className="text-[28px] leading-tight font-bold text-ink md:text-[32px]">Overview</h1>
+        <p className="mt-1 text-sm text-ink-soft">Counted from the database just now.</p>
       </div>
 
-      {/* 1. Core Analytics Metrics */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric
-          label="Registered Members"
-          value={String(overview.members)}
-          note="Active buyers and merchants"
-          change="+12% MoM"
-          tone="positive"
-        />
-        <Metric
-          label="Active Listings"
-          value={String(overview.activeListings)}
-          note="Goods, services, auctions"
-        />
-        <Metric
-          label="Open Buyer Demands"
-          value={String(overview.openRequests)}
-          note="Reverse marketplace requests"
-        />
-        <Metric
-          label="Restricted Accounts"
-          value={String(overview.suspended)}
-          note="Suspended or banned"
-          tone={overview.suspended > 0 ? "negative" : "neutral"}
-        />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metric label="Members" value={String(overview.members)} />
+        <Metric label="Active listings" value={String(overview.activeListings)} />
+        <Metric label="Open requests" value={String(overview.openRequests)} />
+        <Metric label="Suspended members" value={String(overview.suspended)} />
+        {showOrders ? <Metric label="Open orders" value={String(openOrders)} /> : null}
+        {showOrders ? <Metric label="Disputed orders" value={String(disputedOrders)} /> : null}
+        {showReports ? <Metric label="Reports waiting" value={String(openReports)} /> : null}
       </div>
 
-      {/* 2. Admin Operational Control Hub */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-bold text-zinc-900">Administrative Governance & Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link
-            href="/admin/vendors"
-            className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs hover:border-emerald-500 hover:shadow-md transition group"
-          >
-            <div className="size-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl mb-3">
-              🏛️
-            </div>
-            <h3 className="text-sm font-bold text-zinc-900 group-hover:text-emerald-700">
-              Vendor KYC Verification
-            </h3>
-            <p className="text-xs text-zinc-500 mt-1">
-              Review CAC documents, business licenses, and government IDs to approve seller tiers.
-            </p>
-            <span className="mt-3 inline-block text-xs font-bold text-emerald-700">
-              Open Queue →
-            </span>
-          </Link>
-
-          <Link
-            href="/admin/reports"
-            className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs hover:border-amber-500 hover:shadow-md transition group"
-          >
-            <div className="size-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center text-xl mb-3">
-              ⚖️
-            </div>
-            <h3 className="text-sm font-bold text-zinc-900 group-hover:text-amber-600">
-              Disputes & Moderation
-            </h3>
-            <p className="text-xs text-zinc-500 mt-1">
-              Mediate order issues, frozen escrow releases, and reported content violations.
-            </p>
-            <span className="mt-3 inline-block text-xs font-bold text-amber-600">
-              Review Reports →
-            </span>
-          </Link>
-
-          <Link
-            href="/admin/users"
-            className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs hover:border-blue-500 hover:shadow-md transition group"
-          >
-            <div className="size-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center text-xl mb-3">
-              👥
-            </div>
-            <h3 className="text-sm font-bold text-zinc-900 group-hover:text-blue-600">
-              User & Role Management
-            </h3>
-            <p className="text-xs text-zinc-500 mt-1">
-              Suspend accounts, update member permissions, and manage staff access privileges.
-            </p>
-            <span className="mt-3 inline-block text-xs font-bold text-blue-600">
-              Inspect Users →
-            </span>
-          </Link>
-
-          <Link
-            href="/admin/audit-logs"
-            className="rounded-xl border border-zinc-200 bg-white p-5 shadow-xs hover:border-zinc-500 hover:shadow-md transition group"
-          >
-            <div className="size-10 rounded-lg bg-zinc-100 text-zinc-700 flex items-center justify-center text-xl mb-3">
-              📋
-            </div>
-            <h3 className="text-sm font-bold text-zinc-900 group-hover:text-zinc-700">
-              System Audit Logs
-            </h3>
-            <p className="text-xs text-zinc-500 mt-1">
-              Immutable ledger of payment captures, payout settlements, OTP releases, and admin changes.
-            </p>
-            <span className="mt-3 inline-block text-xs font-bold text-zinc-700">
-              View Audit Trail →
-            </span>
-          </Link>
-        </div>
-      </section>
-
-      {/* 3. Escrow & Commission Configuration Oversight */}
-      <Card className="p-6 bg-white border border-zinc-200">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
-              Financial Architecture
-            </span>
-            <h3 className="text-base font-bold text-zinc-900 mt-0.5">
-              Escrow Commission Split & Ledger Health
-            </h3>
-            <p className="text-xs text-zinc-500 mt-1">
-              Servilist double-entry escrow operates at standard marketplace fees (1.5% buyer protection + 5.0% vendor commission).
-              Ledger reconciliations verify 100% solvency across all active transactions.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge tone="success" pill>
-              Ledger Reconciled: 100% Solvency
-            </Badge>
-          </div>
-        </div>
-      </Card>
-
-      <Alert tone="info" title="Zero Synthetic Data Rule">
-        All telemetry, user statistics, listing counters, and verification records displayed on this admin console
-        are queried directly from live PostgreSQL relations.
-      </Alert>
-    </div>
+      <ul className="grid gap-3 md:grid-cols-2">
+        {sections.map((section) => (
+          <li key={section.href}>
+            <Link href={section.href} className="group block h-full">
+              <Card className="flex h-full items-center justify-between gap-4 p-4 transition-colors duration-200 group-hover:border-primary-600">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">{section.title}</h2>
+                  <p className="text-sm text-ink-soft">{section.text}</p>
+                </div>
+                <ArrowRight className="size-5 shrink-0 text-primary-700" aria-hidden="true" />
+              </Card>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

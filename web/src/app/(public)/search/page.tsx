@@ -52,7 +52,7 @@ export default async function SearchPage({
         <nav aria-label="Breadcrumb" className="mb-2 text-xs text-muted">
           <Link href="/" className="hover:text-brand">Home</Link> &gt; <span>Search</span>
         </nav>
-        <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">Search Servilist</h1>
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">Search Servilist</h1>
         <div className="mt-4">
           <SearchBar defaultValue={query} />
         </div>
@@ -73,7 +73,7 @@ export default async function SearchPage({
             href={`/search?q=${encodeURIComponent(query)}&category=${c.slug}`}
             className={`rounded-full px-3 py-1 ${selectedCategory === c.slug ? "bg-brand text-white" : "bg-page text-ink hover:bg-brand-soft"}`}
           >
-            {c.icon} {c.name}
+            {c.name}
           </Link>
         ))}
       </div>

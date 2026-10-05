@@ -1,10 +1,12 @@
 import { Button, ButtonLink } from "@/components/ui/button";
+import { requirePermission } from "@/server/auth/session";
 import { Badge, Card, Metric, EmptyState, VerifiedBadge } from "@/components/ui/card";
 import { Input, Textarea, Select, Field, Alert } from "@/components/ui/form";
 import { ListingCard, RequestCard, AuctionCard, SearchBar, PriceDisplay } from "@/components/marketplace/cards";
 
 export const metadata = {
-  title: "Design System & UI Tokens · Servilist",
+  robots: { index: false, follow: false },
+  title: "Design system",
   description:
     "Production UI/UX Design System Specification for Servilist: Two-sided marketplace, classifieds, services, auctions, and buyer requests.",
 };
@@ -50,7 +52,12 @@ const COLOR_GROUPS = [
   },
 ];
 
-export default function DesignSystemPage() {
+export default async function DesignSystemPage() {
+  // Sample cards on this page are illustrations of the components, not marketplace data
+  if (process.env.NODE_ENV !== "development") {
+    await requirePermission("admin.access", "/design-system");
+  }
+
   const dummyListing = {
     id: "demo-listing-1",
     slug: "demo-iphone-15-pro-max",
@@ -108,13 +115,13 @@ export default function DesignSystemPage() {
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 space-y-16">
       {/* Header */}
       <div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+        <div className="inline-flex items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-bold text-primary-800">
           Source of Truth Specification
         </div>
-        <h1 className="mt-3 text-4xl font-black tracking-tight text-zinc-900 sm:text-5xl">
+        <h1 className="mt-3 text-4xl font-bold tracking-tight text-ink sm:text-5xl">
           Marketplace UI/UX Design System
         </h1>
-        <p className="mt-2 text-base text-zinc-600 max-w-3xl">
+        <p className="mt-2 text-base text-ink-soft max-w-3xl">
           Specification-aligned design tokens, atomic components, and responsive screen templates for Servilist.
           Designed for high-trust African two-sided commerce: Supply-led trade, demand-led buyer requests,
           timed auctions, and milestone escrow.
@@ -123,31 +130,31 @@ export default function DesignSystemPage() {
 
       {/* 1. Core Marketplace Principles */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">
+        <h2 className="text-2xl font-bold text-ink tracking-tight">
           1. Core Marketplace Model & Architecture
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="p-6 border-l-4 border-l-emerald-600 bg-white">
-            <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+          <Card className="p-6 border-l-4 border-l-primary-600 bg-surface">
+            <span className="text-[11px] font-bold text-primary-700 uppercase tracking-wide">
               Supply Side (Traditional Commerce)
             </span>
-            <h3 className="text-lg font-bold text-zinc-900 mt-1">
+            <h3 className="text-lg font-bold text-ink mt-1">
               Seller → Listing → Product / Service → Buyer
             </h3>
-            <p className="text-xs text-zinc-600 mt-2 leading-relaxed">
+            <p className="text-xs text-ink-soft mt-2 leading-relaxed">
               Merchants create structured listings for products, professional services, or timed auctions.
               Buyers browse categories, search by keyword, filter by city, and purchase via direct escrow or OTP handover.
             </p>
           </Card>
 
-          <Card className="p-6 border-l-4 border-l-amber-500 bg-white">
-            <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">
+          <Card className="p-6 border-l-4 border-l-accent-500 bg-surface">
+            <span className="text-[11px] font-bold text-accent-600 uppercase tracking-wide">
               Demand Side (Reverse Marketplace)
             </span>
-            <h3 className="text-lg font-bold text-zinc-900 mt-1">
+            <h3 className="text-lg font-bold text-ink mt-1">
               Buyer → Request → Sellers Quote → Multi-Turn Offers → Buyer
             </h3>
-            <p className="text-xs text-zinc-600 mt-2 leading-relaxed">
+            <p className="text-xs text-ink-soft mt-2 leading-relaxed">
               When buyers cannot find an item in catalog search, they post a Buyer Request specifying their target budget,
               urgency, and specs. Intelligent PostgreSQL tsvector matching alerts verified merchants to submit quotes.
             </p>
@@ -158,21 +165,21 @@ export default function DesignSystemPage() {
       {/* 2. Color System */}
       <section className="space-y-6">
         <div>
-          <h2 className="text-2xl font-black text-zinc-900 tracking-tight">2. Global Color Tokens</h2>
-          <p className="text-xs text-zinc-500">
-            Strictly bounded CSS custom properties configured in <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800">globals.css</code>.
+          <h2 className="text-2xl font-bold text-ink tracking-tight">2. Global Color Tokens</h2>
+          <p className="text-xs text-muted">
+            Strictly bounded CSS custom properties configured in <code className="bg-surface-muted px-1 py-0.5 rounded text-ink">globals.css</code>.
           </p>
         </div>
 
         <div className="space-y-6">
           {COLOR_GROUPS.map((group) => (
             <div key={group.name} className="space-y-2">
-              <h3 className="text-xs font-bold text-zinc-700 uppercase tracking-wider">{group.name}</h3>
+              <h3 className="text-xs font-bold text-ink-soft uppercase tracking-wide">{group.name}</h3>
               <div className="grid grid-cols-2 sm:grid-cols-5 md:grid-cols-10 gap-2">
                 {group.shades.map((shade) => (
                   <div
                     key={shade.name}
-                    className="flex flex-col rounded-xl overflow-hidden border border-zinc-200 shadow-2xs"
+                    className="flex flex-col rounded-xl overflow-hidden border border-line shadow-2xs"
                   >
                     <div
                       className="h-16 w-full flex items-center justify-center p-2 text-center"
@@ -185,8 +192,8 @@ export default function DesignSystemPage() {
                         {shade.hex}
                       </span>
                     </div>
-                    <div className="p-2 bg-white text-center">
-                      <span className="text-[10px] font-semibold text-zinc-600 truncate block">
+                    <div className="p-2 bg-surface text-center">
+                      <span className="text-[10px] font-semibold text-ink-soft truncate block">
                         {shade.name}
                       </span>
                     </div>
@@ -200,45 +207,45 @@ export default function DesignSystemPage() {
 
       {/* 3. Typography Scale */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">3. Typography Scale (Inter Font)</h2>
-        <Card className="p-6 bg-white space-y-6">
-          <div className="border-b border-zinc-100 pb-4">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Hero Display (40-48px, Weight 800)</span>
-            <p className="text-4xl sm:text-5xl font-black text-zinc-900 tracking-tight mt-1">
+        <h2 className="text-2xl font-bold text-ink tracking-tight">3. Typography Scale (Inter Font)</h2>
+        <Card className="p-6 bg-surface space-y-6">
+          <div className="border-b border-line pb-4">
+            <span className="text-[10px] font-bold text-disabled uppercase tracking-wide block">Hero Display (40-48px, Weight 800)</span>
+            <p className="text-4xl sm:text-5xl font-bold text-ink tracking-tight mt-1">
               BUY WHAT YOU NEED. SELL WHAT YOU HAVE.
             </p>
           </div>
 
-          <div className="border-b border-zinc-100 pb-4">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Page Title H1 (28-32px, Weight 700)</span>
-            <p className="text-3xl font-extrabold text-zinc-900 mt-1">
+          <div className="border-b border-line pb-4">
+            <span className="text-[10px] font-bold text-disabled uppercase tracking-wide block">Page Title H1 (28-32px, Weight 700)</span>
+            <p className="text-3xl font-bold text-ink mt-1">
               Seller Hub & Multi-Vendor Merchant Dashboard
             </p>
           </div>
 
-          <div className="border-b border-zinc-100 pb-4">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Section Title H2 (20-24px, Weight 700)</span>
-            <p className="text-2xl font-bold text-zinc-900 mt-1">
+          <div className="border-b border-line pb-4">
+            <span className="text-[10px] font-bold text-disabled uppercase tracking-wide block">Section Title H2 (20-24px, Weight 700)</span>
+            <p className="text-2xl font-bold text-ink mt-1">
               Active Buyer Demands Matching Your Inventory
             </p>
           </div>
 
-          <div className="border-b border-zinc-100 pb-4">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Card Title H3 (15-16px, Weight 600)</span>
-            <p className="text-base font-semibold text-zinc-900 mt-1">
+          <div className="border-b border-line pb-4">
+            <span className="text-[10px] font-bold text-disabled uppercase tracking-wide block">Card Title H3 (15-16px, Weight 600)</span>
+            <p className="text-base font-semibold text-ink mt-1">
               Apple iPhone 15 Pro Max 256GB Natural Titanium (Mint Condition)
             </p>
           </div>
 
-          <div className="border-b border-zinc-100 pb-4">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Body Regular (14-15px, Weight 400)</span>
-            <p className="text-sm text-zinc-600 mt-1 leading-relaxed max-w-2xl">
+          <div className="border-b border-line pb-4">
+            <span className="text-[10px] font-bold text-disabled uppercase tracking-wide block">Body Regular (14-15px, Weight 400)</span>
+            <p className="text-sm text-ink-soft mt-1 leading-relaxed max-w-2xl">
               When an order is created, the buyer deposits funds into the Servilist ledger. A cryptographic 6-digit handover OTP is generated for physical or courier handover.
             </p>
           </div>
 
           <div>
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Price Display Scale (Emerald Bold Font)</span>
+            <span className="text-[10px] font-bold text-disabled uppercase tracking-wide block">Price Display Scale (Emerald Bold Font)</span>
             <div className="flex flex-wrap items-baseline gap-6 mt-2">
               <PriceDisplay amountMinor={145000000} currency="NGN" size="lg" />
               <PriceDisplay amountMinor={145000000} currency="NGN" size="md" />
@@ -250,10 +257,10 @@ export default function DesignSystemPage() {
 
       {/* 4. Button System */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">4. Button System (44px / 48px Standards)</h2>
-        <Card className="p-6 bg-white space-y-6">
+        <h2 className="text-2xl font-bold text-ink tracking-tight">4. Button System (44px / 48px Standards)</h2>
+        <Card className="p-6 bg-surface space-y-6">
           <div>
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Button Variants</h3>
+            <h3 className="text-xs font-bold text-disabled uppercase tracking-wide mb-3">Button Variants</h3>
             <div className="flex flex-wrap items-center gap-3">
               <Button variant="primary">Primary Button</Button>
               <Button variant="secondary">Secondary Button</Button>
@@ -266,7 +273,7 @@ export default function DesignSystemPage() {
           </div>
 
           <div>
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Standard Sizes</h3>
+            <h3 className="text-xs font-bold text-disabled uppercase tracking-wide mb-3">Standard Sizes</h3>
             <div className="flex flex-wrap items-center gap-3">
               <Button size="sm">Small (36px)</Button>
               <Button size="md">Medium / Standard (44px)</Button>
@@ -278,12 +285,12 @@ export default function DesignSystemPage() {
 
       {/* 5. Badges & Chips */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">5. Badges, Chips & Trust Seals</h2>
-        <Card className="p-6 bg-white space-y-4">
+        <h2 className="text-2xl font-bold text-ink tracking-tight">5. Badges, Chips & Trust Seals</h2>
+        <Card className="p-6 bg-surface space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <VerifiedBadge text="Verified Merchant" />
             <Badge tone="brand">Buy Now</Badge>
-            <Badge tone="accent">⚡ Live Auction</Badge>
+            <Badge tone="accent">Live Auction</Badge>
             <Badge tone="info">Service Wanted</Badge>
             <Badge tone="warning">Urgent Request</Badge>
             <Badge tone="success">In Escrow</Badge>
@@ -300,8 +307,8 @@ export default function DesignSystemPage() {
 
       {/* 6. Form Controls */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">6. Form Controls & Validation States</h2>
-        <Card className="p-6 bg-white">
+        <h2 className="text-2xl font-bold text-ink tracking-tight">6. Form Controls & Validation States</h2>
+        <Card className="p-6 bg-surface">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Field id="sample-title" label="Listing Title" hint="Include brand, model, and condition" required>
               <Input id="sample-title" placeholder="e.g. iPhone 15 Pro Max 256GB" />
@@ -336,24 +343,24 @@ export default function DesignSystemPage() {
 
       {/* 7. Interactive Cards Showcase */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">7. Reusable Marketplace Cards</h2>
+        <h2 className="text-2xl font-bold text-ink tracking-tight">7. Reusable Marketplace Cards</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <div>
-            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+            <p className="text-xs font-bold text-disabled uppercase tracking-wide mb-2">
               Supply Side: Product Card
             </p>
             <ListingCard listing={dummyListing} />
           </div>
 
           <div>
-            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+            <p className="text-xs font-bold text-disabled uppercase tracking-wide mb-2">
               Demand Side: Buyer Request Card
             </p>
             <RequestCard request={dummyRequest} />
           </div>
 
           <div>
-            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">
+            <p className="text-xs font-bold text-disabled uppercase tracking-wide mb-2">
               Auction Mode: Timed Auction Card
             </p>
             <AuctionCard auction={dummyAuction} />
@@ -363,7 +370,7 @@ export default function DesignSystemPage() {
 
       {/* 8. Dashboard Widgets & Empty States */}
       <section className="space-y-4">
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">8. Dashboard Metrics & Empty States</h2>
+        <h2 className="text-2xl font-bold text-ink tracking-tight">8. Dashboard Metrics & Empty States</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Metric label="Gross Merchandise Value" value="₦48,250,000" change="+18.4%" tone="positive" />
           <Metric label="Active Escrow Balance" value="₦14,800,000" note="Protected in ledger" />

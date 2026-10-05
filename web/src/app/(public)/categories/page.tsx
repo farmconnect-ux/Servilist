@@ -1,3 +1,4 @@
+import { CategoryIcon } from "@/components/marketplace/CategoryIcon";
 import Link from "next/link";
 import { createDb } from "@/lib/db/server";
 import { listCategories } from "@/server/repositories/categories";
@@ -18,7 +19,7 @@ export default async function CategoriesPage() {
         <nav aria-label="Breadcrumb" className="mb-2 text-xs text-muted">
           <Link href="/" className="hover:text-brand">Home</Link> &gt; <span>Categories</span>
         </nav>
-        <h1 className="text-3xl font-extrabold text-ink">Marketplace Categories</h1>
+        <h1 className="text-3xl font-bold text-ink">Marketplace Categories</h1>
         <p className="mt-1 text-sm text-muted">
           Discover products, vehicles, equipment and local services across Pan-African hubs.
         </p>
@@ -29,7 +30,7 @@ export default async function CategoriesPage() {
           <Card key={cat.id} className="flex flex-col gap-3 p-5 transition-shadow hover:shadow-md">
             <div className="flex items-center gap-3">
               <span className="flex size-12 items-center justify-center rounded-xl bg-brand-soft text-2xl">
-                {cat.icon || "📦"}
+                <CategoryIcon slug={cat.slug} className="size-6 text-primary-700" />
               </span>
               <div>
                 <Link href={`/categories/${cat.slug}`} className="text-lg font-bold text-ink hover:text-brand">

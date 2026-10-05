@@ -96,17 +96,17 @@ export function ReportsModerationClient({
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-800 uppercase">
+                  <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-bold text-danger uppercase">
                     {r.isDispute ? "Order dispute" : r.targetType}
                   </span>
                   <h3 className="font-bold text-ink">{r.reason}</h3>
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
                       r.status === "resolved"
-                        ? "bg-emerald-100 text-emerald-800"
+                        ? "bg-primary-100 text-primary-800"
                         : r.status === "dismissed"
-                        ? "bg-gray-100 text-gray-800"
-                        : "bg-amber-100 text-amber-800"
+                        ? "bg-surface-muted text-ink"
+                        : "bg-accent-100 text-accent-600"
                     }`}
                   >
                     {r.status.toUpperCase()}
@@ -141,7 +141,7 @@ export function ReportsModerationClient({
                     className="rounded-lg border border-border px-2 py-1.5 text-xs focus:border-brand focus:outline-none"
                   />
                   {errors[r.id] && (
-                    <p role="alert" className="text-xs font-semibold text-red-700">
+                    <p role="alert" className="text-xs font-semibold text-danger">
                       {errors[r.id]}
                     </p>
                   )}
@@ -150,7 +150,7 @@ export function ReportsModerationClient({
                       <Button
                         onClick={() => handleDispute(r.id, r.targetId, "release")}
                         disabled={processingId === r.id}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-9 px-3 text-xs"
+                        className="bg-primary-600 hover:bg-primary-700 text-white min-h-11 px-3 text-xs"
                       >
                         Release to seller
                       </Button>
@@ -158,7 +158,7 @@ export function ReportsModerationClient({
                         variant="outline"
                         onClick={() => handleDispute(r.id, r.targetId, "refund")}
                         disabled={processingId === r.id}
-                        className="min-h-9 px-3 text-xs"
+                        className="min-h-11 px-3 text-xs"
                       >
                         Refund the buyer
                       </Button>
@@ -169,7 +169,7 @@ export function ReportsModerationClient({
                         <Button
                           onClick={() => handleResolve(r.id, "resolved", "hide_target")}
                           disabled={processingId === r.id}
-                          className="bg-red-600 hover:bg-red-700 text-white min-h-9 px-3 text-xs"
+                          className="bg-danger hover:bg-danger text-white min-h-11 px-3 text-xs"
                         >
                           {r.targetType === "listing" ? "Remove listing" : "Hide review"}
                         </Button>
@@ -177,7 +177,7 @@ export function ReportsModerationClient({
                       <Button
                         onClick={() => handleResolve(r.id, "resolved")}
                         disabled={processingId === r.id}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white min-h-9 px-3 text-xs"
+                        className="bg-primary-600 hover:bg-primary-700 text-white min-h-11 px-3 text-xs"
                       >
                         Mark resolved
                       </Button>
@@ -185,7 +185,7 @@ export function ReportsModerationClient({
                         variant="outline"
                         onClick={() => handleResolve(r.id, "dismissed")}
                         disabled={processingId === r.id}
-                        className="border-gray-200 text-muted hover:bg-gray-50 min-h-9 px-3 text-xs"
+                        className="border-line text-muted hover:bg-surface-muted min-h-11 px-3 text-xs"
                       >
                         Dismiss
                       </Button>

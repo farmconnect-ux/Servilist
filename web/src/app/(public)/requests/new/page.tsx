@@ -22,7 +22,7 @@ export default async function NewRequestPage() {
           <Link href="/requests" className="hover:text-brand">Buyer Requests</Link> &gt;{" "}
           <span>New</span>
         </nav>
-        <h1 className="text-2xl font-extrabold text-ink sm:text-3xl">Post a Buyer Request</h1>
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">Post a Buyer Request</h1>
         <p className="mt-1 text-sm text-muted">
           Tell sellers and service providers across Pan-Africa exactly what you need. Receive competitive quotes directly.
         </p>

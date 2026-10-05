@@ -44,8 +44,8 @@ export default async function ProductDetailPage({
 
       <div className="grid gap-8 lg:grid-cols-12">
         {/* Left Column: Image Gallery (7 cols) */}
-        <div className="flex flex-col gap-4 lg:col-span-7">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-line bg-page">
+        <div className="max-lg:contents lg:col-span-7 lg:flex lg:flex-col lg:gap-4">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-line bg-page max-lg:order-1">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={listing.imageUrl}
@@ -77,8 +77,8 @@ export default async function ProductDetailPage({
           ) : null}
 
           {/* Description & Specs Section */}
-          <div className="rounded-card border border-line bg-surface p-6">
-            <h3 className="text-lg font-bold text-ink">Description & Specifications</h3>
+          <div className="rounded-card border border-line bg-surface p-6 max-lg:order-3">
+            <h3 className="text-lg font-bold text-ink">Description</h3>
             <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-muted">
               {listing.description}
             </p>
@@ -113,14 +113,14 @@ export default async function ProductDetailPage({
         </div>
 
         {/* Right Column: Pricing, Buyer Actions & Seller Strip (5 cols) */}
-        <div className="flex flex-col gap-6 lg:col-span-5">
+        <div className="flex flex-col gap-6 max-lg:order-2 lg:col-span-5">
           <div className="flex flex-col gap-4 rounded-card border border-line bg-surface p-6 shadow-sm">
-            <h1 className="text-2xl font-extrabold leading-snug text-ink sm:text-3xl">
+            <h1 className="text-2xl font-bold leading-snug text-ink sm:text-3xl">
               {listing.title}
             </h1>
 
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-brand">
+              <span className="text-3xl font-bold text-brand">
                 {formatMoney(listing.amountMinor, listing.currency)}
               </span>
               {listing.negotiable ? (
@@ -128,7 +128,7 @@ export default async function ProductDetailPage({
               ) : null}
             </div>
 
-            <p className="text-xs text-muted">📍 Available in {listing.city}, {listing.country}</p>
+            <p className="text-xs text-muted">Available in {listing.city}, {listing.country}</p>
 
             {/* Offers and messages are open; checkout opens with orders and payments */}
             {!viewer ? (
@@ -168,7 +168,7 @@ export default async function ProductDetailPage({
 
             {/* Escrow Guarantee Callout */}
             <div className="rounded-control bg-page p-3.5 text-xs text-muted">
-              <p className="font-bold text-ink">🛡️ Servilist Buyer Protection</p>
+              <p className="font-bold text-ink">Servilist Buyer Protection</p>
               <p className="mt-1">
                 You pay through a licensed payment provider. The seller is paid after you inspect the item and give them your handover code.
               </p>

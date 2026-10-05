@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 const control =
-  "min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3.5 text-sm text-zinc-900 placeholder:text-zinc-400 shadow-xs transition-colors focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 aria-[invalid=true]:border-red-500 aria-[invalid=true]:focus:ring-red-500/20";
+  "min-h-11 w-full rounded-lg border border-line-strong bg-surface px-3.5 text-sm text-ink placeholder:text-disabled shadow-xs transition-colors focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20 aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/20";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(control, className)} {...props} />;
@@ -14,7 +14,7 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
 
 export function Select({ className, children, ...props }: ComponentProps<"select">) {
   return (
-    <select className={cn(control, "cursor-pointer bg-white pr-8", className)} {...props}>
+    <select className={cn(control, "cursor-pointer bg-surface pr-8", className)} {...props}>
       {children}
     </select>
   );
@@ -39,15 +39,15 @@ export function Field({
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
-        <label htmlFor={id} className="text-sm font-semibold text-zinc-900">
+        <label htmlFor={id} className="text-sm font-semibold text-ink">
           {label}
-          {required ? <span className="ml-1 text-red-500">*</span> : null}
+          {required ? <span className="ml-1 text-danger">*</span> : null}
         </label>
       </div>
       {children}
-      {hint && !error ? <p className="text-xs text-zinc-500">{hint}</p> : null}
+      {hint && !error ? <p className="text-xs text-muted">{hint}</p> : null}
       {error ? (
-        <p id={`${id}-error`} className="text-xs font-semibold text-red-600">
+        <p id={`${id}-error`} className="text-xs font-semibold text-danger">
           {error}
         </p>
       ) : null}
@@ -65,10 +65,10 @@ export function Alert({
   children: React.ReactNode;
 }) {
   const tones = {
-    info: "bg-blue-50 text-blue-900 border-blue-200",
-    success: "bg-emerald-50 text-emerald-900 border-emerald-200",
-    warning: "bg-amber-50 text-amber-900 border-amber-200",
-    danger: "bg-red-50 text-red-900 border-red-200",
+    info: "bg-info-soft text-info border-info/40",
+    success: "bg-primary-50 text-primary-900 border-primary-200",
+    warning: "bg-accent-50 text-accent-600 border-accent-200",
+    danger: "bg-danger-soft text-danger border-danger/40",
   };
 
   return (

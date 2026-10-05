@@ -1,4 +1,5 @@
 import "server-only";
+import { supabasePublishableKey, supabaseUrl } from "@/lib/public-config";
 
 /**
  * Server configuration. Values are read when a request needs them, so a build
@@ -14,11 +15,13 @@ function required(name: string): string {
 
 export const env = {
   get supabaseUrl() {
-    return required("SUPABASE_URL");
+    return supabaseUrl();
   },
   get supabasePublishableKey() {
-    return required("SUPABASE_PUBLISHABLE_KEY");
+    return supabasePublishableKey();
   },
+  /** A setting that has no safe default, such as a payment secret. */
+  required,
   /** Public origin of this deployment, used in links sent by email. */
   get appUrl() {
     return (

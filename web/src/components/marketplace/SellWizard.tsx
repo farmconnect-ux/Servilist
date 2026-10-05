@@ -82,8 +82,8 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
       </div>
 
       {error ? (
-        <div className="rounded-control bg-red-50 p-3 text-xs font-semibold text-red-700">
-          ⚠️ {error}
+        <div className="rounded-control bg-danger-soft p-3 text-xs font-semibold text-danger">
+          {error}
         </div>
       ) : null}
 
@@ -126,7 +126,7 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
             >
               {categories.map((c) => (
                 <option key={c.id} value={c.slug}>
-                  {c.icon || "📦"} {c.name}
+                  {c.name}
                 </option>
               ))}
             </select>
@@ -219,16 +219,16 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
                 onChange={(e) => update({ currency: e.target.value })}
                 className="mt-1.5 min-h-11 w-full rounded-control border border-line bg-page px-3 text-sm font-bold"
               >
-                <option value="NGN">🇳🇬 NGN - Nigerian Naira (₦)</option>
-                <option value="KES">🇰🇪 KES - Kenyan Shilling (KSh)</option>
-                <option value="GHS">🇬🇭 GHS - Ghanaian Cedi (GH₵)</option>
-                <option value="ZAR">🇿🇦 ZAR - South African Rand (R)</option>
-                <option value="USD">🇺🇸 USD - US Dollar ($)</option>
-                <option value="EGP">🇪🇬 EGP - Egyptian Pound (E£)</option>
-                <option value="RWF">🇷🇼 RWF - Rwandan Franc (FRw)</option>
-                <option value="TZS">🇹🇿 TZS - Tanzanian Shilling (TSh)</option>
-                <option value="UGX">🇺🇬 UGX - Ugandan Shilling (USh)</option>
-                <option value="XOF">🇨🇮 XOF - West African CFA (CFA)</option>
+                <option value="NGN">NGN - Nigerian Naira (₦)</option>
+                <option value="KES">KES - Kenyan Shilling (KSh)</option>
+                <option value="GHS">GHS - Ghanaian Cedi (GH₵)</option>
+                <option value="ZAR">ZAR - South African Rand (R)</option>
+                <option value="USD">USD - US Dollar ($)</option>
+                <option value="EGP">EGP - Egyptian Pound (E£)</option>
+                <option value="RWF">RWF - Rwandan Franc (FRw)</option>
+                <option value="TZS">TZS - Tanzanian Shilling (TSh)</option>
+                <option value="UGX">UGX - Ugandan Shilling (USh)</option>
+                <option value="XOF">XOF - West African CFA (CFA)</option>
               </select>
             </div>
 
@@ -310,13 +310,13 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
           <div className="rounded-control bg-page p-4 border border-line text-xs">
             <p className="font-bold text-ink">Ready to Publish:</p>
             <p className="mt-1 font-semibold text-brand text-sm">{formData.title}</p>
-            <p className="text-muted">{formData.currency} {formData.priceMajor.toLocaleString()} · 📍 {formData.city}</p>
+            <p className="text-muted">{formData.currency} {formData.priceMajor.toLocaleString()} · {formData.city}</p>
           </div>
 
           <div className="flex justify-between pt-2">
             <Button type="button" variant="outline" onClick={() => setStep(3)}>← Back</Button>
             <Button type="button" disabled={loading} onClick={handlePublish}>
-              {loading ? "Publishing..." : "🚀 Publish Listing across Africa"}
+              {loading ? "Publishing..." : "Publish Listing across Africa"}
             </Button>
           </div>
         </div>

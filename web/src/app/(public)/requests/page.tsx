@@ -43,10 +43,10 @@ export default async function RequestsFeedPage({ searchParams }: RequestsPagePro
           <span className="rounded-full bg-brand/30 px-3 py-1 text-xs font-bold text-white">
             REVERSE MARKETPLACE
           </span>
-          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-4xl">
+          <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">
             Buyer Requests & Quotes
           </h1>
-          <p className="mt-2 text-sm text-gray-200">
+          <p className="mt-2 text-sm text-disabled">
             Can’t find what you need? Post what you want and let verified sellers and service providers pitch you with direct quotes.
           </p>
         </div>
@@ -60,7 +60,7 @@ export default async function RequestsFeedPage({ searchParams }: RequestsPagePro
       </div>
 
       {/* Filter / Search Bar */}
-      <form className="flex flex-wrap items-center gap-3 rounded-xl border bg-white p-4 shadow-sm" method="GET">
+      <form className="flex flex-wrap items-center gap-3 rounded-xl border bg-surface p-4 shadow-sm" method="GET">
         <input
           type="text"
           name="q"
@@ -95,14 +95,14 @@ export default async function RequestsFeedPage({ searchParams }: RequestsPagePro
           <option value="Johannesburg">Johannesburg, South Africa</option>
         </select>
 
-        <Button type="submit" variant="outline" className="min-h-9 px-3 text-xs">
+        <Button type="submit" variant="outline" className="min-h-11 px-3 text-xs">
           Filter
         </Button>
       </form>
 
       {/* Results List */}
       <div>
-        <p className="mb-4 text-xs font-semibold text-muted uppercase tracking-wider">
+        <p className="mb-4 text-xs font-semibold text-muted uppercase tracking-wide">
           {total} Active Requests Found
         </p>
 
@@ -139,15 +139,15 @@ export default async function RequestsFeedPage({ searchParams }: RequestsPagePro
                   <div className="mt-6 border-t pt-4">
                     <div className="flex items-baseline justify-between">
                       <span className="text-xs text-muted">Budget:</span>
-                      <span className="text-lg font-extrabold text-ink">
+                      <span className="text-lg font-bold text-ink">
                         {formatMoney(req.budgetMinor, req.currency)}
                       </span>
                     </div>
 
                     <div className="mt-2 flex items-center justify-between text-xs text-muted">
-                      <span>📍 {req.city}</span>
+                      <span>{req.city}</span>
                       <span className="font-medium text-brand">
-                        💬 {req.quotesCount} quote{req.quotesCount === 1 ? "" : "s"}
+                        {req.quotesCount} quote{req.quotesCount === 1 ? "" : "s"}
                       </span>
                     </div>
                   </div>
