@@ -4,7 +4,7 @@ import { listUserConversations } from "@/server/repositories/messaging";
 import { MessagesClient } from "@/components/marketplace/MessagesClient";
 
 export const metadata = {
-  title: "Messages & Inquiries · Servilist Dashboard",
+  title: "Messages",
 };
 
 export default async function DashboardMessagesPage() {
@@ -13,15 +13,15 @@ export default async function DashboardMessagesPage() {
   const convos = await listUserConversations(db, user.userId);
 
   return (
-    <div className="space-y-6">
+    <>
       <div>
-        <h2 className="text-xl font-bold text-ink">Messages & Inquiries</h2>
-        <p className="text-xs text-muted">
-          Direct communication regarding listings, buyer requests, offers, and orders.
+        <h1 className="text-[28px] leading-tight font-bold text-ink md:text-[32px]">Messages</h1>
+        <p className="mt-1 text-sm text-ink-soft">
+          Conversations with buyers and sellers, each tied to a listing or a request.
         </p>
       </div>
 
       <MessagesClient currentUserId={user.userId} conversations={convos} />
-    </div>
+    </>
   );
 }

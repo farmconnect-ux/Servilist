@@ -22,6 +22,7 @@ export interface ConversationSummary {
   listingId?: string | null;
   requestId?: string | null;
   listingTitle?: string;
+  listingSlug?: string;
   requestTitle?: string;
   unreadCount: number;
 }
@@ -161,7 +162,7 @@ export async function listUserConversations(
       *,
       sender:profiles!sender_id(${PUBLIC_PROFILE}),
       recipient:profiles!recipient_id(${PUBLIC_PROFILE}),
-      listing:listings!listing_id(title),
+      listing:listings!listing_id(title, slug),
       request:buyer_requests!request_id(title)
     `)
     .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
@@ -205,6 +206,7 @@ export async function listUserConversations(
         listingId: row.listing_id,
         requestId: row.request_id,
         listingTitle: listing?.title,
+        listingSlug: listing?.slug,
         requestTitle: request?.title,
         unreadCount: 0,
       });
