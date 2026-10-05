@@ -11,6 +11,8 @@ import { getDeliveryByOrderId } from "@/server/repositories/deliveries";
 import { formatMoney } from "@/lib/money";
 import { Card } from "@/components/ui/card";
 import { OrderTrackingClient } from "@/components/marketplace/OrderTrackingClient";
+import { ReviewForm } from "@/components/marketplace/TrustActions";
+import { hasReviewedOrder } from "@/server/repositories/moderation";
 
 interface OrderTrackingPageProps {
   params: Promise<{ id: string }>;
@@ -70,6 +72,11 @@ export default async function DashboardOrderDetailPage({
 
   const isBuyer = order.buyerId === user.userId;
   const isSeller = order.sellerId === user.userId;
+  const canReview =
+    order.status === "completed" &&
+    (isBuyer || isSeller) &&
+    isReleased("/api/v1/reviews") &&
+    !(await hasReviewedOrder(db, order.id, user.userId));
 
 
   return (
@@ -121,6 +128,17 @@ export default async function DashboardOrderDetailPage({
             providers={isBuyer ? availableProviders(order.currency) : []}
             disputesOpen={isReleased(`/api/v1/orders/${id}/dispute`)}
           />
+
+          {canReview && (
+            <Card className="p-6">
+              <ReviewForm
+                orderId={order.id}
+                otherName={
+                  (isBuyer ? order.seller?.displayName : order.buyer?.displayName) ?? "the other party"
+                }
+              />
+            </Card>
+          )}
 
           {/* Ordered Items */}
           <Card className="p-6">

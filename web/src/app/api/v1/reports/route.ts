@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createDb } from "@/lib/db/server";
 import { getSessionUser } from "@/server/auth/session";
+import { can } from "@/server/policies/access";
 import { listReports } from "@/server/repositories/moderation";
 import { createReportAction } from "@/server/services/moderation";
 
 export async function GET(request: NextRequest) {
   const user = await getSessionUser();
-  if (!user || (!user.permissions.includes("reports.manage") && !user.roles.includes("admin"))) {
+  if (!can(user, "reports.manage")) {
     return NextResponse.json(
       { success: false, error: { code: "FORBIDDEN", message: "Admin access required" } },
       { status: 403 },

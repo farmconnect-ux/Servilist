@@ -15,10 +15,10 @@ export default async function AdminReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-ink">Reports & Content Moderation Queue</h1>
+        <h1 className="text-2xl font-bold text-ink">Reports and disputes</h1>
         <p className="text-sm text-muted">
-          Review flagged product listings, counterfeit claims, offensive reviews, and trade disputes
-          across the marketplace.
+          Reports from members, and disputes on paid orders. A dispute is closed by releasing the
+          order to the seller or refunding the buyer.
         </p>
       </div>
 

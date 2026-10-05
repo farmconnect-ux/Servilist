@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createDb } from "@/lib/db/server";
+import { isUuid } from "@/lib/ids";
 import { getSessionUser } from "@/server/auth/session";
 import { listReviewsForProfile } from "@/server/repositories/moderation";
 import { createReviewAction } from "@/server/services/moderation";
@@ -7,7 +8,7 @@ import { createReviewAction } from "@/server/services/moderation";
 export async function GET(request: NextRequest) {
   try {
     const profileId = request.nextUrl.searchParams.get("profileId");
-    if (!profileId) {
+    if (!profileId || !isUuid(profileId)) {
       return NextResponse.json(
         { success: false, error: { code: "VALIDATION_ERROR", message: "profileId is required" } },
         { status: 400 },

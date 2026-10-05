@@ -45,14 +45,16 @@ const PREFIXES = [
   "/dashboard/orders",
   "/api/v1/orders",
   "/api/v1/webhooks/payments",
+  // Sprint 5: reviews, reports and disputes
+  "/admin/reports",
+  "/api/v1/reviews",
+  "/api/v1/reports",
 ];
 
 /** Still closed, even though they sit beneath an open path. */
 const CLOSED = [
   // Sprint 9: request-to-listing matching
   /^\/api\/v1\/requests\/[^/]+\/matches$/,
-  // Sprint 5: disputes
-  /^\/api\/v1\/orders\/[^/]+\/dispute$/,
   // Sprint 8: courier delivery tracking
   /^\/api\/v1\/orders\/[^/]+\/delivery(\/.*)?$/,
 ];

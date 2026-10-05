@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/money";
 import { Badge } from "@/components/ui/card";
 import { ButtonLink } from "@/components/ui/button";
 import { ListingActions } from "@/components/marketplace/ListingActions";
+import { ReportButton } from "@/components/marketplace/TrustActions";
 import { getSessionUser } from "@/server/auth/session";
 import { isReleased } from "@/lib/release";
 import { canParticipate } from "@/server/policies/access";
@@ -150,11 +151,18 @@ export default async function ProductDetailPage({
                   </ButtonLink>
                 ) : null}
                 <ListingActions
-                listingId={listing.id}
-                sellerId={listing.sellerId}
-                currency={listing.currency}
-                negotiable={listing.negotiable}
+                  listingId={listing.id}
+                  sellerId={listing.sellerId}
+                  currency={listing.currency}
+                  negotiable={listing.negotiable}
                 />
+                {isReleased("/api/v1/reports") ? (
+                  <ReportButton
+                    targetType="listing"
+                    targetId={listing.id}
+                    label="Report this listing"
+                  />
+                ) : null}
               </>
             ) : null}
 

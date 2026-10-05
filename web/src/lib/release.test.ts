@@ -22,6 +22,11 @@ describe("release gate", () => {
       "/dashboard/orders/abc",
       "/api/v1/orders/1/pay",
       "/api/v1/webhooks/payments/paystack",
+      "/admin/reports",
+      "/api/v1/reviews",
+      "/api/v1/reports/abc/resolve",
+      "/api/v1/orders/1/dispute",
+      "/api/v1/orders/1/dispute/resolve",
     ]) {
       expect(isReleased(path), path).toBe(true);
     }
@@ -34,8 +39,7 @@ describe("release gate", () => {
       "/business/acme",
       "/dashboard/seller",
       "/admin/vendors",
-      "/admin/reports",
-      "/api/v1/orders/1/dispute",
+      "/api/v1/verifications",
       "/api/v1/orders/1/delivery",
       "/api/v1/orders/1/delivery/track",
       "/api/v1/webhooks/other",

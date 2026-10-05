@@ -5,6 +5,16 @@ import type { SubmitVerificationInput } from "../validators/moderation";
 
 const PUBLIC_PROFILE = "id, username, display_name, rating, reviews_count, is_verified";
 
+/**
+ * Reviews, reports, disputes and verifications are written only by database
+ * functions (supabase/migrations/00016). The functions take the member from
+ * the session and check staff permissions themselves.
+ */
+function unwrap<T>(result: { data: T; error: { message: string } | null }): T {
+  if (result.error) throw new Error(result.error.message);
+  return result.data;
+}
+
 export interface ReviewRecord {
   id: string;
   orderId: string;
@@ -26,6 +36,9 @@ export interface ReportRecord {
   reason: string;
   description?: string | null;
   status: string;
+  /** A dispute on a paid order: closed by releasing or refunding the order. */
+  isDispute?: boolean;
+  actionTaken?: string | null;
   resolvedBy?: string | null;
   resolutionNote?: string | null;
   createdAt: string;
@@ -57,59 +70,28 @@ export interface PlatformOverviewStats {
   pendingVerifications: number;
 }
 
+/** The database works out who is being reviewed from the order. */
 export async function createReview(
   db: Db,
-  params: {
-    orderId: string;
-    reviewerId: string;
-    revieweeId: string;
-    listingId?: string;
-    rating: number;
-    comment?: string;
-  },
-): Promise<ReviewRecord> {
-  const { data, error } = await db
-    .from("reviews")
-    .insert({
-      order_id: params.orderId,
-      reviewer_id: params.reviewerId,
-      reviewee_id: params.revieweeId,
-      listing_id: params.listingId || null,
-      rating: params.rating,
-      comment: params.comment || null,
-      status: "published",
-    })
-    .select(`
-      *,
-      reviewer:profiles!reviewer_id(${PUBLIC_PROFILE})
-    `)
-    .single();
+  params: { orderId: string; rating: number; comment?: string },
+): Promise<{ id: string }> {
+  const id = unwrap(
+    await db.rpc("submit_review", {
+      p_order_id: params.orderId,
+      p_rating: params.rating,
+      p_comment: params.comment ?? null,
+    }),
+  );
+  return { id: String(id) };
+}
 
-  if (error) {
-    throw new Error(`Failed to create review: ${error.message}`);
-  }
-
-  const rev = Array.isArray(data.reviewer) ? data.reviewer[0] : data.reviewer;
-
-  return {
-    id: data.id,
-    orderId: data.order_id,
-    reviewerId: data.reviewer_id,
-    revieweeId: data.reviewee_id,
-    listingId: data.listing_id,
-    rating: data.rating,
-    comment: data.comment,
-    status: data.status,
-    createdAt: data.created_at,
-    reviewer: rev ? {
-      id: rev.id,
-      username: rev.username,
-      displayName: rev.display_name,
-      rating: Number(rev.rating || 5.0),
-      reviewsCount: Number(rev.reviews_count || 0),
-      verified: Boolean(rev.is_verified),
-    } : undefined,
-  };
+/** Staff only: hide or restore a review. */
+export async function moderateReview(
+  db: Db,
+  reviewId: string,
+  status: "published" | "hidden",
+): Promise<void> {
+  unwrap(await db.rpc("moderate_review", { p_review_id: reviewId, p_status: status }));
 }
 
 export async function listReviewsForProfile(
@@ -154,39 +136,17 @@ export async function listReviewsForProfile(
 
 export async function createReport(
   db: Db,
-  params: {
-    reporterId: string;
-    targetType: string;
-    targetId: string;
-    reason: string;
-    description?: string;
-  },
-): Promise<ReportRecord> {
-  const { data, error } = await db
-    .from("reports")
-    .insert({
-      reporter_id: params.reporterId,
-      target_type: params.targetType,
-      target_id: params.targetId,
-      reason: params.reason,
-      description: params.description || null,
-      status: "pending",
-    })
-    .select("*")
-    .single();
-
-  if (error) throw new Error(`Failed to submit report: ${error.message}`);
-
-  return {
-    id: data.id,
-    reporterId: data.reporter_id,
-    targetType: data.target_type,
-    targetId: data.target_id,
-    reason: data.reason,
-    description: data.description,
-    status: data.status,
-    createdAt: data.created_at,
-  };
+  params: { targetType: string; targetId: string; reason: string; description?: string },
+): Promise<{ id: string }> {
+  const id = unwrap(
+    await db.rpc("file_report", {
+      p_target_type: params.targetType,
+      p_target_id: params.targetId,
+      p_reason: params.reason,
+      p_description: params.description ?? null,
+    }),
+  );
+  return { id: String(id) };
 }
 
 export async function listReports(
@@ -222,6 +182,8 @@ export async function listReports(
       reason: row.reason,
       description: row.description,
       status: row.status,
+      isDispute: Boolean(row.is_dispute),
+      actionTaken: row.action_taken,
       resolvedBy: row.resolved_by,
       resolutionNote: row.resolution_note,
       createdAt: row.created_at,
@@ -238,56 +200,68 @@ export async function listReports(
   });
 }
 
+/** Staff only. "hide_target" removes a reported listing or hides a reported review. */
 export async function resolveReport(
   db: Db,
   reportId: string,
-  resolvedBy: string,
   status: "under_review" | "resolved" | "dismissed",
   resolutionNote?: string,
+  action: "none" | "hide_target" = "none",
 ): Promise<void> {
-  const { error } = await db
-    .from("reports")
-    .update({
-      status,
-      resolved_by: resolvedBy,
-      resolution_note: resolutionNote || null,
-      resolved_at: new Date().toISOString(),
-    })
-    .eq("id", reportId);
+  unwrap(
+    await db.rpc("resolve_report", {
+      p_report_id: reportId,
+      p_status: status,
+      p_note: resolutionNote ?? null,
+      p_action: action,
+    }),
+  );
+}
 
-  if (error) throw new Error(`Failed to resolve report: ${error.message}`);
+/** A party to a paid order asks staff to step in. */
+export async function openDispute(
+  db: Db,
+  params: { orderId: string; reason: string; description: string },
+): Promise<{ id: string }> {
+  const id = unwrap(
+    await db.rpc("open_dispute", {
+      p_order_id: params.orderId,
+      p_reason: params.reason,
+      p_description: params.description,
+    }),
+  );
+  return { id: String(id) };
+}
+
+/** Staff only: release the order to the seller, or mark it for refund to the buyer. */
+export async function resolveDispute(
+  db: Db,
+  orderId: string,
+  outcome: "release" | "refund",
+  note?: string,
+): Promise<void> {
+  unwrap(
+    await db.rpc("resolve_dispute", {
+      p_order_id: orderId,
+      p_outcome: outcome,
+      p_note: note ?? null,
+    }),
+  );
 }
 
 export async function submitVerification(
   db: Db,
-  vendorId: string,
   input: SubmitVerificationInput,
-): Promise<VerificationRecord> {
-  const { data, error } = await db
-    .from("vendor_verifications")
-    .insert({
-      vendor_id: vendorId,
-      business_name: input.businessName,
-      registration_number: input.registrationNumber || null,
-      tax_id: input.taxId || null,
-      document_url: input.documentUrl,
-      status: "pending",
-    })
-    .select("*")
-    .single();
-
-  if (error) throw new Error(`Failed to submit verification: ${error.message}`);
-
-  return {
-    id: data.id,
-    vendorId: data.vendor_id,
-    businessName: data.business_name,
-    registrationNumber: data.registration_number,
-    taxId: data.tax_id,
-    documentUrl: data.document_url,
-    status: data.status,
-    submittedAt: data.submitted_at,
-  };
+): Promise<{ id: string }> {
+  const id = unwrap(
+    await db.rpc("submit_verification", {
+      p_business_name: input.businessName,
+      p_registration_number: input.registrationNumber ?? null,
+      p_tax_id: input.taxId ?? null,
+      p_document_url: input.documentUrl ?? null,
+    }),
+  );
+  return { id: String(id) };
 }
 
 export async function listVerifications(
@@ -334,34 +308,20 @@ export async function listVerifications(
   });
 }
 
+/** Staff only. Approving sets the member's verified badge inside the database. */
 export async function reviewVerificationRecord(
   db: Db,
   verificationId: string,
-  reviewerId: string,
   status: "approved" | "rejected",
   rejectionReason?: string,
 ): Promise<void> {
-  const { data: v, error: vErr } = await db
-    .from("vendor_verifications")
-    .update({
-      status,
-      rejection_reason: rejectionReason || null,
-      reviewed_by: reviewerId,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq("id", verificationId)
-    .select("vendor_id")
-    .single();
-
-  if (vErr || !v) throw new Error(`Failed to update verification: ${vErr?.message}`);
-
-  if (status === "approved") {
-    // Mark profile as verified!
-    await db
-      .from("profiles")
-      .update({ is_verified: true, updated_at: new Date().toISOString() })
-      .eq("id", v.vendor_id);
-  }
+  unwrap(
+    await db.rpc("review_verification", {
+      p_verification_id: verificationId,
+      p_approve: status === "approved",
+      p_reason: rejectionReason ?? null,
+    }),
+  );
 }
 
 export async function getPlatformOverviewStats(db: Db): Promise<PlatformOverviewStats> {
@@ -376,7 +336,7 @@ export async function getPlatformOverviewStats(db: Db): Promise<PlatformOverview
   const orders = ordersRes.data || [];
   const completedOrders = orders.filter((o) => o.status === "completed");
   const activeOrders = orders.filter(
-    (o) => o.status === "in_escrow" || o.status === "processing" || o.status === "dispatched",
+    (o) => o.status === "in_escrow" || o.status === "dispatched" || o.status === "delivered",
   );
 
   const totalGmvMinor = completedOrders.reduce((sum, o) => sum + Number(o.total_minor || 0), 0);
@@ -390,4 +350,15 @@ export async function getPlatformOverviewStats(db: Db): Promise<PlatformOverview
     pendingReports: reportsRes.count || 0,
     pendingVerifications: verifsRes.count || 0,
   };
+}
+
+/** True when the member has already reviewed this order. */
+export async function hasReviewedOrder(db: Db, orderId: string, userId: string): Promise<boolean> {
+  const { data } = await db
+    .from("reviews")
+    .select("id")
+    .eq("order_id", orderId)
+    .eq("reviewer_id", userId)
+    .maybeSingle();
+  return Boolean(data);
 }

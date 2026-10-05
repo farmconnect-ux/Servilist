@@ -22,11 +22,7 @@ import {
   startPayment,
   type ConfirmOutcome,
 } from "../repositories/orders";
-import {
-  ConfirmDeliveryOtpSchema,
-  CreateOrderSchema,
-  DisputeOrderSchema,
-} from "../validators/order";
+import { ConfirmDeliveryOtpSchema, CreateOrderSchema } from "../validators/order";
 import { fail, ok, type Result } from "./result";
 
 /**
@@ -208,18 +204,5 @@ export async function cancelOrderAction(
   }
 }
 
-/**
- * Disputes belong to Sprint 5 (reports, disputes and moderation). The input is
- * validated here so the screen and endpoint keep their shape, but nothing is
- * changed until the dispute rules exist in the database.
- */
-export async function disputeOrderAction(
-  _user: SessionUser,
-  rawInput: unknown,
-): Promise<Result<{ status: string }>> {
-  const parsed = DisputeOrderSchema.safeParse(rawInput);
-  if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid dispute details");
-  }
-  return fail("NOT_AVAILABLE", "Disputes open with the moderation tools in the next release.");
-}
+/** Disputes live with the other moderation workflows. */
+export { openDisputeAction as disputeOrderAction } from "./moderation";

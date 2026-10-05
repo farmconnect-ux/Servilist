@@ -1,23 +1,39 @@
 import "server-only";
 import { createDb } from "@/lib/db/server";
-import { canParticipate } from "@/server/policies/access";
+import { isUuid } from "@/lib/ids";
 import type { SessionUser } from "@/server/auth/session";
+import { can, canParticipate } from "@/server/policies/access";
 import {
-  CreateReviewSchema,
-  CreateReportSchema,
-  ResolveReportSchema,
-  SubmitVerificationSchema,
-  ReviewVerificationSchema,
-} from "../validators/moderation";
-import {
-  createReview,
   createReport,
+  createReview,
+  openDispute,
+  resolveDispute,
   resolveReport,
-  submitVerification,
   reviewVerificationRecord,
+  submitVerification,
 } from "../repositories/moderation";
-import { getOrderById } from "../repositories/orders";
+import {
+  CreateReportSchema,
+  CreateReviewSchema,
+  ResolveDisputeSchema,
+  ResolveReportSchema,
+  ReviewVerificationSchema,
+  SubmitVerificationSchema,
+} from "../validators/moderation";
+import { DisputeOrderSchema } from "../validators/order";
 import { fail, ok, type Result } from "./result";
+
+/**
+ * Reviews, reports, disputes and seller verification.
+ *
+ * The permission checks here give staff and members a clear message early.
+ * The database functions repeat them and are what actually enforces the rules,
+ * and they write the audit log themselves.
+ */
+
+function reason(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback;
+}
 
 export async function createReviewAction(
   user: SessionUser,
@@ -26,49 +42,14 @@ export async function createReviewAction(
   if (!canParticipate(user)) {
     return fail("FORBIDDEN", "Your account is not permitted to submit reviews.");
   }
-
   const parsed = CreateReviewSchema.safeParse(rawInput);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid review data");
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid review");
   }
-
   try {
-    const db = await createDb();
-    const order = await getOrderById(db, parsed.data.orderId);
-    if (!order) return fail("NOT_FOUND", "Order not found");
-
-    if (order.status !== "completed") {
-      return fail("INVALID_STATUS", "Reviews can only be submitted after order completion and delivery verification");
-    }
-
-    const isBuyer = order.buyerId === user.userId;
-    const isSeller = order.sellerId === user.userId;
-
-    if (!isBuyer && !isSeller) {
-      return fail("FORBIDDEN", "You are not a participant in this order");
-    }
-
-    const revieweeId = isBuyer ? order.sellerId : order.buyerId;
-
-    const review = await createReview(db, {
-      orderId: order.id,
-      reviewerId: user.userId,
-      revieweeId,
-      listingId: order.listingId || undefined,
-      rating: parsed.data.rating,
-      comment: parsed.data.comment,
-    });
-
-    await db.rpc("write_audit_log", {
-      p_action: "review.created",
-      p_entity_type: "review",
-      p_entity_id: review.id,
-      p_metadata: { orderId: order.id, rating: parsed.data.rating },
-    });
-
-    return ok({ id: review.id });
-  } catch (err: any) {
-    return fail("DATABASE_ERROR", err.message || "Failed to submit review");
+    return ok(await createReview(await createDb(), parsed.data));
+  } catch (err) {
+    return fail("REVIEW_REFUSED", reason(err, "The review could not be saved."));
   }
 }
 
@@ -77,34 +58,16 @@ export async function createReportAction(
   rawInput: unknown,
 ): Promise<Result<{ id: string }>> {
   if (!canParticipate(user)) {
-    return fail("FORBIDDEN", "Your account is not permitted to submit moderation reports.");
+    return fail("FORBIDDEN", "Your account is not permitted to send reports.");
   }
-
   const parsed = CreateReportSchema.safeParse(rawInput);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid report parameters");
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid report");
   }
-
   try {
-    const db = await createDb();
-    const report = await createReport(db, {
-      reporterId: user.userId,
-      targetType: parsed.data.targetType,
-      targetId: parsed.data.targetId,
-      reason: parsed.data.reason,
-      description: parsed.data.description,
-    });
-
-    await db.rpc("write_audit_log", {
-      p_action: "report.created",
-      p_entity_type: "report",
-      p_entity_id: report.id,
-      p_metadata: { targetType: parsed.data.targetType, reason: parsed.data.reason },
-    });
-
-    return ok({ id: report.id });
-  } catch (err: any) {
-    return fail("DATABASE_ERROR", err.message || "Failed to submit report");
+    return ok(await createReport(await createDb(), parsed.data));
+  } catch (err) {
+    return fail("REPORT_REFUSED", reason(err, "The report could not be sent."));
   }
 }
 
@@ -113,35 +76,67 @@ export async function resolveReportAction(
   reportId: string,
   rawInput: unknown,
 ): Promise<Result<{ status: string }>> {
-  if (!user.permissions.includes("reports.manage") && !user.roles.includes("admin")) {
+  if (!can(user, "reports.manage")) {
     return fail("FORBIDDEN", "You do not have permission to moderate reports.");
   }
-
+  if (!isUuid(reportId)) return fail("NOT_FOUND", "Report not found");
   const parsed = ResolveReportSchema.safeParse(rawInput);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid resolution parameters");
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid resolution");
   }
-
   try {
-    const db = await createDb();
     await resolveReport(
-      db,
+      await createDb(),
       reportId,
-      user.userId,
       parsed.data.status,
       parsed.data.resolutionNote,
+      parsed.data.actionTaken,
     );
-
-    await db.rpc("write_audit_log", {
-      p_action: "report.resolved",
-      p_entity_type: "report",
-      p_entity_id: reportId,
-      p_metadata: { status: parsed.data.status, actionTaken: parsed.data.actionTaken },
-    });
-
     return ok({ status: parsed.data.status });
-  } catch (err: any) {
-    return fail("DATABASE_ERROR", err.message || "Failed to resolve report");
+  } catch (err) {
+    return fail("REPORT_REFUSED", reason(err, "The report could not be updated."));
+  }
+}
+
+/** A buyer or seller asks staff to step in on a paid order. */
+export async function openDisputeAction(
+  user: SessionUser,
+  rawInput: unknown,
+): Promise<Result<{ status: string }>> {
+  if (!canParticipate(user)) {
+    return fail("FORBIDDEN", "Your account is not permitted to open disputes.");
+  }
+  const parsed = DisputeOrderSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid dispute details");
+  }
+  try {
+    await openDispute(await createDb(), parsed.data);
+    return ok({ status: "disputed" });
+  } catch (err) {
+    return fail("DISPUTE_REFUSED", reason(err, "The dispute could not be opened."));
+  }
+}
+
+/** Staff close a dispute by releasing the order to the seller or marking it for refund. */
+export async function resolveDisputeAction(
+  user: SessionUser,
+  orderId: string,
+  rawInput: unknown,
+): Promise<Result<{ status: string }>> {
+  if (!can(user, "disputes.manage")) {
+    return fail("FORBIDDEN", "You do not have permission to resolve disputes.");
+  }
+  if (!isUuid(orderId)) return fail("NOT_FOUND", "Order not found");
+  const parsed = ResolveDisputeSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid outcome");
+  }
+  try {
+    await resolveDispute(await createDb(), orderId, parsed.data.outcome, parsed.data.note);
+    return ok({ status: parsed.data.outcome === "release" ? "completed" : "refunded" });
+  } catch (err) {
+    return fail("DISPUTE_REFUSED", reason(err, "The dispute could not be resolved."));
   }
 }
 
@@ -150,28 +145,16 @@ export async function submitVendorVerificationAction(
   rawInput: unknown,
 ): Promise<Result<{ id: string }>> {
   if (!canParticipate(user)) {
-    return fail("FORBIDDEN", "Your account is not permitted to submit verifications.");
+    return fail("FORBIDDEN", "Your account is not permitted to request verification.");
   }
-
   const parsed = SubmitVerificationSchema.safeParse(rawInput);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid verification document details");
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid verification details");
   }
-
   try {
-    const db = await createDb();
-    const verif = await submitVerification(db, user.userId, parsed.data);
-
-    await db.rpc("write_audit_log", {
-      p_action: "verification.submitted",
-      p_entity_type: "vendor_verification",
-      p_entity_id: verif.id,
-      p_metadata: { businessName: parsed.data.businessName },
-    });
-
-    return ok({ id: verif.id });
-  } catch (err: any) {
-    return fail("DATABASE_ERROR", err.message || "Failed to submit vendor verification");
+    return ok(await submitVerification(await createDb(), parsed.data));
+  } catch (err) {
+    return fail("VERIFICATION_REFUSED", reason(err, "The request could not be submitted."));
   }
 }
 
@@ -180,34 +163,23 @@ export async function reviewVendorVerificationAction(
   verificationId: string,
   rawInput: unknown,
 ): Promise<Result<{ status: string }>> {
-  if (!user.permissions.includes("verifications.manage") && !user.roles.includes("admin")) {
-    return fail("FORBIDDEN", "You do not have permission to approve/reject vendor verifications.");
+  if (!can(user, "verifications.manage")) {
+    return fail("FORBIDDEN", "You do not have permission to review verifications.");
   }
-
+  if (!isUuid(verificationId)) return fail("NOT_FOUND", "Request not found");
   const parsed = ReviewVerificationSchema.safeParse(rawInput);
   if (!parsed.success) {
-    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid review parameters");
+    return fail("VALIDATION_ERROR", parsed.error.issues[0]?.message || "Invalid decision");
   }
-
   try {
-    const db = await createDb();
     await reviewVerificationRecord(
-      db,
+      await createDb(),
       verificationId,
-      user.userId,
       parsed.data.status,
       parsed.data.rejectionReason,
     );
-
-    await db.rpc("write_audit_log", {
-      p_action: `verification.${parsed.data.status}`,
-      p_entity_type: "vendor_verification",
-      p_entity_id: verificationId,
-      p_metadata: { status: parsed.data.status },
-    });
-
     return ok({ status: parsed.data.status });
-  } catch (err: any) {
-    return fail("DATABASE_ERROR", err.message || "Failed to review verification");
+  } catch (err) {
+    return fail("VERIFICATION_REFUSED", reason(err, "The request could not be reviewed."));
   }
 }
