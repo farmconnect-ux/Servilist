@@ -60,15 +60,20 @@ describe("Sprint 6: Services Marketplace & Booking Validation", () => {
       expect(res.success).toBe(true);
     });
 
-    it("rejects booking with non-positive price", () => {
-      const invalid = {
+    it("carries no price: a price sent by the client is discarded", () => {
+      const res = CreateServiceBookingSchema.safeParse({
         serviceId: "123e4567-e89b-12d3-a456-426614174000",
         packageName: "Basic",
-        amountMajor: 0,
-      };
+        amountMajor: 1,
+        currency: "USD",
+      });
+      expect(res.success).toBe(true);
+      expect(res.success && "amountMajor" in res.data).toBe(false);
+      expect(res.success && "currency" in res.data).toBe(false);
+    });
 
-      const res = CreateServiceBookingSchema.safeParse(invalid);
-      expect(res.success).toBe(false);
+    it("rejects a booking that names no service", () => {
+      expect(CreateServiceBookingSchema.safeParse({ packageName: "Basic" }).success).toBe(false);
     });
   });
 });

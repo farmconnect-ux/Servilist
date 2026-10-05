@@ -49,6 +49,11 @@ const PREFIXES = [
   "/admin/reports",
   "/api/v1/reviews",
   "/api/v1/reports",
+  // Sprint 6: services and bookings
+  "/services",
+  "/dashboard/bookings",
+  "/api/v1/services",
+  "/api/v1/bookings",
   // The design system reference: staff only, checked on the page itself
   "/design-system",
 ];

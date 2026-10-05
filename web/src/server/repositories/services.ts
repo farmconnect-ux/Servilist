@@ -225,7 +225,7 @@ export async function listServices(
     query = query.eq("category_slug", params.categorySlug);
   }
   if (params.city && params.city !== "all") {
-    query = query.ilike("city", `%${params.city}%`);
+    query = query.ilike("city", likePattern(params.city));
   }
 
   query = query.order("created_at", { ascending: false });
@@ -270,54 +270,32 @@ export async function listServices(
   return { services, total: count || 0 };
 }
 
+/**
+ * Bookings are written only by the database (supabase/migrations/00017): the
+ * provider, price and currency come from the service, never from the client.
+ */
 export async function createServiceBooking(
   db: Db,
-  clientId: string,
-  providerId: string,
   input: CreateServiceBookingInput,
-): Promise<ServiceBookingRecord> {
-  const bookingNumber = `SB-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(2).toString("hex").toUpperCase()}`;
-  const amountMinor = toMinorUnits(input.amountMajor, input.currency);
+): Promise<{ id: string }> {
+  const { data, error } = await db.rpc("book_service", {
+    p_service_id: input.serviceId,
+    p_package_name: input.packageName ?? null,
+    p_scheduled_date: input.scheduledDate ?? null,
+    p_note: input.deliverablesNote ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return { id: String(data) };
+}
 
-  const { data, error } = await db
-    .from("service_bookings")
-    .insert({
-      booking_number: bookingNumber,
-      service_id: input.serviceId,
-      client_id: clientId,
-      provider_id: providerId,
-      package_name: input.packageName,
-      amount_minor: amountMinor,
-      currency: input.currency,
-      scheduled_date: input.scheduledDate || null,
-      deliverables_note: input.deliverablesNote || null,
-      status: "pending",
-    })
-    .select(`
-      *,
-      service:services(title, slug)
-    `)
-    .single();
-
-  if (error) throw new Error(`Failed to create service booking: ${error.message}`);
-
-  const serv = Array.isArray(data.service) ? data.service[0] : data.service;
-
-  return {
-    id: data.id,
-    bookingNumber: data.booking_number,
-    serviceId: data.service_id,
-    clientId: data.client_id,
-    providerId: data.provider_id,
-    packageName: data.package_name,
-    amountMinor: Number(data.amount_minor),
-    currency: data.currency,
-    scheduledDate: data.scheduled_date,
-    status: data.status,
-    deliverablesNote: data.deliverables_note,
-    createdAt: data.created_at,
-    service: serv ? { title: serv.title, slug: serv.slug } : null,
-  };
+/** The database decides which party may move a booking to which status. */
+export async function setBookingStatus(
+  db: Db,
+  bookingId: string,
+  status: "confirmed" | "in_progress" | "completed" | "cancelled",
+): Promise<void> {
+  const { error } = await db.rpc("set_booking_status", { p_booking_id: bookingId, p_status: status });
+  if (error) throw new Error(error.message);
 }
 
 export async function listBookingsForUser(

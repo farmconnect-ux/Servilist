@@ -257,6 +257,7 @@ export function SiteFooter() {
       title: "Sell",
       links: open([
         { href: "/sell", label: "List an item" },
+        { href: "/services/new", label: "Offer a service" },
         { href: "/dashboard/offers", label: "Offers" },
         { href: "/dashboard/orders", label: "Orders" },
       ]),

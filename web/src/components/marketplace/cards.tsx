@@ -294,3 +294,58 @@ export function SearchBar({
     </form>
   );
 }
+
+/** Section 27: a service, its provider and its starting price. */
+export function ServiceCard({
+  service,
+}: {
+  service: {
+    slug: string;
+    title: string;
+    pricingModel: string;
+    basePriceMinor: number;
+    currency: string;
+    city?: string | null;
+    country: string;
+    provider?: { displayName: string; rating: number; reviewsCount: number; verified: boolean };
+  };
+}) {
+  const href = `/services/${service.slug}`;
+  const quoteOnly = service.pricingModel === "custom_quote" || service.basePriceMinor <= 0;
+  return (
+    <Card className="flex h-full flex-col gap-3 p-4 transition-colors duration-200 hover:border-line-strong">
+      <p className="flex items-center gap-2 text-xs text-ink-soft">
+        <span className="truncate font-medium">{service.provider?.displayName ?? "Provider"}</span>
+        {service.provider?.verified ? <VerifiedBadge /> : null}
+        {service.provider ? (
+          <Rating value={service.provider.rating} count={service.provider.reviewsCount} />
+        ) : null}
+      </p>
+      <Link href={href}>
+        <h3 className="line-clamp-2 text-base font-semibold text-ink hover:text-primary-700">
+          {service.title}
+        </h3>
+      </Link>
+      <p className="text-xs text-muted">
+        <LocationDisplay city={[service.city, service.country].filter(Boolean).join(", ")} />
+      </p>
+      <div className="mt-auto flex items-end justify-between gap-3 pt-2">
+        <div>
+          <p className="text-xs text-muted">
+            {quoteOnly ? "Price" : service.pricingModel === "hourly" ? "Per hour" : "Starting at"}
+          </p>
+          <p className="text-base font-bold text-ink">
+            {quoteOnly ? "By quote" : formatMoney(service.basePriceMinor, service.currency)}
+          </p>
+        </div>
+        <Link
+          href={href}
+          className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-input border border-line-strong px-3 text-sm font-semibold text-ink transition-colors hover:border-primary-600 hover:text-primary-700"
+        >
+          View service
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+      </div>
+    </Card>
+  );
+}

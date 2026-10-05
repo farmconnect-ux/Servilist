@@ -12,6 +12,7 @@ import {
   Package,
   Star,
   Trash2,
+  Wrench,
 } from "lucide-react";
 import { CategoryIcon } from "@/components/marketplace/CategoryIcon";
 import { Button, buttonClass } from "@/components/ui/button";
@@ -315,7 +316,19 @@ export function SellWizard({ categories }: { categories: CategoryOption[] }) {
                 <p className="text-sm text-ink-soft">A physical item, new or used, at a price you set.</p>
               </div>
             </div>
-            <p className="text-sm text-muted">Services and auctions will be added here when they open.</p>
+            <Link
+              href="/services/new"
+              className="flex items-start gap-4 rounded-card border border-line p-4 transition-colors hover:border-primary-600"
+            >
+              <Wrench className="size-8 shrink-0 text-primary-700" aria-hidden="true" />
+              <span>
+                <span className="block text-base font-semibold text-ink">Offer a service</span>
+                <span className="block text-sm text-ink-soft">
+                  Repairs, cleaning, transport, events and other work you do for clients.
+                </span>
+              </span>
+            </Link>
+            <p className="text-sm text-muted">Auctions will be added here when they open.</p>
           </section>
         ) : null}
 

@@ -23,6 +23,10 @@ describe("release gate", () => {
       "/api/v1/orders/1/pay",
       "/api/v1/webhooks/payments/paystack",
       "/admin/reports",
+      "/services/plumbing-abc",
+      "/dashboard/bookings",
+      "/api/v1/services/abc/book",
+      "/api/v1/bookings/abc/status",
       "/api/v1/reviews",
       "/api/v1/reports/abc/resolve",
       "/api/v1/orders/1/dispute",
@@ -34,7 +38,6 @@ describe("release gate", () => {
 
   it("keeps unverified sprints closed", () => {
     for (const path of [
-      "/services",
       "/auctions/1",
       "/business/acme",
       "/dashboard/seller",
