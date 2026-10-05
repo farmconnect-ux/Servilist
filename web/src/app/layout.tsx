@@ -1,29 +1,29 @@
 import type { Metadata, Viewport } from "next";
-import { Nunito_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-const nunito = Nunito_Sans({
-  variable: "--font-nunito",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: { default: "Servilist", template: "%s · Servilist" },
+  title: { default: "Servilist · Pan-African Marketplace", template: "%s · Servilist" },
   description:
-    "Buy what you need, sell what you have, and request what you cannot find. A marketplace for goods and services across Africa.",
+    "Buy what you need. Sell what you have. Request what you cannot find. Pan-African marketplace for products, services, requests, auctions, and escrow.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#4880ff",
+  themeColor: "#16a34a",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${nunito.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col font-sans">{children}</body>
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+      <body className="flex min-h-full flex-col font-sans bg-[#fafaf9] text-[#18181b]">{children}</body>
     </html>
   );
 }

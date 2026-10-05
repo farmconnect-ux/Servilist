@@ -1,44 +1,121 @@
 @import "tailwindcss";
 
-/* Servilist design tokens, carried over from the DashStack-based Figma design. */
+:root {
+  /* Primary Green Scale */
+  --primary-50: #f0fdf4;
+  --primary-100: #dcfce7;
+  --primary-200: #bbf7d0;
+  --primary-300: #86efac;
+  --primary-400: #4ade80;
+  --primary-500: #22c55e;
+  --primary-600: #16a34a;
+  --primary-700: #15803d;
+  --primary-800: #166534;
+  --primary-900: #14532d;
+
+  /* Accent Amber Scale */
+  --accent-50: #fffbeb;
+  --accent-100: #fef3c7;
+  --accent-200: #fde68a;
+  --accent-500: #f59e0b;
+  --accent-600: #d97706;
+
+  /* Surfaces & Backgrounds */
+  --background: #fafaf9;
+  --surface: #ffffff;
+  --surface-muted: #f5f5f4;
+
+  /* Typography Text Tokens */
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;
+  --text-disabled: #a1a1aa;
+
+  /* Borders */
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+
+  /* Status Colors */
+  --success: #16a34a;
+  --warning: #d97706;
+  --danger: #dc2626;
+  --info: #2563eb;
+
+  /* Border Radii */
+  --radius-sm: 6px;
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-card-lg: 16px;
+  --radius-modal: 16px;
+  --radius-hero: 20px;
+  --radius-pill: 999px;
+}
+
 @theme {
-  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  --color-brand: #4880ff;
-  --color-brand-strong: #3265d6;
-  --color-brand-soft: #edf3ff;
+  /* Map primary to emerald green */
+  --color-brand: #16a34a;
+  --color-brand-strong: #15803d;
+  --color-brand-soft: #f0fdf4;
 
-  --color-page: #f5f6fa;
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-200: #bbf7d0;
+  --color-primary-300: #86efac;
+  --color-primary-400: #4ade80;
+  --color-primary-500: #22c55e;
+  --color-primary-600: #16a34a;
+  --color-primary-700: #15803d;
+  --color-primary-800: #166534;
+  --color-primary-900: #14532d;
+
+  --color-accent-50: #fffbeb;
+  --color-accent-100: #fef3c7;
+  --color-accent-200: #fde68a;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+
+  --color-page: #fafaf9;
   --color-surface: #ffffff;
-  --color-ink: #202224;
-  --color-muted: #697386;
-  --color-line: #e8ecf2;
-  --color-line-strong: #d5d5d5;
+  --color-surface-muted: #f5f5f4;
+  --color-ink: #18181b;
+  --color-muted: #71717a;
+  --color-line: #e4e4e7;
+  --color-line-strong: #d4d4d8;
 
-  --color-success: #14836b;
-  --color-success-soft: #eaf7f2;
-  --color-warning: #a56816;
-  --color-warning-soft: #fff4df;
-  --color-danger: #d84c66;
-  --color-danger-soft: #fff0f3;
-  --color-accent: #8254bb;
-  --color-accent-soft: #f3eefa;
+  --color-success: #16a34a;
+  --color-success-soft: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-soft: #fffbeb;
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+  --color-info: #2563eb;
+  --color-info-soft: #eff6ff;
 
-  --radius-card: 14px;
   --radius-control: 6px;
+  --radius-input: 8px;
+  --radius-card: 12px;
+  --radius-card-lg: 16px;
+  --radius-modal: 16px;
+  --radius-hero: 20px;
+  --radius-pill: 999px;
 
-  --shadow-card: 0 4px 18px 0 rgb(21 43 80 / 0.06);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05);
 }
 
 @layer base {
   body {
-    background: var(--color-page);
-    color: var(--color-ink);
+    background-color: var(--background);
+    color: var(--text-primary);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* One visible focus style everywhere (WCAG 2.4.7) */
   :focus-visible {
-    outline: 2px solid var(--color-brand);
+    outline: 2px solid var(--primary-600);
     outline-offset: 2px;
   }
 }

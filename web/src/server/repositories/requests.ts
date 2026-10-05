@@ -123,7 +123,7 @@ export async function getBuyerRequestById(db: Db, id: string): Promise<FullBuyer
 
 export async function listBuyerRequests(
   db: Db,
-  params: { category?: string; city?: string; q?: string; limit?: number; page?: number } = {},
+  params: { category?: string; city?: string; q?: string; buyerId?: string; limit?: number; page?: number } = {},
 ): Promise<{ requests: FullBuyerRequest[]; total: number }> {
   let query = db
     .from("buyer_requests")
@@ -131,8 +131,13 @@ export async function listBuyerRequests(
       *,
       buyer:profiles!buyer_id(${PUBLIC_PROFILE}),
       quotes(id)
-    `, { count: "exact" })
-    .eq("status", "open");
+    `, { count: "exact" });
+
+  if (params.buyerId) {
+    query = query.eq("buyer_id", params.buyerId);
+  } else {
+    query = query.eq("status", "open");
+  }
 
   if (params.q) {
     query = query.or(`title.ilike.${likePattern(params.q)},description.ilike.${likePattern(params.q)}`);
